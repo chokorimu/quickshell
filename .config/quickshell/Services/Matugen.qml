@@ -2,6 +2,9 @@
 // set `wallpaper`, call regenerate(); matugen output feeds Theme/Colors.qml
 import QtQuick
 import Quickshell
+import Quickshell.Io
+
+pragma Singleton
 
 Singleton {
     id: root
