@@ -6,6 +6,7 @@ import Quickshell.Hyprland
 import "Theme"
 import "Modules/Bar"
 import "Modules/Launcher"
+import "Modules/Corners"
 
 ShellRoot {
     // one bar per monitor
@@ -30,6 +31,14 @@ ShellRoot {
 
                 Bar { id: bar }
             }
+        }
+    }
+
+    // rounded screen corners — one self-contained overlay per monitor
+    Variants {
+        model: Quickshell.screens
+        delegate: Component {
+            Corners {}
         }
     }
 

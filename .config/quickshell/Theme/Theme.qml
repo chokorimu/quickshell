@@ -53,4 +53,13 @@ Singleton {
     readonly property int barFontSize: 16
     readonly property int barFontSizeSmall: 12
     readonly property int launcherFontSize: 16
+
+    // Screen corners. No compositor rounds the physical screen — Modules/Corners
+    // paints the four corner cutouts at the Overlay layer, so the color has to
+    // match the wallpaper to blend (black is the safe default on dark setups).
+    // screenCornersEnabled is the future off switch: flip it here, or bind it
+    // to a toggle later.
+    readonly property bool screenCornersEnabled: true
+    readonly property int screenCornerRadius: 24
+    readonly property color screenCornerColor: "#000000"
 }
