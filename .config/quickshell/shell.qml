@@ -5,6 +5,7 @@ import Quickshell
 import Quickshell.Hyprland
 import "Theme"
 import "Modules/Bar"
+import "Modules/Launcher"
 
 ShellRoot {
     // one bar per monitor
@@ -28,4 +29,7 @@ ShellRoot {
             }
         }
     }
+
+    // single instance, not per-monitor
+    Launcher {}
 }

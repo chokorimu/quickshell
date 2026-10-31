@@ -18,8 +18,10 @@ Singleton {
     property color text:   _colors.text
     property color muted:  _colors.muted
     property color urgent: _colors.urgent
+    property color surface: _colors.surface
 
     // typography
     readonly property string fontFamily: "monospace"
     readonly property int fontSize: 13
+    readonly property int launcherFontSize: 16
 }
