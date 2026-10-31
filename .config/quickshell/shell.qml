@@ -4,6 +4,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Hyprland
 import "Theme"
+import "Modules/Bar"
 
 ShellRoot {
     // one bar per monitor
@@ -19,8 +20,8 @@ ShellRoot {
                     left: true
                     right: true
                 }
-                height: 36
-                exclusiveZone: height
+                implicitHeight: 36
+                exclusiveZone: implicitHeight
                 color: Theme.barColor
 
                 Bar {}

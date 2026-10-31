@@ -2,7 +2,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Hyprland
-import "Theme"
+import "../../Theme"
 
 Item {
     id: root
