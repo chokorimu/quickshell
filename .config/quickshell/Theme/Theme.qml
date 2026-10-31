@@ -31,6 +31,8 @@ Singleton {
     readonly property color fixedBarText:    "#1b1b1f"
     readonly property color fixedBarMuted:   "#8e8e93"
     readonly property color fixedBarUrgent:  "#c0392b"
+    // near-black for the inverted workspace pill inside the white bar pill
+    readonly property color fixedBarInk:     "#1b1b1f"
 
     // Flip to true once the matugen toggle UI exists. Bar.qml only ever
     // references the four derived properties below, so switching is a
@@ -42,9 +44,13 @@ Singleton {
     readonly property color barForeground: barUseMatugen ? barText    : fixedBarText
     readonly property color barDim:        barUseMatugen ? muted      : fixedBarMuted
     readonly property color barUrgent:     barUseMatugen ? urgent     : fixedBarUrgent
+    readonly property color barInk:        barUseMatugen ? barColor   : fixedBarInk
 
     // typography
     readonly property string fontFamily: "monospace"
-    readonly property int fontSize: 13
+    readonly property string barFontFamily: "Poppins Medium"
+    readonly property int fontSize: 16
+    readonly property int barFontSize: 16
+    readonly property int barFontSizeSmall: 12
     readonly property int launcherFontSize: 16
 }
