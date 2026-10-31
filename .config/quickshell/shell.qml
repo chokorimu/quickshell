@@ -13,6 +13,7 @@ ShellRoot {
         model: Quickshell.screens
         delegate: Component {
             PanelWindow {
+                id: barWindow
                 required property var modelData
                 screen: modelData
 
@@ -21,11 +22,13 @@ ShellRoot {
                     left: true
                     right: true
                 }
-                implicitHeight: 36
-                exclusiveZone: implicitHeight
-                color: Theme.barColor
+                // floating pill: the window is transparent and full-width, but it
+                // reserves the band so windows get pushed down below the pill
+                implicitHeight: bar.barHeight + bar.topMargin
+                exclusiveZone: bar.barHeight + bar.topMargin
+                color: "transparent"
 
-                Bar {}
+                Bar { id: bar }
             }
         }
     }

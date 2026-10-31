@@ -21,16 +21,29 @@ cd ~/quickshell-theme && stow --dir=. --target="$HOME" .
 
 ## Layout and real entrypoints
 
-- `.config/quickshell/shell.qml` is the only entrypoint (`ShellRoot`). One `PanelWindow` per monitor via `Variants { model: Quickshell.screens }`, `implicitHeight: 36`, `exclusiveZone: implicitHeight`.
-- `Modules/Bar` (workspaces + clock) and `Modules/Launcher` (rofi drun replacement) are live. `Modules/Notifications`, `Modules/OSD`, `Modules/Session` are still `visible: false` stubs whose intent lives in their `// TODO:` header comments.
-- `Services/Matugen.qml` is a `pragma Singleton` but is imported and instantiated **nowhere**. It is dead code until something wires it up — don't assume it runs.
+- `.config/quickshell/shell.qml` is the only entrypoint (`ShellRoot`). One `PanelWindow` per monitor via `Variants { model: Quickshell.screens }`. The bar window is full-width but transparent; `Bar.qml` draws a centered pill inside it. The window reserves the pill's band via `exclusiveZone` (bound to `bar.barHeight + bar.topMargin`), so windows are pushed down while the pill still floats — drop `exclusionMode` entirely, since `ExclusionMode.Normal` is the default and what makes the reservation take effect.
+- `Modules/Bar` (media / workspaces+clock / network+volume+memory+battery) and `Modules/Launcher` (rofi drun replacement) are live. `Modules/Notifications`, `Modules/OSD`, `Modules/Session` are still `visible: false` stubs whose intent lives in their `// TODO:` header comments.
+- `Services/` holds the data singletons the bar reads (`Audio`, `Media`, `Battery`, `Network`, `Memory`) plus `Matugen`. See the Services section below — the lazy-initialisation rule there is the thing most likely to bite.
 
 ## Theme singleton — the non-obvious part
 
 - `Theme/qmldir` is what registers the singleton (`singleton Theme 1.0 Theme.qml`) and must also declare `Colors 1.0 Colors.qml`. From `shell.qml` you write `import "Theme"`; from `Modules/<Name>/` you need `import "../../Theme"` (see the import section below).
 - `Theme.qml` and `Services/Matugen.qml` both use `pragma Singleton` with root type `Singleton` from `import Quickshell`. Follow that shape.
 - `Theme/Colors.qml` holds raw hex values (catppuccin-mocha defaults) and is the file matugen is meant to overwrite. Hand-edits there will not survive a palette regeneration.
+- **The bar palette deliberately does not live in `Colors.qml`.** `Theme.qml` carries `fixedBar*` constants plus a `barUseMatugen` switch and four derived `bar*` properties. `Bar.qml` references only the derived ones, so flipping the bar between the fixed white pill and matugen colors is a one-line change in `Theme.qml`, not a bar rewrite. The fixed palette is white with near-black text — check contrast before lightening the text, since a white surface with the old light-gray text is unreadable.
 - `Notifications`, `OSD`, and `Session` still hardcode `#1e1e2e` instead of referencing `Theme.barColor`. Replace those with `Theme` properties when fleshing the stubs out.
+
+## Services — the lazy-initialisation trap
+
+`Services/qmldir` declares each singleton the same way `Theme/qmldir` does. A qmldir singleton needs **both** the `Singleton` root type and a `pragma Singleton` line — either alone fails to load, and because a broken sibling takes the whole module down, one bad file surfaces as "Type Audio unavailable" for everything.
+
+- **Quickshell initialises its services lazily.** `Mpris.players`, `UPower.devices`, `Hyprland.workspaces` and `Pipewire` all read as empty until something *observes* them. A `Connections { target: X; function onValuesChanged() {...} }` is what forces population — without one the model stays empty forever and the UI silently shows nothing. Every service wrapper in `Services/` carries one for this reason; it is load-bearing, not decorative.
+- **Singletons instantiate lazily on first property access.** Referencing `Audio.volume` from inside a timer callback creates the instance at that moment, so its `Component.onCompleted` polling never gets a chance to run. Reference them from a binding that exists at load time (as `Bar.qml`'s text bindings do), not from a deferred callback.
+- **`Pipewire` is unusable for sink volume here.** The default sink node stays `ready: false`, so `sink.audio.volume` reads 0 while `wpctl get-volume` reports the truth. `Services/Audio.qml` polls `wpctl` instead — read via `get-volume`, write via `set-volume`/`set-mute`, and re-read in `onExited` so the UI never shows a stale value.
+- **`Networking` returns nothing here** — zero devices and `wifiEnabled: false` while NetworkManager is active and connected. `Services/Network.qml` polls `nmcli` instead: `device status` decides connectivity and medium, then `device wifi` adds signal strength.
+- **No service covers memory.** `Services/Memory.qml` parses `/proc/meminfo`, using `MemAvailable` rather than `MemFree` as the basis for "used".
+- `UPower.displayDevice` can report `ready: false` with a zero percentage until the device list is enumerated, so `Battery.qml` prefers the real `isLaptopBattery` device from `UPower.devices` and only falls back to `displayDevice`.
+- Reading a `Process`'s output: attach a `StdioCollector` to `stdout` and handle `onStreamFinished`, where `this.text` holds the whole output. `waitForEnd` is not needed for short-lived commands.
 
 ## Working agreement
 
@@ -52,10 +65,14 @@ The Arch `*.qmltypes` files are **stale** (the Hyprland one is an empty stub). T
 - `Process.command` takes a **QStringList**, not a string. A plain string becomes a single argv element and fails to start. `Services/Matugen.qml`'s list form is correct.
 - `DesktopEntry.command` is a **QStringList** (stringifies comma-joined). Pass it straight to `Process.command`; field codes like `%U` are already stripped.
 - `DesktopEntries.applications` is an `UntypedObjectModel`. Read it as **`.values`** (a JS array), and wait for the **`applicationsChanged`** signal — it is empty at `Component.onCompleted` time. Same pattern for `Hyprland.workspaces.values`.
+- **Services initialise lazily and stay empty until observed.** See the Services section — this is the single most common cause of a silently blank widget.
+- `Hyprland.workspaces` carries the special workspace (`id === -98`) and is unordered. Filter to `id > 0` and sort before rendering.
+- `Mpris` player fields are `trackTitle` / `trackArtist` / `trackArtUrl` — there are no plain `title` / `artist` properties, and they read `undefined` until a track is loaded.
 - `Quickshell.screens` is a JS-array-like list; use `.length` / `[i]`, not `.count`.
 - `Quickshell.env()` is a **method**, not a property.
 - `Timer` and `Component` need an explicit `import QtQml` — `import Quickshell` alone does not provide them.
 - `PanelWindow`: use `implicitHeight`, not `height` (the latter is deprecated and warns). `exclusiveZone` and `ExclusionMode.Ignore` both exist.
+- **Children of a `PanelWindow` do not auto-fill its content item.** A plain `Item` declared inside one stays 0x0 unless it sets `anchors.fill: parent` (or explicit width/height). Anchors that reference `parent` then resolve against a zero-size parent — `horizontalCenter` parks the child at negative x, half off-screen. `Launcher.qml` sidesteps this by making the `PanelWindow` itself the component root; `Bar.qml` uses `anchors.fill: parent`. Verify any new module's root geometry at runtime before trusting it.
 - `SystemClock.Seconds` and `Variants` both exist as the scaffold uses them.
 
 ## QML import rules that bite here
