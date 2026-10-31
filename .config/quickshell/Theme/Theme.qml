@@ -48,7 +48,7 @@ Singleton {
 
     // typography
     readonly property string fontFamily: "monospace"
-    readonly property string barFontFamily: "Poppins Medium"
+    readonly property string barFontFamily: "Montserrat Semibold"
     readonly property int fontSize: 16
     readonly property int barFontSize: 16
     readonly property int barFontSizeSmall: 12
