@@ -70,7 +70,7 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         width: 120
         text: row.label
-        color: row.muted ? Theme.barDim : Theme.barForeground
+        color: row.muted ? Theme.cardDim : Theme.cardForeground
         font.family: Theme.barFontFamily
         font.pixelSize: 14
         elide: Text.ElideRight
@@ -92,13 +92,13 @@ Item {
             width: parent.width
             height: 5
             radius: 2.5
-            color: Theme.barHighlight
+            color: Theme.cardHighlight
 
             Rectangle {
                 width: parent.width * row.fraction
                 height: parent.height
                 radius: 2.5
-                color: row.muted ? Theme.barHighlight : Theme.barDim
+                color: row.muted ? Theme.cardHighlight : Theme.cardDim
             }
         }
 
@@ -109,7 +109,7 @@ Item {
             width: 12
             height: 12
             radius: 6
-            color: Theme.barForeground
+            color: Theme.cardForeground
             visible: !row.muted
         }
 
@@ -139,7 +139,7 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         width: 48
         text: row.muted ? "muted" : Math.round(row.shown * 100) + "%"
-        color: row.muted ? Theme.barDim : Theme.barForeground
+        color: row.muted ? Theme.cardDim : Theme.cardForeground
         font.family: Theme.barFontFamily
         font.pixelSize: 13
         horizontalAlignment: Text.AlignRight
@@ -152,7 +152,7 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         width: 24
         text: row.muted ? "\uF026" : "\uF028"
-        color: row.muted ? Theme.barDim : Theme.barForeground
+        color: row.muted ? Theme.cardDim : Theme.cardForeground
         font.family: Theme.iconFont
         font.pixelSize: 15
         horizontalAlignment: Text.AlignHCenter

@@ -35,6 +35,11 @@ Item {
     readonly property int cardWidth: 600
     readonly property int cardHeight: 450
     readonly property int cardRadius: 24
+    // the menu column's strip down the card's left edge — the tab
+    // buttons' own region (40 wide, flush at the card's edge), painted
+    // in the bar's color against the darker card body (see the card
+    // canvas). The page content clears it with its left margins.
+    readonly property int cardColumnWidth: 56
     readonly property int workspacePillHeight: 30
     readonly property int workspaceCircleSize: 22
     // the pop's overshoot headroom. OutBack peaks at ~1.1x, so the clip
@@ -251,9 +256,10 @@ Item {
             }
 
             // a matugen regeneration rewrites the palette underneath
-            // the painted fill — repaint when the card color changes
+            // the painted fill — repaint when either color changes
             Connections {
                 target: Theme
+                function onBarBackgroundChanged() { card.requestPaint() }
                 function onCardBackgroundChanged() { card.requestPaint() }
             }
 
@@ -286,6 +292,28 @@ Item {
                 ctx.arc(rt, rt, rt, Math.PI, 3 * Math.PI / 2, false)     // top-left
                 ctx.closePath()
                 ctx.fill()
+
+                // the menu column strip down the left edge takes the
+                // bar's color — the bar's material extends down into
+                // the card, and the card body is the darker surface
+                // around it. The path is still current after the
+                // fill, so clipping to it hands the strip the card's
+                // own rounded left corners for free. It scales with
+                // the pop like everything else here.
+                ctx.save()
+                ctx.clip()
+                ctx.fillStyle = Theme.barBackground
+                ctx.fillRect(0, 0, root.cardColumnWidth, h)
+
+                // drop shadow to the right of the strip — a soft
+                // black gradient fading into the card body, so the
+                // column reads as raised above the darker surface
+                var shadow = ctx.createLinearGradient(root.cardColumnWidth, 0, root.cardColumnWidth + 24, 0)
+                shadow.addColorStop(0, "rgba(0, 0, 0, 0.35)")
+                shadow.addColorStop(1, "rgba(0, 0, 0, 0)")
+                ctx.fillStyle = shadow
+                ctx.fillRect(root.cardColumnWidth, 0, 24, h)
+                ctx.restore()
             }
 
             // the content lives in the visible band below the tucked strip
@@ -394,13 +422,16 @@ Item {
                 Rectangle {
                     id: bigArt
                     anchors.horizontalCenter: parent.horizontalCenter
+                    // center in the content area, not the full card —
+                    // the column strip owns the left edge
+                    anchors.horizontalCenterOffset: root.cardColumnWidth / 2
                     anchors.top: parent.top
                     anchors.topMargin: 32
                     visible: root.islandPage === "media"
                     width: 220
                     height: 220
                     radius: width / 2
-                    color: Theme.barHighlight
+                    color: Theme.cardHighlight
                     clip: true
 
                     Image {
@@ -426,6 +457,7 @@ Item {
                 // name can't push the controls off the card
                 Column {
                     anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.horizontalCenterOffset: root.cardColumnWidth / 2
                     anchors.top: bigArt.bottom
                     anchors.topMargin: 26
                     spacing: 6
@@ -435,7 +467,7 @@ Item {
                         width: 520
                         horizontalAlignment: Text.AlignHCenter
                         text: Media.hasPlayer ? (Media.title || "Unknown title") : "Not playing"
-                        color: Media.hasPlayer ? Theme.barForeground : Theme.barDim
+                        color: Media.hasPlayer ? Theme.cardForeground : Theme.cardDim
                         font.family: Theme.barFontFamily
                         font.pixelSize: 22
                         elide: Text.ElideRight
@@ -445,18 +477,19 @@ Item {
                         width: 520
                         horizontalAlignment: Text.AlignHCenter
                         text: Media.hasPlayer ? (Media.artist || "Unknown artist") : "nothing playing right now"
-                        color: Theme.barDim
+                        color: Theme.cardDim
                         font.family: Theme.barFontFamily
                         font.pixelSize: 15
                         elide: Text.ElideRight
                     }
                 }
 
-                // transport controls — dark circles on the white card, the
-                // same inverted language as the workspace pill, pinned to
+                // transport controls — light circles on the dark card, the
+                // inverted language of the card's own palette, pinned to
                 // the bottom of the card
                 Row {
                     anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.horizontalCenterOffset: root.cardColumnWidth / 2
                     anchors.bottom: parent.bottom
                     anchors.bottomMargin: 36
                     spacing: 24
@@ -466,12 +499,12 @@ Item {
                         width: 48
                         height: 48
                         radius: width / 2
-                        color: Theme.barInk
+                        color: Theme.cardInk
 
                         Text {
                             anchors.centerIn: parent
                             text: "prev"
-                            color: Theme.barOnInk
+                            color: Theme.cardOnInk
                             font.family: Theme.barFontFamily
                             font.pixelSize: 12
                         }
@@ -486,12 +519,12 @@ Item {
                         width: 60
                         height: 60
                         radius: width / 2
-                        color: Theme.barInk
+                        color: Theme.cardInk
 
                         Text {
                             anchors.centerIn: parent
                             text: Media.playing ? "pause" : "play"
-                            color: Theme.barOnInk
+                            color: Theme.cardOnInk
                             font.family: Theme.barFontFamily
                             font.pixelSize: 14
                         }
@@ -506,12 +539,12 @@ Item {
                         width: 48
                         height: 48
                         radius: width / 2
-                        color: Theme.barInk
+                        color: Theme.cardInk
 
                         Text {
                             anchors.centerIn: parent
                             text: "next"
-                            color: Theme.barOnInk
+                            color: Theme.cardOnInk
                             font.family: Theme.barFontFamily
                             font.pixelSize: 12
                         }
