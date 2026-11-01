@@ -1,56 +1,51 @@
-// HeaderIcon.qml — the menu-header mark: a filled rounded box with a
-// diagonal arrow inside it, pointing to the bottom-right corner.
+// HeaderIcon.qml — the menu-header mark: a white rectangle with a
+// black diagonal arrow inside it, pointing to the bottom-right
+// corner.
 //
 // Drawn in QML rather than shipped as an asset for two reasons: a
-// Nerd Font glyph is a single color (the box and the arrow need two),
-// and Qt's SVG renderer bakes the fill (no currentColor), so neither
-// route can carry a knockout mark.
+// Nerd Font glyph is a single color (the rectangle and the arrow
+// need two), and Qt's SVG renderer bakes the fill (no currentColor),
+// so neither route can carry a two-tone mark.
 //
-// The box takes Theme.cardInk and the arrow Theme.cardOnInk — the
-// same knockout pair the transport circles use — so the mark inverts
-// with the palette: a near-white box with a near-black arrow in dark
-// mode, the reverse in light. The box is a plain Rectangle binding
-// and needs no wiring; the arrow is a Canvas and repaints on
-// cardOnInkChanged so it follows palette flips.
+// The colors are fixed — white rectangle, black arrow — in both
+// palettes, by design: the mark is a brand element, not palette
+// content, so it does not invert with darkMode. (On the light card
+// that makes the white plate subtle against the gray surface; the
+// black arrow still reads crisp inside it.) With nothing bound to
+// the Theme, the Canvas needs no repaint wiring.
 import QtQuick
-import Quickshell
-import "../../Theme"
 
 Rectangle {
     id: box
 
-    width: 20
+    width: 40
     height: 20
-    radius: 5
-    color: Theme.cardInk
+    color: "white"
 
-    // the arrow: a stem from the top-left padding to the bottom-right
-    // corner with a chevron head opening back toward the top-left —
-    // 5px of padding on every side keeps it inside the box
+    // the arrow: a stem from the top-left of its run down to the
+    // bottom-right corner, with a chevron head opening back toward
+    // the top-left. A 45° diagonal is height-constrained in the
+    // 20px-tall plate, so it runs 10px with 5px of padding top and
+    // bottom and sits centered across the doubled width.
     Canvas {
         anchors.centerIn: parent
-        width: 20
+        width: 40
         height: 20
 
         onPaint: {
             var ctx = getContext("2d")
             ctx.clearRect(0, 0, width, height)
-            ctx.strokeStyle = Theme.cardOnInk
-            ctx.lineWidth = 2
+            ctx.strokeStyle = "black"
+            ctx.lineWidth = 2.5
             ctx.lineCap = "round"
             ctx.lineJoin = "round"
             ctx.beginPath()
-            ctx.moveTo(5, 5)
-            ctx.lineTo(15, 15)
-            ctx.moveTo(15, 8)
-            ctx.lineTo(15, 15)
-            ctx.lineTo(8, 15)
+            ctx.moveTo(15, 5)
+            ctx.lineTo(25, 15)
+            ctx.moveTo(25, 8)
+            ctx.lineTo(25, 15)
+            ctx.lineTo(18, 15)
             ctx.stroke()
-        }
-
-        Connections {
-            target: Theme
-            function onCardOnInkChanged() { parent.requestPaint() }
         }
     }
 }
