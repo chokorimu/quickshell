@@ -1,4 +1,4 @@
-// VolumeRow.qml — one row in the volume card: name, slider, percent, mute.
+// VolumeRow.qml — one row in the volume card: name, slider, percent.
 //
 // streamId -1 is the master sink (Audio service); anything else is a
 // playback stream (AppAudio). The slider is hand-rolled to match the
@@ -37,13 +37,6 @@ Item {
             Audio.setVolume(v)
         else
             AppAudio.setVolume(row.streamId, v)
-    }
-
-    function toggleMute() {
-        if (row.streamId < 0)
-            Audio.toggleMute()
-        else
-            AppAudio.toggleMute(row.streamId)
     }
 
     function nudge(delta) {
@@ -102,16 +95,15 @@ Item {
             }
         }
 
-        // handle rides the fill's edge — a slim rounded rectangle rather
-        // than a dot: 5 wide against the 5px track, 16 tall so it reads as
-        // something to grab, corners rounded to 2 so it is a rectangle
-        // with rounding, not a pill
+        // handle rides the fill's edge — a horizontal rounded rectangle:
+        // 16 wide against 8 tall, so the width is the long axis, with
+        // radius 3 rounding the corners without pill-ing the ends off
         Rectangle {
             x: parent.width * row.fraction - width / 2
             anchors.verticalCenter: parent.verticalCenter
-            width: 5
-            height: 16
-            radius: 2
+            width: 16
+            height: 8
+            radius: 3
             color: Theme.cardForeground
             visible: !row.muted
         }
@@ -134,11 +126,12 @@ Item {
         }
     }
 
-    // percentage — "muted" while muted
+    // percentage — "muted" while muted. Right-aligned to the row's edge
+    // now that the speaker glyph (which doubled as the mute toggle) is
+    // gone; the slider absorbs the width the glyph used to reserve.
     Text {
         id: pctText
-        anchors.right: muteBtn.left
-        anchors.rightMargin: 10
+        anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
         width: 48
         text: row.muted ? "muted" : Math.round(row.shown * 100) + "%"
@@ -146,23 +139,5 @@ Item {
         font.family: Theme.barFontFamily
         font.pixelSize: 13
         horizontalAlignment: Text.AlignRight
-    }
-
-    // mute toggle
-    Text {
-        id: muteBtn
-        anchors.right: parent.right
-        anchors.verticalCenter: parent.verticalCenter
-        width: 24
-        text: row.muted ? "\uF026" : "\uF028"
-        color: row.muted ? Theme.cardDim : Theme.cardForeground
-        font.family: Theme.iconFont
-        font.pixelSize: 15
-        horizontalAlignment: Text.AlignHCenter
-
-        MouseArea {
-            anchors.fill: parent
-            onClicked: row.toggleMute()
-        }
     }
 }

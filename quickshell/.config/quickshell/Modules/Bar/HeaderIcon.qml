@@ -26,7 +26,8 @@ Rectangle {
     // bottom-right corner, with a chevron head opening back toward
     // the top-left. A 45° diagonal is height-constrained in the
     // 20px-tall plate, so it runs 10px with 5px of padding top and
-    // bottom and sits centered across the doubled width.
+    // bottom, and sits right-aligned against the same 5px padding on
+    // the right edge.
     Canvas {
         anchors.centerIn: parent
         width: 40
@@ -40,11 +41,11 @@ Rectangle {
             ctx.lineCap = "round"
             ctx.lineJoin = "round"
             ctx.beginPath()
-            ctx.moveTo(15, 5)
-            ctx.lineTo(25, 15)
-            ctx.moveTo(25, 8)
-            ctx.lineTo(25, 15)
-            ctx.lineTo(18, 15)
+            ctx.moveTo(25, 5)
+            ctx.lineTo(35, 15)
+            ctx.moveTo(35, 8)
+            ctx.lineTo(35, 15)
+            ctx.lineTo(28, 15)
             ctx.stroke()
         }
     }
