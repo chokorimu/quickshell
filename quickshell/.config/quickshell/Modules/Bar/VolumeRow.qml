@@ -97,9 +97,13 @@ Item {
 
         // handle rides the fill's edge — a horizontal rounded rectangle:
         // 32 wide against 8 tall, so the width is the long axis, with
-        // radius 3 rounding the corners without pill-ing the ends off
+        // radius 3 rounding the corners without pill-ing the ends off.
+        // Clamped to the track: mid-range the handle centers on the
+        // fill's edge, but at 0% and max its edge aligns with the
+        // track's end instead of its center overhanging into the name
+        // and percent margins.
         Rectangle {
-            x: parent.width * row.fraction - width / 2
+            x: Math.max(0, Math.min(parent.width - width, parent.width * row.fraction - width / 2))
             anchors.verticalCenter: parent.verticalCenter
             width: 32
             height: 8
