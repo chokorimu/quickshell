@@ -74,7 +74,17 @@ Singleton {
 
     Connections {
         target: root.player
-        function onTrackChanged() { root.sync() }
+        // postTrackChanged, NOT trackChanged: MprisPlayer emits trackChanged
+        // *before* assigning the new metadata — trackTitle/trackArtist/
+        // trackArtUrl are bindings on bMetadata, which is set after the
+        // signal, inside a property update group. A trackChanged handler
+        // therefore reads the PREVIOUS track; postTrackChanged fires after
+        // the group closes, with every derived property fresh. (This is
+        // what made the bar sit one track behind on every skip.)
+        function onPostTrackChanged() { root.sync() }
+        // catch-all for metadata updates that aren't track changes (art
+        // URL refreshes and the like) — fires after the value is set
+        function onMetadataChanged() { root.sync() }
         function onIsPlayingChanged() { root.sync() }
         function onCanGoNextChanged() { root.sync() }
         function onCanGoPreviousChanged() { root.sync() }
