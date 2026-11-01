@@ -101,15 +101,21 @@ PanelWindow {
             model: notificationServer.trackedNotifications
             delegate: NotificationCard {}
 
-            // new cards drop in from above the stack, dismissals slide back
-            // up and fade, and the cards below a new arrival glide down
+            // new cards slide in from the right screen edge, dismissals
+            // slide back out the same way and fade, and the cards below
+            // a new arrival glide down. The slide distance is the card's
+            // own width (420) plus the stack's 14px right margin, so the
+            // card starts with its left edge exactly at the window's
+            // right edge — the window is full-width and clips there, so
+            // the card is entirely off-surface at `from` and eases in
+            // from the side instead of dropping from above.
             add: Transition {
-                NumberAnimation { property: "y"; from: -48; duration: 220; easing.type: Easing.OutCubic }
-                NumberAnimation { property: "opacity"; from: 0; to: 1; duration: 180 }
+                NumberAnimation { property: "x"; from: 434; duration: 280; easing.type: Easing.OutCubic }
+                NumberAnimation { property: "opacity"; from: 0; to: 1; duration: 140 }
             }
             remove: Transition {
-                NumberAnimation { property: "y"; to: -48; duration: 160; easing.type: Easing.InCubic }
-                NumberAnimation { property: "opacity"; to: 0; duration: 160 }
+                NumberAnimation { property: "x"; to: 434; duration: 200; easing.type: Easing.InCubic }
+                NumberAnimation { property: "opacity"; to: 0; duration: 200 }
             }
             displaced: Transition {
                 NumberAnimation { properties: "x,y"; duration: 200; easing.type: Easing.OutCubic }

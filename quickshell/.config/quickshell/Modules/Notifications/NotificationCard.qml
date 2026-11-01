@@ -1,6 +1,6 @@
 // NotificationCard.qml — one popup card in the notification stack.
 //
-// Every card is exactly 420x140: the body clamps at three lines with an
+// Every card is exactly 420x140: the body clamps at two lines with an
 // ellipsis and the card never resizes, so the stack stays uniform no
 // matter how much text an app sends. The actions row claims a fixed
 // bottom slot when the app offered actions; when it is absent the body
@@ -104,7 +104,7 @@ Rectangle {
         }
     }
 
-    // body — three lines max, then ellipsis; fills whatever the actions
+    // body — two lines max, then ellipsis; fills whatever the actions
     // row leaves, top-aligned so multi-line bodies read consistently
     Text {
         id: body
@@ -122,7 +122,7 @@ Rectangle {
         font.family: Theme.barFontFamily
         font.pixelSize: 13
         wrapMode: Text.WordWrap
-        maximumLineCount: 3
+        maximumLineCount: 2
         elide: Text.ElideRight
         verticalAlignment: Text.AlignTop
     }
