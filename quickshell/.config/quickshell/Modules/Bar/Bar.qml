@@ -31,7 +31,7 @@ Item {
     readonly property int barHeight: 36
     readonly property int topMargin: 8
     readonly property int barWidth: 1200
-    // the card is 4:3 at half the bar's width — 600x450
+    // the card is 3:2 at half the bar's width — 600x400
     readonly property int cardWidth: 600
     readonly property int cardHeight: 400
     readonly property int cardRadius: 24
@@ -40,6 +40,10 @@ Item {
     // in the bar's color against the darker card body (see the card
     // canvas). The page content clears it with its left margins.
     readonly property int cardColumnWidth: 56
+    // the column's width while expanded — wide enough for a glyph plus
+    // each menu's label. The card never resizes to accommodate it; the
+    // expanded column simply overlays the page content underneath.
+    readonly property int columnExpandedWidth: 150
     readonly property int workspacePillHeight: 30
     readonly property int workspaceCircleSize: 22
     // the pop's overshoot headroom. OutBack peaks at ~1.1x, so the clip
@@ -65,19 +69,44 @@ Item {
     // growing container, slip out of the mask, and close the island on
     // its way in. Holding `expanded` for a moment after the cursor leaves
     // gives the container time to finish and the cursor time to land.
-    // Which menu the card shows: "media" (clock hover) or "volume"
-    // (volume-icon hover). Resets to media whenever the island collapses,
-    // so the clock always opens the media page fresh. Derived hover keeps
-    // the card open while the cursor is over it regardless of page —
-    // including on the tab buttons, which take hover events of their
-    // own (they switch pages on enter) and so are OR'd in here directly
-    // rather than relying on hover falling through to cardZone.
+    // Which menu the card shows: "media" (clock hover), "volume"
+    // (volume-icon hover) or "session" (third tab). Resets to media
+    // whenever the island collapses, so the clock always opens the
+    // media page fresh.
     property string islandPage: "media"
 
-    property bool hovered: cardZone.containsMouse
+    // The tab column expands on hover: 56px of icon-only strip at rest,
+    // widening to columnExpandedWidth to reveal each menu's label.
+    // columnWidth is what everything binds to; columnExpand is the
+    // animated 0 -> 1 progress driving it. The card never resizes to
+    // accommodate the expansion — the column overlays the page content
+    // underneath, and only while the cursor is on it, so nothing stays
+    // covered.
+    property real columnExpand: 0
+    readonly property real columnWidth: cardColumnWidth
+        + (columnExpandedWidth - cardColumnWidth) * columnExpand
+
+    Behavior on columnExpand {
+        NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
+    }
+
+    // hovering anywhere on the column — the strip itself or any of the
+    // three buttons — holds the island open and the column expanded
+    property bool columnHovered: columnZone.containsMouse
         || mediaTab.containsMouse
         || volumeTab.containsMouse
         || sessionTab.containsMouse
+
+    onColumnHoveredChanged: columnExpand = columnHovered ? 1 : 0
+
+    // Derived hover keeps the card open while the cursor is over it
+    // regardless of page. The tab buttons take hover events of their
+    // own (they switch pages on enter), so they arrive here through
+    // columnHovered rather than relying on hover falling through to
+    // cardZone — the same OR-in that keeps a resting cursor on a
+    // button from reading as a mouse-exit.
+    property bool hovered: cardZone.containsMouse
+        || columnHovered
         || (islandPage === "media" && clockZone.containsMouse)
         || (islandPage === "volume" && volumeIcon.containsMouse)
 
@@ -263,6 +292,13 @@ Item {
                 function onHeightChanged() { card.requestPaint() }
             }
 
+            // the column's hover expansion repaints the strip's width
+            // every frame of the animation
+            Connections {
+                target: root
+                function onColumnExpandChanged() { card.requestPaint() }
+            }
+
             // a matugen regeneration rewrites the palette underneath
             // the painted fill — repaint when either color changes
             Connections {
@@ -314,7 +350,7 @@ Item {
                 ctx.save()
                 ctx.clip()
                 ctx.fillStyle = Theme.barBackground
-                ctx.fillRect(0, 0, root.cardColumnWidth, h)
+                ctx.fillRect(0, 0, root.columnWidth, h)
                 ctx.restore()
             }
 
@@ -362,9 +398,33 @@ Item {
                 // unselected one stays transparent. Hovering a button
                 // switches pages outright — no click needed; the bar's
                 // hover triggers (clock, volume icon) still select a
-                // page on the way in. The block fills the 56px strip;
-                // the pages' content keeps an 80px left margin to clear
-                // it with 24px to spare.
+                // page on the way in.
+                //
+                // The whole column expands on hover: the buttons widen
+                // from the resting 56px strip to columnExpandedWidth,
+                // revealing each menu's name beside its glyph, and the
+                // card canvas repaints the strip to match. The card
+                // itself never resizes — the expanded column overlays
+                // whatever page content sits under it, and only while
+                // the cursor is on the column.
+
+                // hover zone over the whole column strip — expands the
+                // column wherever the cursor lands on it, and keeps the
+                // island open (OR'd into hovered via columnHovered).
+                // Declared after the pages so the expanded column paints
+                // above them, and before the buttons so they keep their
+                // own hover. Its width tracks the expansion so the
+                // revealed label area stays live.
+                MouseArea {
+                    id: columnZone
+                    anchors.left: parent.left
+                    anchors.top: parent.top
+                    anchors.topMargin: 28
+                    width: root.columnWidth
+                    height: root.cardHeight - 28
+                    hoverEnabled: true
+                }
+
                 Column {
                     anchors.left: parent.left
                     anchors.top: parent.top
@@ -373,7 +433,7 @@ Item {
                     spacing: 0
 
                     Rectangle {
-                        width: root.cardColumnWidth
+                        width: root.columnWidth
                         height: 40
                         color: root.islandPage === "media" ? Theme.cardAccent : "transparent"
 
@@ -389,12 +449,41 @@ Item {
                             visible: root.islandPage === "media"
                         }
 
+                        // the glyph holds the resting 56px icon zone —
+                        // it does not drift right as the column opens
                         Text {
-                            anchors.centerIn: parent
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            anchors.horizontalCenterOffset: -(parent.width - root.cardColumnWidth) / 2
                             text: "\uF001" // music note
                             color: root.islandPage === "media" ? Theme.cardAccentOn : Theme.barDim
                             font.family: Theme.iconFont
                             font.pixelSize: 17
+                        }
+
+                        // the menu's name, revealed by the expansion —
+                        // clipped to the button so it can't spill onto
+                        // the card mid-animation
+                        Item {
+                            anchors.left: parent.left
+                            anchors.leftMargin: root.cardColumnWidth
+                            anchors.right: parent.right
+                            anchors.top: parent.top
+                            anchors.bottom: parent.bottom
+                            clip: true
+                            visible: root.columnExpand > 0.01
+
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                x: 10
+                                width: Math.max(0, parent.width - 20)
+                                text: "Media"
+                                color: root.islandPage === "media" ? Theme.cardAccentOn : Theme.barDim
+                                font.family: Theme.barFontFamily
+                                font.pixelSize: 13
+                                elide: Text.ElideRight
+                                opacity: root.columnExpand
+                            }
                         }
 
                         MouseArea {
@@ -406,7 +495,7 @@ Item {
                     }
 
                     Rectangle {
-                        width: root.cardColumnWidth
+                        width: root.columnWidth
                         height: 40
                         color: root.islandPage === "volume" ? Theme.cardAccent : "transparent"
 
@@ -422,12 +511,41 @@ Item {
                             visible: root.islandPage === "volume"
                         }
 
+                        // the glyph holds the resting 56px icon zone —
+                        // it does not drift right as the column opens
                         Text {
-                            anchors.centerIn: parent
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            anchors.horizontalCenterOffset: -(parent.width - root.cardColumnWidth) / 2
                             text: "\uF028" // speaker
                             color: root.islandPage === "volume" ? Theme.cardAccentOn : Theme.barDim
                             font.family: Theme.iconFont
                             font.pixelSize: 17
+                        }
+
+                        // the menu's name, revealed by the expansion —
+                        // clipped to the button so it can't spill onto
+                        // the card mid-animation
+                        Item {
+                            anchors.left: parent.left
+                            anchors.leftMargin: root.cardColumnWidth
+                            anchors.right: parent.right
+                            anchors.top: parent.top
+                            anchors.bottom: parent.bottom
+                            clip: true
+                            visible: root.columnExpand > 0.01
+
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                x: 10
+                                width: Math.max(0, parent.width - 20)
+                                text: "Volume"
+                                color: root.islandPage === "volume" ? Theme.cardAccentOn : Theme.barDim
+                                font.family: Theme.barFontFamily
+                                font.pixelSize: 13
+                                elide: Text.ElideRight
+                                opacity: root.columnExpand
+                            }
                         }
 
                         MouseArea {
@@ -439,7 +557,7 @@ Item {
                     }
 
                     Rectangle {
-                        width: root.cardColumnWidth
+                        width: root.columnWidth
                         height: 40
                         color: root.islandPage === "session" ? Theme.cardAccent : "transparent"
 
@@ -455,12 +573,41 @@ Item {
                             visible: root.islandPage === "session"
                         }
 
+                        // the glyph holds the resting 56px icon zone —
+                        // it does not drift right as the column opens
                         Text {
-                            anchors.centerIn: parent
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            anchors.horizontalCenterOffset: -(parent.width - root.cardColumnWidth) / 2
                             text: "\uF08B" // sign-out
                             color: root.islandPage === "session" ? Theme.cardAccentOn : Theme.barDim
                             font.family: Theme.iconFont
                             font.pixelSize: 17
+                        }
+
+                        // the menu's name, revealed by the expansion —
+                        // clipped to the button so it can't spill onto
+                        // the card mid-animation
+                        Item {
+                            anchors.left: parent.left
+                            anchors.leftMargin: root.cardColumnWidth
+                            anchors.right: parent.right
+                            anchors.top: parent.top
+                            anchors.bottom: parent.bottom
+                            clip: true
+                            visible: root.columnExpand > 0.01
+
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                x: 10
+                                width: Math.max(0, parent.width - 20)
+                                text: "Session"
+                                color: root.islandPage === "session" ? Theme.cardAccentOn : Theme.barDim
+                                font.family: Theme.barFontFamily
+                                font.pixelSize: 13
+                                elide: Text.ElideRight
+                                opacity: root.columnExpand
+                            }
                         }
 
                         MouseArea {
