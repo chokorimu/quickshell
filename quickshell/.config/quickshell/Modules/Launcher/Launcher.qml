@@ -189,6 +189,15 @@ PanelWindow {
         id: cardClip
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom
+        // Tuck down behind the screen's bottom edge by the corner
+        // radius — the island's card tucks up behind the bar the same
+        // way (its clip's topMargin is barHeight - cardRadius), which
+        // hides its rounded top corners and makes the junction
+        // seamless. Here the screen's bottom edge plays the bar's
+        // role: the card's rounded bottom corners hide below it, so
+        // the card sticks out of the screen's bottom edge instead of
+        // sitting on the edge with its corners notched into view.
+        anchors.bottomMargin: -root.cardRadius
         width: root.cardWidth * root.popOvershoot
         height: root.pop * (root.cardHeight + root.cardRadius)
         clip: true
@@ -200,15 +209,17 @@ PanelWindow {
         // a band the clip hasn't finished revealing reads as a clipped
         // square; the rounding only "appears" once the card is fully
         // open. The island card is the mirror image of this structure:
-        // tucked top corners, reveal-edge bottom corners.
+        // tucked top corners behind the bar, reveal-edge bottom corners.
         //
         // The top radius tracks the visible height — square while the
         // band is shorter than the radius, a growing cap until it holds
-        // a full corner. The bottom corners are the screen edge and keep
-        // the full radius, clamped to a semicircular cap while the band
-        // is shorter than that so the path never inverts (the arc
-        // centers would fall above the band and the bottom edge would
-        // draw as a diagonal shard).
+        // a full corner. The bottom corners keep the full radius and
+        // are never seen: they live a corner radius below the screen's
+        // bottom edge, tucked the same way the island's top corners sit
+        // behind the bar. (Below the screen edge the path may invert
+        // while the band is shorter than the radius — the arc centers
+        // fall under the canvas — but the window clips all of it, so
+        // nothing inverted is ever visible.)
         Canvas {
             id: card
             anchors.top: parent.top
@@ -241,8 +252,11 @@ PanelWindow {
                 var cr = root.cardRadius
                 // the reveal edge (top)
                 var rt = Math.min(cr, Math.max(0, (h - cr) / 2))
-                // the screen edge (bottom)
-                var rb = Math.min(cr, h / 2)
+                // the tucked edge (bottom): full radius, always — the
+                // corners sit below the screen's bottom edge and are
+                // never visible, exactly like the island's tucked top
+                // corners keep the full radius behind the bar
+                var rb = cr
 
                 ctx.clearRect(0, 0, w, h)
                 ctx.fillStyle = Theme.cardBackground
@@ -285,13 +299,16 @@ PanelWindow {
             // controls keep their clicks
             MouseArea { anchors.fill: parent }
 
-            // the content sits flush to the card's bottom edge, with the
-            // top strip (corner radius + 10px) as padding — the same
-            // relationship the island card's content has, mirrored
+            // the content sits 10px above the card's visible bottom
+            // edge — the screen's bottom edge. The canvas's own bottom
+            // is a corner radius further down (tucked behind the screen
+            // edge), so the margin is cardRadius + 10: the mirror of
+            // the island content's topMargin (cardRadius + 4 below the
+            // bar's bottom edge).
             Column {
                 id: cardColumn
                 anchors.bottom: parent.bottom
-                anchors.bottomMargin: 10
+                anchors.bottomMargin: root.cardRadius + 10
                 anchors.left: parent.left
                 anchors.leftMargin: 10
                 anchors.right: parent.right
@@ -314,7 +331,7 @@ PanelWindow {
                         anchors.rightMargin: 12
                         verticalAlignment: Text.AlignVCenter
                         color: Theme.cardForeground
-                        font.family: Theme.fontFamily
+                        font.family: Theme.barFontFamily
                         font.pixelSize: Theme.launcherFontSize
                         selectByMouse: true
                         persistentSelection: true
@@ -327,7 +344,7 @@ PanelWindow {
                             verticalAlignment: Text.AlignVCenter
                             text: "Search Apps..."
                             color: Theme.cardDim
-                            font.family: Theme.fontFamily
+                            font.family: Theme.barFontFamily
                             font.pixelSize: Theme.launcherFontSize
                             visible: input.text.length === 0
                         }
@@ -355,11 +372,15 @@ PanelWindow {
 
                 Item { width: parent.width; height: 10 }
 
-                // results — 7 visible rows, matching rofi's listview
+                // results — 7 visible rows, matching rofi's listview.
+                // Fixed height: the card must not resize when the
+                // filter narrows the results, or the pop's target
+                // moves under the animation and the card appears to
+                // jitter as you type.
                 ListView {
                     id: list
                     width: parent.width
-                    height: Math.min(root.filtered.length, 7) * 40
+                    height: 7 * 40
                     clip: true
                     model: root.filtered
                     currentIndex: root.selected
@@ -400,7 +421,7 @@ PanelWindow {
                                 anchors.verticalCenter: parent.verticalCenter
                                 text: modelData.name
                                 color: index === root.selected ? Theme.cardOnInk : Theme.cardForeground
-                                font.family: Theme.fontFamily
+                                font.family: Theme.barFontFamily
                                 font.pixelSize: Theme.launcherFontSize
                                 elide: Text.ElideRight
                                 width: list.width - 60
