@@ -13,11 +13,11 @@ Desktop dotfiles ecosystem: the Quickshell (QML) Hyprland shell plus Hyprland, m
 One stow package per top-level directory; each package contains `.config/<app>/` (or a dotfile at its root). Deploy everything with the installer, or name packages to deploy a subset:
 
 ```bash
-./install.sh                  # all 13 packages, dry-run + conflict backup first
+./install.sh                  # all 12 packages, dry-run + conflict backup first
 ./install.sh hypr quickshell  # just the named ones
 ```
 
-- Packages: `quickshell`, `hypr`, `waybar`, `rofi`, `kitty`, `cava`, `swaync`, `btop`, `fastfetch`, `matugen`, `bash`, `zsh`, `OpenTabletDriver`.
+- Packages: `quickshell`, `hypr`, `rofi`, `kitty`, `cava`, `swaync`, `btop`, `fastfetch`, `matugen`, `bash`, `zsh`, `OpenTabletDriver`.
 - Conflicts (real files) are moved to `~/.dotfiles-backup-<timestamp>/` before stowing. Pre-existing **symlinks** are not backed up — remove them by hand first (that is how the `~/hypr-dotfiles` migration was done).
 - Undo a single package with `stow --dir=. --target="$HOME" -D <pkg>`.
 - **Never `stow .`** — the repo root is not a package. With 13 package dirs at the root it would try to link all of them straight into `$HOME`. Always name the package (or use `install.sh`).
@@ -28,7 +28,7 @@ One stow package per top-level directory; each package contains `.config/<app>/`
 - `quickshell/.config/quickshell/shell.qml` is the only entrypoint (`ShellRoot`). One `PanelWindow` per monitor via `Variants { model: Quickshell.screens }`. The bar window is full-width but transparent; `Bar.qml` draws a centered pill inside it. The window reserves the pill's band via `exclusiveZone` (bound to `bar.barHeight + bar.topMargin`), so windows are pushed down while the pill still floats — drop `exclusionMode` entirely, since `ExclusionMode.Normal` is the default and what makes the reservation take effect.
 - `Modules/Bar` (media / workspaces+clock / network+volume+memory+battery, plus a hover-expanded dynamic island: the pill never moves, a 600×450 (4:3, half the bar's width) media card swipes down from behind it, and each junction where the card's side edge meets the bar's bottom edge is smoothed by a tangent fillet in the pill's canvas that tracks the card's height through the swipe; the card itself is a Canvas whose bottom-corner radius tracks its visible height, so its corners stay rounded through the whole swipe instead of only at full expansion), `Modules/Launcher` (rofi drun replacement), and `Modules/Corners` (painted rounded screen corners) are live. `Modules/Notifications`, `Modules/OSD`, `Modules/Session` are still `visible: false` stubs whose intent lives in their `// TODO:` header comments.
 - `Services/` holds the data singletons the bar reads (`Audio`, `Media`, `Battery`, `Network`, `Memory`) plus `Matugen`. See the Services section below — the lazy-initialisation rule there is the thing most likely to bite.
-- The other packages' entrypoints: `hypr/.config/hypr/hyprland.lua` (pure-Lua Hyprland config; requires `animations`, `effects`, `keybinds`), `matugen/.config/matugen/config.toml` (palette templates for hypr/rofi/waybar/kitty/cava — no quickshell template yet), and `waybar`/`rofi`/`swaync`, which the quickshell modules are replacing one by one.
+- The other packages' entrypoints: `hypr/.config/hypr/hyprland.lua` (pure-Lua Hyprland config; requires `animations`, `effects`, `keybinds`), `matugen/.config/matugen/config.toml` (palette templates for hypr/rofi/kitty/cava/quickshell), and `rofi`/`swaync`, which the quickshell modules are replacing one by one.
 
 ## Theme singleton — the non-obvious part
 
@@ -54,12 +54,12 @@ One stow package per top-level directory; each package contains `.config/<app>/`
 
 - **Never drive the user's input.** No synthetic keyboard/mouse via `/dev/uinput`, no screenshots to verify interactive behaviour. Inputs and clicks are the user's to test.
 - **Verification is a separate phase.** When something needs checking, do it in a clearly separated troubleshooting step — not interleaved with implementation edits. Inline load checks (`qs -p ~/.config/quickshell` starts clean) are fine.
-- **All config lives here.** Hyprland, matugen, waybar, rofi — everything is a package in this repo now. The old `~/hypr-dotfiles` repo is a read-only archive until burn-in passes; never edit it.
+- **All config lives here.** Hyprland, matugen, rofi — everything is a package in this repo now. The old `~/hypr-dotfiles` repo is a read-only archive until burn-in passes; never edit it.
 
 ## In-repo coupling — the edits that span packages
 
-- **matugen** (`matugen/.config/matugen/config.toml`) regenerates palettes for hypr, rofi, waybar, kitty and cava on wallpaper change; templates live in `matugen/.config/matugen/templates/` and use `{{colors.primary.default.hex}}`-style placeholders. Each `[templates.*]` entry has `input_path`, `output_path`, and an optional signal-based `post_hook` (e.g. `pkill -SIGUSR2 waybar`). There is **no quickshell template yet** — making `Services/Matugen.qml`'s "matugen output feeds Theme/Colors.qml" comment true requires a `[templates.quickshell]` block plus a template that emits QML.
-- **Hyprland autostart** lives in `hypr/.config/hypr/keybinds.lua` (line 11, `hl.exec_cmd("waybar")` inside `hl.on("hyprland.start", ...)`). Swapping waybar for `qs` is an edit in this repo now. The hypr config is Lua with an `hl.bind(mainMod .. " + X", hl.dsp.exec_cmd(cmd))` helper, not `hyprland.conf`.
+- **matugen** (`matugen/.config/matugen/config.toml`) regenerates palettes for hypr, rofi, kitty, cava and quickshell on wallpaper change; templates live in `matugen/.config/matugen/templates/` and use `{{colors.primary.default.hex}}`-style placeholders. Each `[templates.*]` entry has `input_path`, `output_path`, and an optional signal-based `post_hook` (e.g. `pkill -SIGUSR1 kitty`). The quickshell template (`[templates.quickshell]`, added in `36772b5`) emits `Theme/Colors.qml` and needs no post_hook — quickshell's file watcher reloads the shell on change.
+- **Hyprland autostart** lives in `hypr/.config/hypr/keybinds.lua` (`hl.exec_cmd("qs")` inside `hl.on("hyprland.start", ...)` since `578e20b`; waybar was removed outright after the quickshell bar replaced it). The hypr config is Lua with an `hl.bind(mainMod .. " + X", hl.dsp.exec_cmd(cmd))` helper, not `hyprland.conf`.
 - **matugen's hypr output is currently dead**: the template writes `hypr/.config/hypr/config/colors.lua`, but `require("colors")` in `hyprland.lua` is commented out and hyprlock sources the hand-written `colors.conf` instead. Either re-enable the require (`require("config.colors")`) or drop the template — undecided.
 
 ## Quickshell API — verified against 0.3.2, not the 1.x scaffold

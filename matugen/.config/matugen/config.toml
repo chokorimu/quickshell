@@ -11,11 +11,6 @@ output_path = "~/.config/hypr/config/colors.lua"
 input_path = "~/.config/matugen/templates/rofi.rasi"
 output_path = "~/.config/rofi/colors.rasi"
 
-[templates.waybar]
-input_path = "~/.config/matugen/templates/waybar.css"
-output_path = "~/.config/waybar/colors.css"
-post_hook = "pkill -SIGUSR2 waybar"
-
 [templates.kitty]
 input_path = "~/.config/matugen/templates/kitty.conf"
 output_path = "~/.config/kitty/custom.conf"

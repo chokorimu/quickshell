@@ -8,8 +8,7 @@ whole-desktop dotfiles: the quickshell shell plus hyprland, matugen and the apps
 |---|---|
 | `quickshell` | the shell: bar + dynamic island, launcher, osd, notifications, session menu, matugen theming |
 | `hypr` | hyprland config (pure lua — `hyprland.lua` requires animations/effects/keybinds) + hyprlock |
-| `matugen` | wallpaper → palette templates for hypr, rofi, waybar, kitty, cava |
-| `waybar` | status bar — being replaced by the quickshell bar |
+| `matugen` | wallpaper → palette templates for hypr, rofi, kitty, cava, quickshell |
 | `rofi` | launcher + wallpaper/power menus — drun replaced by the quickshell launcher |
 | `swaync` | notifications — being replaced by the quickshell notifications module |
 | `kitty` `cava` `btop` `fastfetch` | terminal, audio visualiser, system monitor, fetch |
@@ -37,7 +36,7 @@ qs ipc call launcher toggle # launcher from a keybind
 
 - `quickshell` (aur), `qt6-declarative`
 - hyprland with lua config support, matugen + awww
-- waybar / rofi / swaync — still live until the quickshell modules replace them
+- rofi / swaync — still live until the quickshell modules replace them
 - kitty, cava, btop, fastfetch, NetworkManager, pipewire (`wpctl`), brightnessctl, playerctl
 
 ## notes

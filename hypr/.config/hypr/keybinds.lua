@@ -22,7 +22,6 @@ local browser         = "google-chrome-stable"
 local fileManager     = "thunar"
 local screenshot      = "grim ~/Pictures/Screenshots/$(date +%Y-%m-%d-%H%M%S).png && notify-send 'Screenshot taken' 'Saved to ~/Pictures/Screenshots/$(date +%Y-%m-%d-%H%M%S).png'"
 local screenshotArea  = "grim -g \"$(slurp; sleep 0.2)\" ~/Pictures/Screenshots/$(date +%Y-%m-%d-%H%M%S).png && notify-send 'Screenshot taken' 'Saved to ~/Pictures/Screenshots/$(date +%Y-%m-%d-%H%M%S).png'"
-local waybar          = "cd ~/.config/waybar && killall -9 waybar && waybar"
 local menu            = "qs ipc call launcher toggle"
 local powermenu       = "pkill -SIGUSR2 rofi; rofi -show menu -modi \"menu:~/.config/rofi/custom/powermenu.sh\" -theme \"~/.config/rofi/custom/powermenu.rasi\""
 local wallpapermenu   = "pkill -SIGUSR2 rofi; rofi -show wallpaper -modi \"wallpaper:~/.config/rofi/custom/wallpapermenu.sh\" -theme \"~/.config/rofi/custom/wallpapermenu.rasi\" -show-icons"
@@ -46,7 +45,6 @@ hl.bind(mainMod .. " + B", hl.dsp.exec_cmd(browser))
 hl.bind(mainMod .. " + E", hl.dsp.exec_cmd(fileManager))
 hl.bind(mainMod .. " + Print", hl.dsp.exec_cmd(screenshot))
 hl.bind(mainMod .. " + SHIFT + Print", hl.dsp.exec_cmd(screenshotArea))
-hl.bind(mainMod .. " + R", hl.dsp.exec_cmd(waybar))
 hl.bind(mainMod .. " + D", hl.dsp.exec_cmd(menu))
 hl.bind(mainMod .. " + G", hl.dsp.exec_cmd(wallpapermenu))
 hl.bind(mainMod .. " + L", hl.dsp.exec_cmd(powermenu))
