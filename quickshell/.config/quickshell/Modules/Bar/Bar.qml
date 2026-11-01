@@ -711,8 +711,9 @@ Item {
                     Repeater {
                         model: SystemTray.items
                         Image {
-                            width: 16
-                            height: 16
+                            width: 24
+                            height: 24
+                            sourceSize: Qt.size(24, 24)
                             source: modelData.icon
                             fillMode: Image.PreserveAspectFit
 

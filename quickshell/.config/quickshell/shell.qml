@@ -1,3 +1,4 @@
+//@ pragma UseQApplication
 // shell.qml — quickshell entry point
 // scaffolded against quickshell 1.x — verify api details against `qs --version`
 import QtQuick
