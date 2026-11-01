@@ -643,7 +643,17 @@ Item {
 
                 // big circular art — click toggles, wheel skips. Anchored
                 // near the top of the card, centered.
-                Rectangle {
+                //
+                // The disc is an Item, not a Rectangle: clip:true on a
+                // Rectangle only rounds the Rectangle's OWN paint — its
+                // children still render square, which is why the art used
+                // to show square corners. The circular clip is an
+                // OpacityMask against a circular Rectangle instead, and
+                // the whole disc spins CCW while a track plays — the mask
+                // is a circle, so the clip is rotation-invariant and only
+                // the art inside moves. Pausing freezes it mid-turn; a
+                // track change keeps the angle, like a record.
+                Item {
                     id: bigArt
                     anchors.horizontalCenter: parent.horizontalCenter
                     // center in the content area, not the full card —
@@ -654,15 +664,44 @@ Item {
                     visible: root.islandPage === "media"
                     width: 200
                     height: 200
-                    radius: width / 2
-                    color: Theme.cardHighlight
-                    clip: true
+
+                    // one revolution per 10s, counter-clockwise (rotation
+                    // decreases — Qt's positive direction is clockwise).
+                    // The -360 → 0 loop snap is invisible: -360 ≡ 0.
+                    RotationAnimation {
+                        target: bigArt
+                        property: "rotation"
+                        from: 0
+                        to: -360
+                        duration: 10000
+                        loops: Animation.Infinite
+                        running: Media.playing && Media.hasPlayer
+                    }
+
+                    // placeholder disc while no art is loaded — the mask
+                    // paints the art over it once there is one
+                    Rectangle {
+                        anchors.fill: parent
+                        radius: width / 2
+                        color: Theme.cardHighlight
+                    }
 
                     Image {
+                        id: artImage
                         anchors.fill: parent
                         sourceSize: Qt.size(200, 200)
                         fillMode: Image.PreserveAspectCrop
                         source: Media.artUrl
+                    }
+
+                    OpacityMask {
+                        anchors.fill: parent
+                        source: artImage
+                        maskSource: Rectangle {
+                            width: 200
+                            height: 200
+                            radius: 100
+                        }
                     }
 
                     MouseArea {
@@ -708,74 +747,91 @@ Item {
                     }
                 }
 
-                // transport controls — light circles on the dark card, the
-                // inverted language of the card's own palette, pinned to
-                // the bottom of the card
-                Row {
+                // transport controls — the workspace pill's language
+                // translated to the card: a cardInk pill holding three
+                // circles, the play/pause one knocked out in the card's
+                // own surface (the active-workspace treatment) and
+                // prev/next left transparent like the inactive ones.
+                // Glyphs, not labels — Nerd Font is set explicitly, since
+                // the bar's UI font would render them as tofu.
+                Rectangle {
+                    id: transportPill
                     anchors.horizontalCenter: parent.horizontalCenter
                     anchors.horizontalCenterOffset: root.cardColumnWidth / 2
                     anchors.bottom: parent.bottom
                     anchors.bottomMargin: 28
-                    spacing: 24
                     visible: root.islandPage === "media"
+                    height: 56
+                    radius: height / 2
+                    color: Theme.cardInk
+                    width: transportRow.implicitWidth + 16
 
-                    Rectangle {
-                        width: 48
-                        height: 48
-                        radius: width / 2
-                        color: Theme.cardInk
+                    Row {
+                        id: transportRow
+                        anchors.centerIn: parent
+                        spacing: 8
 
-                        Text {
-                            anchors.centerIn: parent
-                            text: "prev"
-                            color: Theme.cardOnInk
-                            font.family: Theme.barFontFamily
-                            font.pixelSize: 12
+                        // prev — inactive circle, transparent
+                        Rectangle {
+                            width: 40
+                            height: 40
+                            radius: width / 2
+                            color: "transparent"
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "\uF048" // fa-step-backward
+                                color: Theme.cardOnInk
+                                font.family: Theme.iconFont
+                                font.pixelSize: 18
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                onClicked: Media.previous()
+                            }
                         }
 
-                        MouseArea {
-                            anchors.fill: parent
-                            onClicked: Media.previous()
-                        }
-                    }
+                        // play / pause — the active circle, knocked out
+                        Rectangle {
+                            width: 48
+                            height: 48
+                            radius: width / 2
+                            color: Theme.cardBackground
 
-                    Rectangle {
-                        width: 60
-                        height: 60
-                        radius: width / 2
-                        color: Theme.cardInk
+                            Text {
+                                anchors.centerIn: parent
+                                text: Media.playing ? "\uF04C" : "\uF04B" // fa-pause / fa-play
+                                color: Theme.cardForeground
+                                font.family: Theme.iconFont
+                                font.pixelSize: 22
+                            }
 
-                        Text {
-                            anchors.centerIn: parent
-                            text: Media.playing ? "pause" : "play"
-                            color: Theme.cardOnInk
-                            font.family: Theme.barFontFamily
-                            font.pixelSize: 14
-                        }
-
-                        MouseArea {
-                            anchors.fill: parent
-                            onClicked: Media.toggle()
-                        }
-                    }
-
-                    Rectangle {
-                        width: 48
-                        height: 48
-                        radius: width / 2
-                        color: Theme.cardInk
-
-                        Text {
-                            anchors.centerIn: parent
-                            text: "next"
-                            color: Theme.cardOnInk
-                            font.family: Theme.barFontFamily
-                            font.pixelSize: 12
+                            MouseArea {
+                                anchors.fill: parent
+                                onClicked: Media.toggle()
+                            }
                         }
 
-                        MouseArea {
-                            anchors.fill: parent
-                            onClicked: Media.next()
+                        // next — inactive circle, transparent
+                        Rectangle {
+                            width: 40
+                            height: 40
+                            radius: width / 2
+                            color: "transparent"
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "\uF051" // fa-step-forward
+                                color: Theme.cardOnInk
+                                font.family: Theme.iconFont
+                                font.pixelSize: 18
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                onClicked: Media.next()
+                            }
                         }
                     }
                 }
@@ -960,20 +1016,37 @@ Item {
                     height: 26
                     width: artCircle.width + 10 + mediaScroll.width
 
-                    Rectangle {
+                    // same square-corner trap as the card's art: a
+                    // Rectangle's clip does not round its children, so
+                    // the circular art is an OpacityMask here too
+                    Item {
                         id: artCircle
                         width: 22
                         height: 22
                         anchors.verticalCenter: parent.verticalCenter
-                        radius: width / 2
-                        color: Theme.barHighlight
-                        clip: true
+
+                        Rectangle {
+                            anchors.fill: parent
+                            radius: width / 2
+                            color: Theme.barHighlight
+                        }
 
                         Image {
+                            id: barArtImage
                             anchors.fill: parent
                             sourceSize: Qt.size(22, 22)
                             fillMode: Image.PreserveAspectCrop
                             source: Media.artUrl
+                        }
+
+                        OpacityMask {
+                            anchors.fill: parent
+                            source: barArtImage
+                            maskSource: Rectangle {
+                                width: 22
+                                height: 22
+                                radius: 11
+                            }
                         }
                     }
 
