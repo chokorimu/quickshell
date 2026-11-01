@@ -8,7 +8,7 @@ hl.on("hyprland.start", function()
     hl.exec_cmd("otd-daemon")
     hl.exec_cmd("awww-daemon")
     hl.exec_cmd("NetworkManager")
-    hl.exec_cmd("waybar")
+    hl.exec_cmd("qs")
     hl.exec_cmd("hyprctl setcursor capitaine-cursors-light 48")
     hl.exec_cmd("systemctl --user start hyprpolkitagent")
 end)
@@ -23,7 +23,7 @@ local fileManager     = "thunar"
 local screenshot      = "grim ~/Pictures/Screenshots/$(date +%Y-%m-%d-%H%M%S).png && notify-send 'Screenshot taken' 'Saved to ~/Pictures/Screenshots/$(date +%Y-%m-%d-%H%M%S).png'"
 local screenshotArea  = "grim -g \"$(slurp; sleep 0.2)\" ~/Pictures/Screenshots/$(date +%Y-%m-%d-%H%M%S).png && notify-send 'Screenshot taken' 'Saved to ~/Pictures/Screenshots/$(date +%Y-%m-%d-%H%M%S).png'"
 local waybar          = "cd ~/.config/waybar && killall -9 waybar && waybar"
-local menu            = "pkill -SIGUSR2 rofi; rofi -show drun"
+local menu            = "qs ipc call launcher toggle"
 local powermenu       = "pkill -SIGUSR2 rofi; rofi -show menu -modi \"menu:~/.config/rofi/custom/powermenu.sh\" -theme \"~/.config/rofi/custom/powermenu.rasi\""
 local wallpapermenu   = "pkill -SIGUSR2 rofi; rofi -show wallpaper -modi \"wallpaper:~/.config/rofi/custom/wallpapermenu.sh\" -theme \"~/.config/rofi/custom/wallpapermenu.rasi\" -show-icons"
 
