@@ -83,6 +83,14 @@ Singleton {
     readonly property color barInk:        barUseMatugen ? barColor   : (darkMode ? fixedDarkBarInk     : fixedBarInk)
     readonly property color barOnInk:      barUseMatugen ? barText    : (darkMode ? fixedDarkBarOnInk   : fixedBarOnInk)
 
+    // ---- tray pill ------------------------------------------------------
+    // The tray's SNI icons ride in their own brand colors (no tint), so
+    // each one sits in a neutral pill that has to read on both the white
+    // light bar and the charcoal dark one. Fixed mid-gray, deliberately
+    // NOT palette-derived: one color for both themes — lighter than the
+    // dark bar (#222226), darker than the light one (#ffffff).
+    readonly property color trayPill: "#5c5c64"
+
     // ---- workspace pill ------------------------------------------------
     // Shares the island card's surface (fixedCardBg*): deep charcoal
     // in dark mode, light gray in light mode — the pill and the card

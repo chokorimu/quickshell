@@ -11,10 +11,6 @@
 // swallow every click meant for the windows underneath.
 import QtQml
 import QtQuick
-// Qt5Compat.GraphicalEffects — ColorOverlay tints the tray's SNI icons to
-// the bar ink (the circular art used to mask through here, but OpacityMask
-// never clipped; it's a Canvas arc clip now).
-import Qt5Compat.GraphicalEffects
 import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Io
@@ -1309,38 +1305,43 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 12
 
-                // tray — SNI icons tinted to the bar ink; left-click
-                // activates, right-click opens the item's menu. Empty when
-                // nothing registers, so the row stays compact on a clean
-                // session.
+                // tray — SNI icons in their own brand colors, each riding
+                // in a neutral pill so they read on both the light and the
+                // dark bar; left-click activates, right-click opens the
+                // item's menu. Empty when nothing registers, so the row
+                // stays compact on a clean session.
                 Row {
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: 10
 
                     Repeater {
                         model: SystemTray.items
-                        Image {
-                            width: 20
-                            height: 20
-                            sourceSize: Qt.size(20, 20)
-                            source: modelData.icon
-                            fillMode: Image.PreserveAspectFit
-                            // tint to the bar's ink so brand-colored icons
-                            // match the monochrome status glyphs; the derived
-                            // property flips with darkMode/matugen for free
-                            layer.enabled: true
-                            layer.effect: ColorOverlay {
-                                color: Theme.barForeground
-                            }
+                        Rectangle {
+                            width: 30
+                            height: 24
+                            radius: 12
+                            color: Theme.trayPill
 
-                            MouseArea {
-                                anchors.fill: parent
-                                acceptedButtons: Qt.LeftButton | Qt.RightButton
-                                onClicked: function (mouse) {
-                                    if (mouse.button === Qt.RightButton)
-                                        modelData.display(root, mouse.x, mouse.y)
-                                    else
-                                        modelData.activate()
+                            Image {
+                                anchors.centerIn: parent
+                                width: 20
+                                height: 20
+                                sourceSize: Qt.size(20, 20)
+                                source: modelData.icon
+                                fillMode: Image.PreserveAspectFit
+
+                                // the MouseArea stays on the icon, not the
+                                // pill: mouse.x/y feed modelData.display()
+                                // and must keep the icon-relative origin
+                                MouseArea {
+                                    anchors.fill: parent
+                                    acceptedButtons: Qt.LeftButton | Qt.RightButton
+                                    onClicked: function (mouse) {
+                                        if (mouse.button === Qt.RightButton)
+                                            modelData.display(root, mouse.x, mouse.y)
+                                        else
+                                            modelData.activate()
+                                    }
                                 }
                             }
                         }
