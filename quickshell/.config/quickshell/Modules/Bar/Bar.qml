@@ -11,6 +11,9 @@
 // swallow every click meant for the windows underneath.
 import QtQml
 import QtQuick
+// Qt5Compat.GraphicalEffects — ColorOverlay tints the tray's SNI icons to
+// the bar ink (the circular art used to mask through here, but OpacityMask
+// never clipped; it's a Canvas arc clip now).
 import Qt5Compat.GraphicalEffects
 import Quickshell
 import Quickshell.Hyprland
@@ -644,13 +647,15 @@ Item {
                 // big circular art — click toggles, wheel skips. Anchored
                 // near the top of the card, centered.
                 //
-                // The disc is an Item, not a Rectangle: clip:true on a
+                // The disc is a Canvas, not a masked Image: clip:true on a
                 // Rectangle only rounds the Rectangle's OWN paint — its
                 // children still render square, which is why the art used
-                // to show square corners. The circular clip is an
-                // OpacityMask against a circular Rectangle instead, and
-                // the whole disc spins CCW while a track plays — the mask
-                // is a circle, so the clip is rotation-invariant and only
+                // to show square corners, and OpacityMask against a
+                // circular Rectangle did not clip either (the mask never
+                // masked the source — the art stayed square). A Canvas
+                // clips its own paint with an arc path, which always
+                // works, and the whole disc spins CCW while a track
+                // plays — a rotating circle is rotation-invariant, so only
                 // the art inside moves. Pausing freezes it mid-turn; a
                 // track change keeps the angle, like a record.
                 Item {
@@ -678,7 +683,7 @@ Item {
                         running: Media.playing && Media.hasPlayer
                     }
 
-                    // placeholder disc while no art is loaded — the mask
+                    // placeholder disc while no art is loaded — the canvas
                     // paints the art over it once there is one
                     Rectangle {
                         anchors.fill: parent
@@ -686,21 +691,36 @@ Item {
                         color: Theme.cardHighlight
                     }
 
-                    Image {
-                        id: artImage
+                    Canvas {
+                        id: artDisc
                         anchors.fill: parent
-                        sourceSize: Qt.size(200, 200)
-                        fillMode: Image.PreserveAspectCrop
-                        source: Media.artUrl
-                    }
 
-                    OpacityMask {
-                        anchors.fill: parent
-                        source: artImage
-                        maskSource: Rectangle {
-                            width: 200
-                            height: 200
-                            radius: 100
+                        // the art URL, tracked so the canvas can (re)load
+                        // it; loadImage is async, so the paint waits for
+                        // imageLoaded. An empty URL repaints the canvas
+                        // clear so a track without art falls back to the
+                        // placeholder instead of keeping the old one.
+                        property url artSource: Media.artUrl
+                        onArtSourceChanged: {
+                            if (artSource.toString().length > 0)
+                                artDisc.loadImage(artSource)
+                            else
+                                requestPaint()
+                        }
+                        Component.onCompleted: if (artSource.toString().length > 0) loadImage(artSource)
+                        onImageLoaded: requestPaint()
+
+                        onPaint: {
+                            var ctx = getContext("2d")
+                            ctx.clearRect(0, 0, width, height)
+                            if (artSource.toString().length === 0)
+                                return
+                            ctx.save()
+                            ctx.beginPath()
+                            ctx.arc(width / 2, height / 2, width / 2, 0, 2 * Math.PI)
+                            ctx.clip()
+                            ctx.drawImage(artSource, 0, 0, width, height)
+                            ctx.restore()
                         }
                     }
 
@@ -1017,8 +1037,9 @@ Item {
                     width: artCircle.width + 10 + mediaScroll.width
 
                     // same square-corner trap as the card's art: a
-                    // Rectangle's clip does not round its children, so
-                    // the circular art is an OpacityMask here too
+                    // Rectangle's clip does not round its children, and
+                    // OpacityMask did not clip either — so the circular
+                    // art is a Canvas with an arc clip here too
                     Item {
                         id: artCircle
                         width: 22
@@ -1031,21 +1052,31 @@ Item {
                             color: Theme.barHighlight
                         }
 
-                        Image {
-                            id: barArtImage
+                        Canvas {
+                            id: barArtDisc
                             anchors.fill: parent
-                            sourceSize: Qt.size(22, 22)
-                            fillMode: Image.PreserveAspectCrop
-                            source: Media.artUrl
-                        }
 
-                        OpacityMask {
-                            anchors.fill: parent
-                            source: barArtImage
-                            maskSource: Rectangle {
-                                width: 22
-                                height: 22
-                                radius: 11
+                            property url artSource: Media.artUrl
+                            onArtSourceChanged: {
+                                if (artSource.toString().length > 0)
+                                    barArtDisc.loadImage(artSource)
+                                else
+                                    requestPaint()
+                            }
+                            Component.onCompleted: if (artSource.toString().length > 0) loadImage(artSource)
+                            onImageLoaded: requestPaint()
+
+                            onPaint: {
+                                var ctx = getContext("2d")
+                                ctx.clearRect(0, 0, width, height)
+                                if (artSource.toString().length === 0)
+                                    return
+                                ctx.save()
+                                ctx.beginPath()
+                                ctx.arc(width / 2, height / 2, width / 2, 0, 2 * Math.PI)
+                                ctx.clip()
+                                ctx.drawImage(artSource, 0, 0, width, height)
+                                ctx.restore()
                             }
                         }
                     }
