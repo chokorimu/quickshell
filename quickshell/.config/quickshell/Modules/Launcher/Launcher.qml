@@ -502,6 +502,10 @@ PanelWindow {
                         width: list.width
                         height: 40
                         onClicked: root.launch(modelData)
+                        // hovering also moves the selection, so the list
+                        // tracks the cursor and Enter launches whatever
+                        // is under it (LO's call)
+                        onContainsMouseChanged: if (containsMouse) root.selected = index
                         // every row is clickable, so the cursor says so
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
@@ -510,11 +514,12 @@ PanelWindow {
                             anchors.fill: parent
                             // square — the yellow reads as a full-width
                             // bar, no rounding (LO's call). The selected
-                            // row keeps the yellow; hovering any other
-                            // row fills it with the card's subtle
-                            // highlight surface so the list answers the
-                            // cursor. Hover does not move the selection —
-                            // the keyboard's chosen row stays chosen.
+                            // row takes the yellow, and since hover moves
+                            // the selection the row under the cursor is
+                            // normally the selected one; the highlight
+                            // fill remains for the case where the
+                            // keyboard moved the selection off the row
+                            // the mouse is resting on.
                             color: index === root.selected
                                 ? Theme.launcherSelection
                                 : (parent.containsMouse ? Theme.cardHighlight : "transparent")
