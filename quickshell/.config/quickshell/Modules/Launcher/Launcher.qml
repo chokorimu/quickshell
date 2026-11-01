@@ -424,54 +424,68 @@ PanelWindow {
                 // no interaction while the card is retracting
                 enabled: root.open
 
-                // search field
-                Rectangle {
+                // search — two columns: a static "Search" label block
+                // (square, inverted against the palette: black in the
+                // light theme, white in the dark one) beside the input
+                // field, which carries no placeholder — the label says
+                // what the field is. Both columns are square; a rounded
+                // input beside a square label would read as a mismatch.
+                Row {
                     width: parent.width
                     height: 44
-                    radius: 12
-                    color: Theme.cardHighlight
+                    spacing: 0
 
-                    TextInput {
-                        id: input
-                        anchors.fill: parent
-                        anchors.leftMargin: 12
-                        anchors.rightMargin: 12
-                        verticalAlignment: Text.AlignVCenter
-                        color: Theme.cardForeground
-                        font.family: Theme.barFontFamily
-                        font.pixelSize: Theme.launcherFontSize
-                        selectByMouse: true
-                        persistentSelection: true
-
-                        // push user input into the filter; reset() clears both sides
-                        onTextEdited: root.filter = input.text
+                    Rectangle {
+                        width: 110
+                        height: parent.height
+                        color: Theme.launcherSearchLabel
 
                         Text {
-                            anchors.fill: parent
-                            verticalAlignment: Text.AlignVCenter
-                            text: "Search Apps..."
-                            color: Theme.cardDim
+                            anchors.centerIn: parent
+                            text: "Search"
+                            color: Theme.launcherSearchLabelOn
                             font.family: Theme.barFontFamily
                             font.pixelSize: Theme.launcherFontSize
-                            visible: input.text.length === 0
                         }
+                    }
 
-                        Keys.onPressed: function(event) {
-                            var n = root.filtered.length
-                            if (event.key === Qt.Key_Escape) {
-                                root.close()
-                                event.accepted = true
-                            } else if (event.key === Qt.Key_Down && n > 0) {
-                                root.selected = (root.selected + 1) % n
-                                list.positionViewAtIndex(root.selected, ListView.Contain)
-                                event.accepted = true
-                            } else if (event.key === Qt.Key_Up && n > 0) {
-                                root.selected = (root.selected - 1 + n) % n
-                                list.positionViewAtIndex(root.selected, ListView.Contain)
-                                event.accepted = true
-                            } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
-                                if (n > 0) root.launch(root.filtered[root.selected])
-                                event.accepted = true
+                    Rectangle {
+                        width: parent.width - 110
+                        height: parent.height
+                        color: Theme.cardHighlight
+
+                        TextInput {
+                            id: input
+                            anchors.fill: parent
+                            anchors.leftMargin: 12
+                            anchors.rightMargin: 12
+                            verticalAlignment: Text.AlignVCenter
+                            color: Theme.cardForeground
+                            font.family: Theme.barFontFamily
+                            font.pixelSize: Theme.launcherFontSize
+                            selectByMouse: true
+                            persistentSelection: true
+
+                            // push user input into the filter; reset() clears both sides
+                            onTextEdited: root.filter = input.text
+
+                            Keys.onPressed: function(event) {
+                                var n = root.filtered.length
+                                if (event.key === Qt.Key_Escape) {
+                                    root.close()
+                                    event.accepted = true
+                                } else if (event.key === Qt.Key_Down && n > 0) {
+                                    root.selected = (root.selected + 1) % n
+                                    list.positionViewAtIndex(root.selected, ListView.Contain)
+                                    event.accepted = true
+                                } else if (event.key === Qt.Key_Up && n > 0) {
+                                    root.selected = (root.selected - 1 + n) % n
+                                    list.positionViewAtIndex(root.selected, ListView.Contain)
+                                    event.accepted = true
+                                } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                                    if (n > 0) root.launch(root.filtered[root.selected])
+                                    event.accepted = true
+                                }
                             }
                         }
                     }

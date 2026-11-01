@@ -129,6 +129,13 @@ Singleton {
     // follow matugen. Near-black label for contrast on the yellow.
     readonly property color launcherSelection:   "#ffd400"
     readonly property color launcherSelectionOn: "#1b1b1f"
+    // launcher search — the static label block beside the input
+    // field. Inverted against the palette at LO's request: black in
+    // the light theme, white in the dark one, with the label knocked
+    // out in the opposite. Tied to darkMode like the rest of the
+    // fixed card palette; matugen computes no inversion.
+    readonly property color launcherSearchLabel:   darkMode ? "#ffffff" : "#000000"
+    readonly property color launcherSearchLabelOn: darkMode ? "#000000" : "#ffffff"
 
     // typography
     readonly property string fontFamily: "monospace"
