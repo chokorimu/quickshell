@@ -26,11 +26,14 @@ PanelWindow {
     // ---- card metrics ----------------------------------------------------
     readonly property real cardWidth: 500
     readonly property real cardRadius: 22
-    // the search bar's label block — hugs the "Search" text with a
-    // small inset on each side (LO asked for the label's padding way
-    // smaller than the centered-in-110px version). The input column
-    // takes the rest, so both sides read this one number.
+    // the search bar's label block — hugs the "Search" text: 76px
+    // wide (~8-10px beside the text) and 32px tall (~8px above and
+    // below; LO asked for the top and bottom padding smaller again).
+    // The block centers vertically in the 44px search row, so its
+    // text shares the input's center line. The input column takes
+    // the rest of the width, so both sides read the width number.
     readonly property int searchLabelWidth: 76
+    readonly property int searchLabelHeight: 32
     // the pop's overshoot headroom: the pop-in bezier peaks at ~1.02x, so
     // the clip runs wider than the card or the overshoot gets shaved off
     readonly property real popOvershoot: 1.12
@@ -444,7 +447,10 @@ PanelWindow {
 
                     Rectangle {
                         width: root.searchLabelWidth
-                        height: parent.height
+                        height: root.searchLabelHeight
+                        // centered in the row so the label's text shares
+                        // the input's center line despite the shorter box
+                        anchors.verticalCenter: parent.verticalCenter
                         color: Theme.launcherSearchLabel
 
                         Text {
