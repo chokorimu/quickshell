@@ -1018,6 +1018,12 @@ Item {
                             }
                         }
 
+                        // right-to-left only: the text scrolls left until
+                        // its tail clears the window, holds for a beat,
+                        // then the loop restarts — the NumberAnimation's
+                        // `from: 0` snaps the text back to the top of the
+                        // window and it scrolls again. No return leg, so
+                        // the motion is always right-to-left.
                         SequentialAnimation {
                             id: scrollAnim
                             running: mediaScroll.needsScroll
@@ -1027,14 +1033,6 @@ Item {
                                 property: "x"
                                 from: 0
                                 to: -mediaScroll.overflow
-                                duration: mediaScroll.overflow * 30
-                            }
-                            PauseAnimation { duration: 1600 }
-                            NumberAnimation {
-                                target: mediaText
-                                property: "x"
-                                from: -mediaScroll.overflow
-                                to: 0
                                 duration: mediaScroll.overflow * 30
                             }
                             PauseAnimation { duration: 1600 }
