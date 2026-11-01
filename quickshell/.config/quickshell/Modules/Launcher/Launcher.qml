@@ -29,9 +29,9 @@ PanelWindow {
     // the pop's overshoot headroom: the pop-in bezier peaks at ~1.02x, so
     // the clip runs wider than the card or the overshoot gets shaved off
     readonly property real popOvershoot: 1.12
-    // the content column plus its 10px padding top and bottom — the
+    // the content column plus its 4px padding top and bottom — the
     // clip binds to this, so the card fits its results (7 rows max)
-    readonly property real cardHeight: cardColumn.height + 20
+    readonly property real cardHeight: cardColumn.height + 8
 
     // ---- the pop ----------------------------------------------------------
     // Mirrored from the island card: one progress value drives the
@@ -406,20 +406,20 @@ PanelWindow {
             // controls keep their clicks
             MouseArea { anchors.fill: parent }
 
-            // the content sits 10px above the card's visible bottom
+            // the content sits 4px above the card's visible bottom
             // edge — the screen's bottom edge. The canvas's own bottom
             // is a corner radius further down (tucked behind the screen
-            // edge), so the margin is cardRadius + 10: the mirror of
+            // edge), so the margin is cardRadius + 4: the mirror of
             // the island content's topMargin (cardRadius + 4 below the
             // bar's bottom edge).
             Column {
                 id: cardColumn
                 anchors.bottom: parent.bottom
-                anchors.bottomMargin: root.cardRadius + 10
+                anchors.bottomMargin: root.cardRadius + 4
                 anchors.left: parent.left
-                anchors.leftMargin: 10
+                anchors.leftMargin: 4
                 anchors.right: parent.right
-                anchors.rightMargin: 10
+                anchors.rightMargin: 4
                 spacing: 0
                 // no interaction while the card is retracting
                 enabled: root.open
@@ -427,9 +427,11 @@ PanelWindow {
                 // search — two columns: a static "Search" label block
                 // (square, inverted against the palette: black in the
                 // light theme, white in the dark one) beside the input
-                // field, which carries no placeholder — the label says
-                // what the field is. Both columns are square; a rounded
-                // input beside a square label would read as a mismatch.
+                // field, which carries no placeholder and no background
+                // — the label says what the field is and the typed text
+                // sits straight on the card surface. Both columns are
+                // square; a rounded input beside a square label would
+                // read as a mismatch.
                 Row {
                     width: parent.width
                     height: 44
@@ -449,10 +451,10 @@ PanelWindow {
                         }
                     }
 
-                    Rectangle {
+                    // no fill — the input's own background is gone
+                    Item {
                         width: parent.width - 110
                         height: parent.height
-                        color: Theme.cardHighlight
 
                         TextInput {
                             id: input
@@ -491,7 +493,7 @@ PanelWindow {
                     }
                 }
 
-                Item { width: parent.width; height: 10 }
+                Item { width: parent.width; height: 4 }
 
                 // results — 7 visible rows, matching rofi's listview.
                 // Fixed height: the card must not resize when the
@@ -567,7 +569,7 @@ PanelWindow {
                     }
                 }
 
-                Item { width: parent.width; height: 10 }
+                Item { width: parent.width; height: 4 }
             }
         }
     }
