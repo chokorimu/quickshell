@@ -41,21 +41,21 @@ Singleton {
     // language: barInk stays DARKER than the bar (the light palette's
     // near-black-on-white, greyed down), and barOnInk is the label
     // color that sits on those ink fills.
-    readonly property color fixedDarkBarBg:      "#1a1a1c"
-    readonly property color fixedDarkBarSurface: "#2a2a2e"
+    readonly property color fixedDarkBarBg:      "#222226"
+    readonly property color fixedDarkBarSurface: "#323238"
     readonly property color fixedDarkBarText:    "#e8e8ea"
     readonly property color fixedDarkBarMuted:   "#9a9aa0"
     readonly property color fixedDarkBarUrgent:  "#e05252"
     // darker than the bar — the inverted workspace pill and transport
     // buttons stay the dark element inside the lighter surface
-    readonly property color fixedDarkBarInk:     "#101012"
+    readonly property color fixedDarkBarInk:     "#16161a"
     readonly property color fixedDarkBarOnInk:   "#e8e8ea"
 
     // TEMPORARY dark-mode toggle — flips the fixed palette between the
     // light and dark pills. Click the "//" prefix in the bar to flip it.
     // Moves to a proper menu later; the matugen path below is untouched
     // and still wins when barUseMatugen is on.
-    property bool darkMode: false
+    property bool darkMode: true
 
     // Flip to true once the matugen toggle UI exists. Bar.qml only ever
     // references the derived properties below, so switching is a
