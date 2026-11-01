@@ -702,10 +702,24 @@ Item {
                         // placeholder instead of keeping the old one.
                         property url artSource: Media.artUrl
                         onArtSourceChanged: {
-                            if (artSource.toString().length > 0)
+                            if (artSource.toString().length > 0) {
                                 artDisc.loadImage(artSource)
-                            else
+                                // repaint on the URL change itself, not
+                                // only on imageLoaded: loadImage does NOT
+                                // re-emit imageLoaded for an already-seen
+                                // URL (verified by probe), so pressing
+                                // prev — back to art this canvas has
+                                // already loaded — would never repaint and
+                                // would keep showing the previous track's
+                                // art. The paint draws straight from the
+                                // URL through the canvas's pixmap cache,
+                                // so a cached URL paints immediately and a
+                                // fresh one completes when imageLoaded
+                                // fires.
+                                artDisc.requestPaint()
+                            } else {
                                 requestPaint()
+                            }
                         }
                         Component.onCompleted: if (artSource.toString().length > 0) loadImage(artSource)
                         onImageLoaded: requestPaint()
@@ -1064,10 +1078,17 @@ Item {
 
                             property url artSource: Media.artUrl
                             onArtSourceChanged: {
-                                if (artSource.toString().length > 0)
+                                if (artSource.toString().length > 0) {
                                     barArtDisc.loadImage(artSource)
-                                else
+                                    // same trap as the card's disc: repaint
+                                    // on the URL change, not only on
+                                    // imageLoaded — loadImage never re-fires
+                                    // imageLoaded for an already-loaded URL,
+                                    // so prev would leave stale art on screen
+                                    barArtDisc.requestPaint()
+                                } else {
                                     requestPaint()
+                                }
                             }
                             Component.onCompleted: if (artSource.toString().length > 0) loadImage(artSource)
                             onImageLoaded: requestPaint()
