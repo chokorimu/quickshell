@@ -6,7 +6,9 @@
 // drives the clip's height and the card's horizontal scale, so the
 // card grows upward out of the screen's bottom edge instead of fading
 // in over it. In with a slight overshoot (OutBack), out faster and
-// without one (OutCubic).
+// without one (OutCubic). The card's side edges flare into tangent
+// fillet tabs at the screen's bottom edge (below) — the island's pill
+// rolls, mirrored.
 // metrics mirror rofi's config.rasi: 500px card, r22, 7 rows, r12 selection
 import QtQml
 import QtQuick
@@ -201,6 +203,104 @@ PanelWindow {
         width: root.cardWidth * root.popOvershoot
         height: root.pop * (root.cardHeight + root.cardRadius)
         clip: true
+
+        // ---- the corner tabs: tangent fillets at the screen's bottom edge
+        // The card's side edges meet the screen's bottom edge at a hard
+        // 90° once the card is open — the island's pill smooths the same
+        // junction (its bottom edge vs the card's side edges) with
+        // tangent fillet rolls, and this is that geometry mirrored: the
+        // launcher's card grows UP out of the screen's bottom edge, so
+        // each tab flares OUT from the card's side edge and curves down
+        // to the screen's bottom edge — tangent-vertical where it lands
+        // on the card's edge, tangent-horizontal where it meets the
+        // screen's. Material-growing, not a bite: the card's tucked
+        // bottom corners stay hidden below the edge and the silhouette
+        // reads as one smooth curve from the screen's bottom edge up
+        // into the card.
+        //
+        // The tab's tip lands exactly where the card's own reveal-edge
+        // corner arc begins at every height (fr = over - rt: the card's
+        // visible height past its tucked strip, minus the corner radius
+        // its canvas paints with), so the two curves are tangent-
+        // vertical at the junction and join with no cusp and no gap —
+        // the rule the island's rolls follow. The card scales
+        // horizontally only (its height comes from the clip), so the
+        // painted corner radius is vertically unscaled and takes no pop
+        // factor here. Clamped to the corner radius; zero until the
+        // card is tall enough to hold a fillet.
+        Canvas {
+            id: tabs
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.bottom: parent.bottom
+            // cancel the clip's tuck: the canvas's bottom sits exactly
+            // on the screen's bottom edge (the clip runs a corner
+            // radius past it), so H in the paint is the screen's edge
+            anchors.bottomMargin: root.cardRadius
+            width: root.cardWidth * root.popOvershoot
+            height: root.cardRadius
+
+            // the clip's height changes every frame of the pop — repaint
+            // so the fillet tracking follows
+            Connections {
+                target: cardClip
+                function onHeightChanged() { tabs.requestPaint() }
+            }
+
+            // a matugen regeneration rewrites the palette underneath
+            // the painted fill
+            Connections {
+                target: Theme
+                function onCardBackgroundChanged() { tabs.requestPaint() }
+            }
+
+            onPaint: {
+                var ctx = getContext("2d")
+                var w = width
+                var H = height                       // the screen's bottom edge
+                var cr = root.cardRadius
+
+                // the card's visible height past its tucked strip, and
+                // the reveal-edge corner radius its canvas paints
+                var over = cardClip.height - cr
+                var rt = Math.min(cr, Math.max(0, over / 2))
+                var fr = Math.max(0, Math.min(cr, over - rt))
+
+                ctx.clearRect(0, 0, w, H)
+                if (fr <= 0.5) return
+
+                ctx.fillStyle = Theme.cardBackground
+                ctx.beginPath()
+
+                // the card's popped width and edges — the same nx/cx
+                // the island's rolls place their fillets at
+                var cw = root.cardWidth * root.pop
+                var nx = (w - cw) / 2                 // card's left edge
+                var cx = nx + cw                      // card's right edge
+
+                // right tab: out along the screen's bottom edge, then
+                // the arc up to the card's edge. Every arc starts at
+                // the point the path is already standing on, or canvas
+                // silently inserts a straight connector and the curve
+                // collapses (Corners.qml learned this the hard way).
+                ctx.moveTo(cx, H)
+                ctx.lineTo(cx + fr, H)
+                ctx.arc(cx + fr, H - fr, fr, Math.PI / 2, Math.PI, false)
+                ctx.lineTo(cx, H)
+
+                // left tab: mirrored
+                ctx.moveTo(nx, H)
+                ctx.lineTo(nx - fr, H)
+                ctx.arc(nx - fr, H - fr, fr, Math.PI / 2, 0, true)
+                ctx.lineTo(nx, H)
+
+                ctx.fill()
+            }
+
+            // swallow clicks on the flares so they read as part of the
+            // card instead of reaching the dismiss layer — the same
+            // treatment the card's own body gets
+            MouseArea { anchors.fill: parent }
+        }
 
         // A Canvas, not a Rectangle: the card's TOP corners are the
         // reveal edge — the band grows upward, so they are the last part
