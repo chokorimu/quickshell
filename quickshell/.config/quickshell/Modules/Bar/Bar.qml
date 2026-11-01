@@ -34,11 +34,10 @@ Item {
     // the card is 4:3 at half the bar's width — 600x450
     readonly property int cardWidth: 600
     readonly property int cardHeight: 450
-    readonly property int cardRadius: 18
-    // the page-switch column down the card's left edge; the page content
-    // centers in whatever is left of it (see the media children's
-    // horizontalCenterOffset and VolumeCard's leftMargin)
-    readonly property int tabColumnWidth: 56
+    readonly property int cardRadius: 24
+    // the lime accent strip painted down the card's left edge (see the
+    // card canvas); the page content clears it with its left margins
+    readonly property int cardAccentWidth: 8
     readonly property int workspacePillHeight: 30
     readonly property int workspaceCircleSize: 22
     // the pop's overshoot headroom. OutBack peaks at ~1.1x, so the clip
@@ -290,6 +289,17 @@ Item {
                 ctx.arc(rt, rt, rt, Math.PI, 3 * Math.PI / 2, false)     // top-left
                 ctx.closePath()
                 ctx.fill()
+
+                // lime accent strip down the left edge. The path is
+                // still current after the fill, so clipping to it hands
+                // the strip the card's own rounded left corners for
+                // free; the right edge stays square against the card.
+                // It scales with the pop like everything else here.
+                ctx.save()
+                ctx.clip()
+                ctx.fillStyle = Theme.cardAccent
+                ctx.fillRect(0, 0, root.cardAccentWidth, h)
+                ctx.restore()
             }
 
             // the content lives in the visible band below the tucked strip
@@ -306,66 +316,10 @@ Item {
                 // content below never paints underneath it.
                 VolumeCard {
                     anchors.left: parent.left
-                    anchors.leftMargin: root.tabColumnWidth
                     anchors.right: parent.right
                     anchors.top: parent.top
                     anchors.bottom: parent.bottom
                     visible: root.islandPage === "volume"
-                }
-
-                // ---- page switcher: vertical tab column --------------------
-                // Two buttons down the card's left edge — media and volume.
-                // The active page takes the inverted treatment (dark fill,
-                // light glyph), the same language as the workspace pill and
-                // the transport circles. Clicking a button switches pages
-                // outright; the bar's hover triggers (clock, volume icon)
-                // still select a page on the way in.
-                Column {
-                    anchors.left: parent.left
-                    anchors.top: parent.top
-                    anchors.topMargin: 18
-                    anchors.leftMargin: 10
-                    spacing: 10
-
-                    Rectangle {
-                        width: 40
-                        height: 40
-                        radius: 12
-                        color: root.islandPage === "media" ? Theme.barInk : "transparent"
-
-                        Text {
-                            anchors.centerIn: parent
-                            text: "\uF001" // music note
-                            color: root.islandPage === "media" ? Theme.barOnInk : Theme.barDim
-                            font.family: Theme.iconFont
-                            font.pixelSize: 17
-                        }
-
-                        MouseArea {
-                            anchors.fill: parent
-                            onClicked: root.islandPage = "media"
-                        }
-                    }
-
-                    Rectangle {
-                        width: 40
-                        height: 40
-                        radius: 12
-                        color: root.islandPage === "volume" ? Theme.barInk : "transparent"
-
-                        Text {
-                            anchors.centerIn: parent
-                            text: "\uF028" // speaker
-                            color: root.islandPage === "volume" ? Theme.barOnInk : Theme.barDim
-                            font.family: Theme.iconFont
-                            font.pixelSize: 17
-                        }
-
-                        MouseArea {
-                            anchors.fill: parent
-                            onClicked: root.islandPage = "volume"
-                        }
-                    }
                 }
 
                 // big circular art — click toggles, wheel skips. Anchored
@@ -373,9 +327,6 @@ Item {
                 Rectangle {
                     id: bigArt
                     anchors.horizontalCenter: parent.horizontalCenter
-                    // center in the page area, not the full card — the tab
-                    // column owns the left strip
-                    anchors.horizontalCenterOffset: root.tabColumnWidth / 2
                     anchors.top: parent.top
                     anchors.topMargin: 32
                     visible: root.islandPage === "media"
@@ -408,7 +359,6 @@ Item {
                 // name can't push the controls off the card
                 Column {
                     anchors.horizontalCenter: parent.horizontalCenter
-                    anchors.horizontalCenterOffset: root.tabColumnWidth / 2
                     anchors.top: bigArt.bottom
                     anchors.topMargin: 26
                     spacing: 6
@@ -440,7 +390,6 @@ Item {
                 // the bottom of the card
                 Row {
                     anchors.horizontalCenter: parent.horizontalCenter
-                    anchors.horizontalCenterOffset: root.tabColumnWidth / 2
                     anchors.bottom: parent.bottom
                     anchors.bottomMargin: 36
                     spacing: 24

@@ -82,6 +82,11 @@ Singleton {
     // value washes out against light gray)
     readonly property color barWorkspaceDim:  darkMode ? fixedDarkBarMuted : "#6e6e73"
 
+    // card accent — the lime strip down the island card's left edge.
+    // Fixed in both palettes, like screenCornerColor: it is an accent,
+    // not a surface.
+    readonly property color cardAccent: "#cdf34e"
+
     // typography
     readonly property string fontFamily: "monospace"
     readonly property string barFontFamily: "Montserrat Semibold"

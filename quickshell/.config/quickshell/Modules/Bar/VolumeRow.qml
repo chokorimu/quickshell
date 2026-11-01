@@ -90,15 +90,15 @@ Item {
         Rectangle {
             anchors.verticalCenter: parent.verticalCenter
             width: parent.width
-            height: 6
-            radius: 3
+            height: 5
+            radius: 2.5
             color: Theme.barHighlight
 
             Rectangle {
                 width: parent.width * row.fraction
                 height: parent.height
-                radius: 3
-                color: row.muted ? Theme.barDim : Theme.barInk
+                radius: 2.5
+                color: row.muted ? Theme.barHighlight : Theme.barDim
             }
         }
 
@@ -106,10 +106,10 @@ Item {
         Rectangle {
             x: parent.width * row.fraction - width / 2
             anchors.verticalCenter: parent.verticalCenter
-            width: 14
-            height: 14
-            radius: 7
-            color: Theme.barInk
+            width: 12
+            height: 12
+            radius: 6
+            color: Theme.barForeground
             visible: !row.muted
         }
 
