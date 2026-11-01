@@ -1,8 +1,9 @@
-// Notifications.qml — notification popups, centered under the bar.
+// Notifications.qml — notification popups, top right under the bar.
 //
 // A single full-width transparent window at the Overlay layer; the cards
-// themselves live in a 420px column anchored to the top center, just below
-// the bar's band (bar = 8px margin + 36px pill, plus a 12px gap). The window
+// themselves live in a 420px column anchored to the top right, just below
+// the bar's band (bar = 8px margin + 36px pill, plus a 12px gap), its
+// right edge lined up with the bar's right row at 14px. The window
 // carries an input mask tracking that column: without it the transparent
 // surface would swallow every click meant for the windows underneath, and
 // the column collapses to zero height when nothing is up.
@@ -36,7 +37,7 @@ PanelWindow {
         layer: WlrLayershell.Overlay
     }
 
-    // only the centered stack takes input; everything else passes through
+    // only the stack takes input; everything else passes through
     mask: Region {
         item: stackWrapper
     }
@@ -63,7 +64,8 @@ PanelWindow {
 
     Item {
         id: stackWrapper
-        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.right: parent.right
+        anchors.rightMargin: 14 // matches the bar's right row
         anchors.top: parent.top
         anchors.topMargin: 56 // bar band (8 + 36) + 12px gap
         width: 420
