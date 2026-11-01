@@ -35,11 +35,6 @@ Item {
     readonly property int cardWidth: 600
     readonly property int cardHeight: 450
     readonly property int cardRadius: 24
-    // the menu column's strip down the card's left edge — the tab
-    // buttons' own region (leftMargin 16 + 40 wide), painted in the
-    // bar's color against the lighter card body (see the card canvas).
-    // The page content clears it with its left margins.
-    readonly property int cardColumnWidth: 56
     readonly property int workspacePillHeight: 30
     readonly property int workspaceCircleSize: 22
     // the pop's overshoot headroom. OutBack peaks at ~1.1x, so the clip
@@ -256,10 +251,9 @@ Item {
             }
 
             // a matugen regeneration rewrites the palette underneath
-            // the painted fill — repaint when either color changes
+            // the painted fill — repaint when the card color changes
             Connections {
                 target: Theme
-                function onBarBackgroundChanged() { card.requestPaint() }
                 function onCardBackgroundChanged() { card.requestPaint() }
             }
 
@@ -292,20 +286,6 @@ Item {
                 ctx.arc(rt, rt, rt, Math.PI, 3 * Math.PI / 2, false)     // top-left
                 ctx.closePath()
                 ctx.fill()
-
-                // the menu column strip down the left edge keeps the
-                // bar's color — the card body lifts a step lighter
-                // (Theme.cardBackground) so the card reads as its own
-                // surface, and the strip marks the column's region.
-                // The path is still current after the fill, so
-                // clipping to it hands the strip the card's own
-                // rounded left corners for free. It scales with the
-                // pop like everything else here.
-                ctx.save()
-                ctx.clip()
-                ctx.fillStyle = Theme.barBackground
-                ctx.fillRect(0, 0, root.cardColumnWidth, h)
-                ctx.restore()
             }
 
             // the content lives in the visible band below the tucked strip
@@ -329,21 +309,21 @@ Item {
                 }
 
                 // ---- page switcher: vertical tab column --------------------
-                // Two buttons down the card's left edge, flush against each
-                // other (no gaps) inside the bar-colored column strip. The
+                // Two buttons down the card's left edge, flush against the
+                // card's edge and each other (no margin, no gaps). The
                 // selected page takes the accent fill — square corners,
                 // near-black glyph, and a thin black line down its left
                 // edge — so it reads as one solid lime block; the
                 // unselected one stays transparent. Clicking a button
                 // switches pages outright; the bar's hover triggers (clock,
                 // volume icon) still select a page on the way in. The block
-                // ends at x=56 (leftMargin 16 + 40 wide); VolumeCard's
-                // content keeps a 64px left margin to clear it.
+                // ends at x=40; VolumeCard's content keeps a 56px left
+                // margin to clear it.
                 Column {
                     anchors.left: parent.left
                     anchors.top: parent.top
                     anchors.topMargin: 28
-                    anchors.leftMargin: 16
+                    anchors.leftMargin: 0
                     spacing: 0
 
                     Rectangle {
@@ -354,7 +334,7 @@ Item {
                         // the selected marker: a thin black line down
                         // the block's left edge, inset onto the lime
                         // fill so it reads against the yellow rather
-                        // than the dark column strip behind it
+                        // than the card body behind it
                         Rectangle {
                             x: 5
                             width: 3
@@ -385,7 +365,7 @@ Item {
                         // the selected marker: a thin black line down
                         // the block's left edge, inset onto the lime
                         // fill so it reads against the yellow rather
-                        // than the dark column strip behind it
+                        // than the card body behind it
                         Rectangle {
                             x: 5
                             width: 3

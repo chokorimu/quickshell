@@ -24,9 +24,12 @@ Singleton {
     // Fixed palettes. These live here rather than in Colors.qml because
     // matugen overwrites Colors.qml on every wallpaper change, which would
     // recolour the bar the moment a palette is regenerated.
-    // Light pill. Text is deliberately near-black — a white surface with the
-    // old light-gray text would be unreadable.
-    readonly property color fixedBarBg:      "#ffffff"
+    // Light pill — a soft gray rather than pure white, so the white
+    // island card stays the lighter of the two surfaces (the card is
+    // always the lighter surface, in both palettes). Text is
+    // deliberately near-black — a light surface with the old
+    // light-gray text would be unreadable.
+    readonly property color fixedBarBg:      "#f0f0f3"
     readonly property color fixedBarSurface: "#e6e6e9"
     readonly property color fixedBarText:    "#1b1b1f"
     readonly property color fixedBarMuted:   "#8e8e93"
@@ -90,10 +93,11 @@ Singleton {
     // for the same reason cardAccent is: the accent never flips.
     readonly property color cardAccentOn: "#1b1b1f"
     // card surface — a step lighter than the bar so the card reads as
-    // its own surface. White can't lift further, so the light card
-    // stays white; the matugen path keeps the card on the bar color
-    // (no lift is computable from an arbitrary palette). The menu
-    // column strip keeps barBackground — see Bar.qml's card canvas.
+    // its own surface, in both palettes: the dark card lifts off the
+    // charcoal pill, and the light pill drops to a soft gray
+    // (fixedBarBg) so the white card stays the lighter surface. The
+    // matugen path keeps the card on the bar color (no lift is
+    // computable from an arbitrary palette).
     readonly property color cardBackground: barUseMatugen ? barColor : (darkMode ? "#2b2b30" : "#ffffff")
 
     // typography
