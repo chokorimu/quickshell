@@ -45,6 +45,13 @@ Item {
     readonly property int columnExpandedWidth: 150
     readonly property int workspacePillHeight: 30
     readonly property int workspaceCircleSize: 22
+    // the workspace pill's right edge in bar coordinates — the left
+    // boundary the clock and its hover zone must clear. The pill is
+    // the last item in the left row, so its right edge is where the
+    // row's content ends; it grows ~26px per workspace past the four
+    // placeholders, reaching ~x530 at ten workspaces — well past
+    // where a clock centered in the 1000px pill would start (~x430).
+    readonly property real workspaceRight: leftRow.x + workspacePill.x + workspacePill.width
     // the pop's overshoot headroom. The pop-in bezier peaks at ~1.02x, so
     // the clip runs wider than the card and the window runs taller than
     // the card's resting bottom — without both, the overshoot gets shaved
@@ -1296,8 +1303,18 @@ Item {
             }
 
             // ---- center: clock ------------------------------------------------
+            // Flows between the two groups rather than pinned to the
+            // pill's center: centered while the left row is short,
+            // sliding right once the workspace pill grows into it (at
+            // ten workspaces the pill ends ~x530 and a centered clock
+            // would start ~x430 — a 100px overlap), and never past the
+            // right row. Up to ~7 workspaces this is the exact same
+            // centered position as before.
             Text {
-                anchors.horizontalCenter: parent.horizontalCenter
+                id: clockText
+                x: Math.min(Math.max(parent.width / 2 - width / 2,
+                                     root.workspaceRight + 16),
+                            rightRow.x - width - 16)
                 anchors.verticalCenter: parent.verticalCenter
                 text: Qt.formatDateTime(clock.date, "ddd, MMM d  hh:mm")
                 color: Theme.barForeground
@@ -1425,14 +1442,23 @@ Item {
         }
 
         // ---- hover: the clock ----------------------------------------------
-        // Opens the island. Narrow enough that it never reaches the workspace
-        // pill on the left or the status readouts on the right, so those stay
-        // clickable whether the island is open or not.
+        // Opens the island. Follows the clock text and is bounded by
+        // both groups: its left edge clears the workspace pill's right
+        // edge (the old fixed 320px zone centered in the pill reached
+        // back over the workspace pill — at ten workspaces it covered
+        // two circles' worth of dead clicks, and even at four it ate
+        // the last circle's right sliver) and its right edge clears
+        // the status readouts, so those stay clickable whether the
+        // island is open or not. The zone shrinks toward a 160px floor
+        // when the gap between the groups tightens; the clock text
+        // always fits inside it.
         MouseArea {
             id: clockZone
-            anchors.horizontalCenter: parent.horizontalCenter
+            x: Math.min(Math.max(clockText.x + clockText.width / 2 - width / 2,
+                                 root.workspaceRight + 8),
+                        rightRow.x - width - 8)
             anchors.top: parent.top
-            width: 320
+            width: Math.max(160, Math.min(320, rightRow.x - root.workspaceRight - 16))
             height: root.barHeight
             hoverEnabled: true
             onContainsMouseChanged: if (containsMouse) root.islandPage = "media"
