@@ -68,10 +68,15 @@ Item {
     // Which menu the card shows: "media" (clock hover) or "volume"
     // (volume-icon hover). Resets to media whenever the island collapses,
     // so the clock always opens the media page fresh. Derived hover keeps
-    // the card open while the cursor is over it regardless of page.
+    // the card open while the cursor is over it regardless of page —
+    // including on the tab buttons, which take hover events of their
+    // own (they switch pages on enter) and so are OR'd in here directly
+    // rather than relying on hover falling through to cardZone.
     property string islandPage: "media"
 
     property bool hovered: cardZone.containsMouse
+        || mediaTab.containsMouse
+        || volumeTab.containsMouse
         || (islandPage === "media" && clockZone.containsMouse)
         || (islandPage === "volume" && volumeIcon.containsMouse)
 
@@ -188,7 +193,9 @@ Item {
     // Keeps the island open while the cursor is anywhere over the card,
     // including on the transport buttons — those don't take hover events
     // themselves (a MouseArea only accepts hover when hoverEnabled is
-    // true), so hover falls through to this zone underneath.
+    // true), so hover falls through to this zone underneath. The tab
+    // buttons DO take hover (they switch pages on enter), so they are
+    // OR'd into `hovered` directly instead of relying on fall-through.
     //
     // Declared before the card so the card's buttons keep their clicks;
     // the window's input mask clips this zone to the card's real area.
@@ -386,6 +393,7 @@ Item {
                         }
 
                         MouseArea {
+                            id: mediaTab
                             anchors.fill: parent
                             hoverEnabled: true
                             onEntered: root.islandPage = "media"
@@ -418,6 +426,7 @@ Item {
                         }
 
                         MouseArea {
+                            id: volumeTab
                             anchors.fill: parent
                             hoverEnabled: true
                             onEntered: root.islandPage = "volume"
