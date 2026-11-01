@@ -601,7 +601,7 @@ Item {
                             anchors.verticalCenter: parent.verticalCenter
                             anchors.horizontalCenter: parent.horizontalCenter
                             anchors.horizontalCenterOffset: -(parent.width - root.cardColumnWidth) / 2
-                            text: "\uF08B" // sign-out
+                            text: "\uDB82\uDC1C" // door-open
                             color: root.islandPage === "session" ? Theme.cardAccentOn : Theme.barDim
                             font.family: Theme.iconFont
                             font.pixelSize: 17
