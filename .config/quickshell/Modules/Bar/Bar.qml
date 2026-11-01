@@ -1,13 +1,14 @@
-// Bar.qml — floating pill top bar.
+// Bar.qml — floating pill top bar with a dynamic island.
 //   left:   "//" + now playing (circular art, scrolling "Artist - Song") + workspaces
-//   center: clock
+//   center: clock — hover it and a media card swipes down out of the bar
 //   right:  network, volume, memory, battery
 //
 // The window reserves the pill's band via exclusiveZone in shell.qml, so
 // windows are pushed down while the pill still floats centered inside it.
-// Phase 2: three zones with live data and plain styling. The dynamic-island
-// expand/collapse behaviour lands in phase 3, and the final look is waiting
-// on the Figma pass — so nothing here is final.
+// The card swipes down past that band, which is why the window is taller
+// than the reservation and carries an input mask tracking both the pill
+// and the card: without the mask the transparent area around them would
+// swallow every click meant for the windows underneath.
 import QtQml
 import QtQuick
 import Quickshell
@@ -27,9 +28,46 @@ Item {
 
     readonly property int barHeight: 36
     readonly property int topMargin: 8
-    readonly property int pillWidth: 1200
+    readonly property int barWidth: 1200
+    // the card is 4:3 at half the bar's width — 600x450
+    readonly property int cardWidth: 600
+    readonly property int cardHeight: 450
+    readonly property int cardRadius: 18
     readonly property int workspacePillHeight: 30
     readonly property int workspaceCircleSize: 22
+
+    // window geometry for shell.qml — tall enough for the card to swipe
+    // clear of the bar plus a little slack
+    readonly property int windowHeight: topMargin + barHeight + cardHeight + 8
+
+    // the pill and the card, so shell.qml can point its input mask at both
+    readonly property Item pillItem: pill
+    readonly property Item cardItem: cardClip
+
+    // dynamic island state. Derived from the two hover zones below rather
+    // than stored, so there is no signal ordering to get wrong.
+    //
+    // The grace timer matters more than it looks: the card lives outside
+    // the window's input mask until it has finished swiping down, so a
+    // cursor moving quickly from the clock toward the card can outrun the
+    // growing container, slip out of the mask, and close the island on
+    // its way in. Holding `expanded` for a moment after the cursor leaves
+    // gives the container time to finish and the cursor time to land.
+    property bool hovered: clockZone.containsMouse || cardZone.containsMouse
+
+    readonly property bool expanded: hovered || collapseGrace.running
+
+    onHoveredChanged: {
+        if (hovered)
+            collapseGrace.stop()
+        else
+            collapseGrace.restart()
+    }
+
+    Timer {
+        id: collapseGrace
+        interval: 350
+    }
 
     SystemClock {
         id: clock
@@ -94,257 +132,642 @@ Item {
 
     Component.onCompleted: root.reloadWorkspaces()
 
-    // ---- the pill -------------------------------------------------------
-    Rectangle {
-        id: pill
-
-        anchors.top: parent.top
-        anchors.topMargin: root.topMargin
+    // ---- hover: the card column ----------------------------------------
+    // Keeps the island open while the cursor is anywhere over the card,
+    // including on the transport buttons — those don't take hover events
+    // themselves (a MouseArea only accepts hover when hoverEnabled is
+    // true), so hover falls through to this zone underneath.
+    //
+    // Declared before the card so the card's buttons keep their clicks;
+    // the window's input mask clips this zone to the card's real area.
+    MouseArea {
+        id: cardZone
         anchors.horizontalCenter: parent.horizontalCenter
+        anchors.top: parent.top
+        anchors.topMargin: root.topMargin + root.barHeight
+        width: root.cardWidth
+        height: root.cardHeight
+        hoverEnabled: true
+    }
 
-        width: root.pillWidth
-        height: root.barHeight
-        radius: height / 2
-        color: Theme.barBackground
+    // ---- the card: its own element, flush under the bar -----------------
+    // Declared before the pill so the pill paints over the card's top
+    // strip: the card tucks up behind the bar by its corner radius, which
+    // hides its rounded top corners and makes the junction seamless — no
+    // gap between the two shapes. The clipped container's height animates
+    // 0 -> cardHeight + cardRadius, so the card swipes down out from
+    // behind the bar's bottom edge instead of fading in over it.
+    Item {
+        id: cardClip
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.top: parent.top
+        anchors.topMargin: root.topMargin + root.barHeight - root.cardRadius
+        width: root.cardWidth
+        height: root.expanded ? root.cardHeight + root.cardRadius : 0
+        clip: true
 
-        // ---- left: // + now playing + workspaces ------------------------
-        Row {
-            id: leftRow
-            anchors.left: parent.left
-            anchors.leftMargin: 14
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: 12
+        // no fade — the clip does all the work: the card swipes out
+        // from behind the bar fully opaque, and retracts back into it
+        // on collapse
+        Behavior on height { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
 
-            // decorative prefix
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                text: "//"
-                color: Theme.barForeground
-                font.family: Theme.barFontFamily
-                font.pixelSize: Theme.barFontSize
+        // A Canvas, not a Rectangle: the bottom corners stay rounded
+        // through the whole swipe. A Rectangle's radius is fixed, so an
+        // 18px corner on a card the clip hasn't finished revealing reads
+        // as a clipped square — the rounding only "appears" once the
+        // card is fully down. Here the bottom radius tracks the card's
+        // visible height: full cardRadius once there's room for one, a
+        // semicircular cap while the card is shorter than that, and zero
+        // before the card clears the bar's bottom edge. The top corners
+        // keep the full radius — they're tucked behind the bar anyway.
+        // The canvas fills the clip, so it repaints every frame of the
+        // swipe (same per-frame repaint the pill's roll uses).
+        Canvas {
+            id: card
+            anchors.fill: parent
+
+            Connections {
+                target: cardClip
+                function onHeightChanged() { card.requestPaint() }
             }
 
-            // ---- now playing: circular art + scrolling "Artist - Song" ---
-            // Always visible — shows a dim "Not playing" when no player has a
-            // track, so the left zone keeps a stable shape.
-            Item {
-                anchors.verticalCenter: parent.verticalCenter
-                height: 26
-                width: artCircle.width + 10 + mediaScroll.width
+            // a matugen regeneration rewrites the palette underneath
+            // the painted fill — repaint when the bar color changes
+            Connections {
+                target: Theme
+                function onBarBackgroundChanged() { card.requestPaint() }
+            }
 
+            onPaint: {
+                var ctx = getContext("2d")
+                var w = width
+                var h = height
+                var rt = root.cardRadius
+                var rb = Math.min(root.cardRadius, Math.max(0, (h - root.cardRadius) / 2))
+
+                ctx.clearRect(0, 0, w, h)
+                ctx.fillStyle = Theme.barBackground
+                ctx.beginPath()
+
+                // one clockwise outline: top edge, top-right cap, right
+                // edge, bottom-right cap, bottom edge, bottom-left cap,
+                // left edge, top-left cap. Every arc starts at the point
+                // the path is already standing on, or canvas silently
+                // inserts a straight connector and the curve collapses.
+                ctx.moveTo(rt, 0)
+                ctx.lineTo(w - rt, 0)
+                ctx.arc(w - rt, rt, rt, -Math.PI / 2, 0, false)          // top-right
+                ctx.lineTo(w, h - rb)
+                if (rb > 0.5)
+                    ctx.arc(w - rb, h - rb, rb, 0, Math.PI / 2, false)   // bottom-right
+                ctx.lineTo(rb, h)
+                if (rb > 0.5)
+                    ctx.arc(rb, h - rb, rb, Math.PI / 2, Math.PI, false) // bottom-left
+                ctx.lineTo(0, rt)
+                ctx.arc(rt, rt, rt, Math.PI, 3 * Math.PI / 2, false)     // top-left
+                ctx.closePath()
+                ctx.fill()
+            }
+
+            // the content lives in the visible band below the tucked strip
+            Item {
+                anchors.top: parent.top
+                anchors.topMargin: root.cardRadius
+                width: parent.width
+                height: root.cardHeight
+                enabled: root.expanded
+
+                // big circular art — click toggles, wheel skips. Anchored
+                // near the top of the card, centered.
                 Rectangle {
-                    id: artCircle
-                    width: 22
-                    height: 22
-                    anchors.verticalCenter: parent.verticalCenter
+                    id: bigArt
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.top: parent.top
+                    anchors.topMargin: 32
+                    width: 220
+                    height: 220
                     radius: width / 2
                     color: Theme.barHighlight
                     clip: true
 
                     Image {
                         anchors.fill: parent
-                        sourceSize: Qt.size(22, 22)
+                        sourceSize: Qt.size(220, 220)
                         fillMode: Image.PreserveAspectCrop
                         source: Media.artUrl
                     }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: Media.toggle()
+                        onWheel: function (wheel) {
+                            if (wheel.angleDelta.y > 0)
+                                Media.next()
+                            else
+                                Media.previous()
+                        }
+                    }
                 }
 
-                // marquee window: clips the text and scrolls it whenever the
-                // full "Artist - Song" string is wider than the window, so
-                // nothing is permanently cut off
-                Item {
-                    id: mediaScroll
-                    anchors.left: artCircle.right
-                    anchors.leftMargin: 10
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: 180
-                    height: mediaText.implicitHeight
-                    clip: true
-
-                    property real overflow: Math.max(0, mediaText.implicitWidth - width)
-                    property bool needsScroll: overflow > 1
-
-                    onNeedsScrollChanged: if (!needsScroll) mediaText.x = 0
+                // title / artist under the art, centered — elided so a long
+                // name can't push the controls off the card
+                Column {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.top: bigArt.bottom
+                    anchors.topMargin: 26
+                    spacing: 6
 
                     Text {
-                        id: mediaText
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: {
-                            if (!Media.hasPlayer)
-                                return "Not playing"
-                            var a = (Media.artist || "").trim()
-                            var t = (Media.title || "").trim()
-                            if (a && t)
-                                return a + " - " + t
-                            return a || t || "Not playing"
-                        }
+                        width: 520
+                        horizontalAlignment: Text.AlignHCenter
+                        text: Media.hasPlayer ? (Media.title || "Unknown title") : "Not playing"
                         color: Media.hasPlayer ? Theme.barForeground : Theme.barDim
                         font.family: Theme.barFontFamily
-                        font.pixelSize: Theme.barFontSize
-                        width: implicitWidth
-
-                        onTextChanged: {
-                            mediaText.x = 0
-                            if (mediaScroll.needsScroll)
-                                scrollAnim.restart()
-                        }
+                        font.pixelSize: 22
+                        elide: Text.ElideRight
                     }
 
-                    SequentialAnimation {
-                        id: scrollAnim
-                        running: mediaScroll.needsScroll
-                        loops: Animation.Infinite
-                        NumberAnimation {
-                            target: mediaText
-                            property: "x"
-                            from: 0
-                            to: -mediaScroll.overflow
-                            duration: mediaScroll.overflow * 30
-                        }
-                        PauseAnimation { duration: 1600 }
-                        NumberAnimation {
-                            target: mediaText
-                            property: "x"
-                            from: -mediaScroll.overflow
-                            to: 0
-                            duration: mediaScroll.overflow * 30
-                        }
-                        PauseAnimation { duration: 1600 }
+                    Text {
+                        width: 520
+                        horizontalAlignment: Text.AlignHCenter
+                        text: Media.hasPlayer ? (Media.artist || "Unknown artist") : "nothing playing right now"
+                        color: Theme.barDim
+                        font.family: Theme.barFontFamily
+                        font.pixelSize: 15
+                        elide: Text.ElideRight
                     }
                 }
 
-                // click toggles playback, wheel skips — waybar's media bindings
-                MouseArea {
-                    anchors.fill: parent
-                    onClicked: Media.toggle()
-                    onWheel: function (wheel) {
-                        if (wheel.angleDelta.y > 0)
-                            Media.next()
-                        else
-                            Media.previous()
-                    }
-                }
-            }
-
-            // ---- workspaces: black pill with circular buttons -------------
-            // Inverted island inside the white pill — near-black container,
-            // circular buttons, active one filled white with a dark number.
-            Rectangle {
-                id: workspacePill
-                anchors.verticalCenter: parent.verticalCenter
-                height: root.workspacePillHeight
-                radius: height / 2
-                color: Theme.barInk
-                width: workspaceRow.implicitWidth + 8
-
+                // transport controls — dark circles on the white card, the
+                // same inverted language as the workspace pill, pinned to
+                // the bottom of the card
                 Row {
-                    id: workspaceRow
-                    anchors.centerIn: parent
-                    spacing: 4
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.bottom: parent.bottom
+                    anchors.bottomMargin: 36
+                    spacing: 24
 
-                    Repeater {
-                        model: root.workspaces
-                        Rectangle {
-                            required property var modelData
-                            implicitWidth: root.workspaceCircleSize
-                            implicitHeight: root.workspaceCircleSize
-                            radius: implicitWidth / 2
-                            color: modelData.active ? Theme.barBackground : "transparent"
+                    Rectangle {
+                        width: 48
+                        height: 48
+                        radius: width / 2
+                        color: Theme.barInk
 
-                            Text {
-                                anchors.centerIn: parent
-                                text: modelData.id
-                                color: modelData.active ? Theme.barInk : Theme.barDim
-                                font.family: Theme.barFontFamily
-                                font.pixelSize: Theme.barFontSizeSmall
-                            }
+                        Text {
+                            anchors.centerIn: parent
+                            text: "prev"
+                            color: Theme.barBackground
+                            font.family: Theme.barFontFamily
+                            font.pixelSize: 12
+                        }
 
-                            MouseArea {
-                                anchors.fill: parent
-                                onClicked: root.activateWorkspace(modelData.id)
-                            }
+                        MouseArea {
+                            anchors.fill: parent
+                            onClicked: Media.previous()
+                        }
+                    }
+
+                    Rectangle {
+                        width: 60
+                        height: 60
+                        radius: width / 2
+                        color: Theme.barInk
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: Media.playing ? "pause" : "play"
+                            color: Theme.barBackground
+                            font.family: Theme.barFontFamily
+                            font.pixelSize: 14
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            onClicked: Media.toggle()
+                        }
+                    }
+
+                    Rectangle {
+                        width: 48
+                        height: 48
+                        radius: width / 2
+                        color: Theme.barInk
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: "next"
+                            color: Theme.barBackground
+                            font.family: Theme.barFontFamily
+                            font.pixelSize: 12
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            onClicked: Media.next()
                         }
                     }
                 }
             }
         }
+    }
 
-        // ---- center: clock ------------------------------------------------
-        Text {
-            anchors.horizontalCenter: parent.horizontalCenter
-            anchors.verticalCenter: parent.verticalCenter
-            text: Qt.formatDateTime(clock.date, "hh:mm ddd, MMM d")
-            color: Theme.barForeground
-            font.family: Theme.barFontFamily
-            font.pixelSize: Theme.barFontSize
+    // ---- the pill -------------------------------------------------------
+    // The bar never moves: it stays 1200x36 forever. The island is the
+    // card below it — its own element, flush against the bar's bottom
+    // edge — so the side zones stay exactly where they are and stay live
+    // the whole time.
+    //
+    // A Canvas, not a Rectangle: a Rectangle's outline is fixed, and the
+    // bottom edge needs to roll where the card emerges. The card's side
+    // edges meet the bar's bottom edge at a hard 270° corner; the roll
+    // replaces it with a tangent fillet — the bar's edge curves down and
+    // flows into the card's side, so the card reads as sticking out of
+    // the bar rather than butting against it. The fillet is one arc per
+    // side, tangent to the bottom edge (horizontal) at its start and to
+    // the card's side edge (vertical) at its end, centered in the empty
+    // region outside the corner. It is material-growing, not a bite: no
+    // gap opens, and the card's tucked corners stay hidden behind the
+    // roll — which is why the smoothing lives here and not on the card.
+    // `radius` is declared (not inherited — Canvas has none) because
+    // shell.qml's input mask reads pillItem.radius.
+    //
+    // The Canvas is taller than the bar by exactly the roll's depth: the
+    // rolls hang below the bottom edge and a Canvas clips its painting to
+    // its own bounds, so a 36-tall canvas would cut them off. The extra
+    // strip is transparent except for the rolls themselves, and the mask
+    // in shell.qml pins the pill's region to the bar's own 36px band so
+    // the strip never swallows clicks.
+    //
+    // The roll is not tied to `expanded`: its radius tracks the card's
+    // visible overhang (see onPaint), so the junction stays smooth
+    // through the entire swipe in both directions. Tying it to the
+    // boolean instead would pop the rolls off the moment a collapse
+    // starts, leaving the sharp corner bare for the full 300ms the card
+    // takes to retreat — and on the way in the rolls would flash before
+    // the card's edges had grown into them.
+    Canvas {
+        id: pill
+
+        anchors.top: parent.top
+        anchors.topMargin: root.topMargin
+        anchors.horizontalCenter: parent.horizontalCenter
+
+        width: root.barWidth
+        height: root.barHeight + root.cardRadius
+        readonly property real radius: root.barHeight / 2
+
+        // the roll's radius tracks the card's height, so repaint on
+        // every frame of the swipe — the fillet shrinks and grows with
+        // the card instead of popping with the expanded boolean
+        Connections {
+            target: cardClip
+            function onHeightChanged() { pill.requestPaint() }
         }
 
-        // ---- right: network, volume, memory, battery --------------------
-        Row {
-            anchors.right: parent.right
-            anchors.rightMargin: 14
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: 18
+        // a matugen regeneration rewrites the palette underneath the
+        // painted fill — repaint when the bar color changes
+        Connections {
+            target: Theme
+            function onBarBackgroundChanged() { pill.requestPaint() }
+        }
 
-            // network — click opens impala
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                text: {
-                    if (!Network.connected)
-                        return "offline"
-                    return Network.kind === "wifi" ? Network.ssid : "ethernet"
-                }
-                color: Network.connected ? Theme.barForeground : Theme.barDim
-                font.family: Theme.barFontFamily
-                font.pixelSize: Theme.barFontSize
-                elide: Text.ElideRight
-                width: 120
+        onPaint: {
+            var ctx = getContext("2d")
+            var w = width
+            var bh = root.barHeight   // the bar's bottom edge — not the
+                                      // canvas height, which runs past it
+                                      // by the roll's depth
+            var r = radius
 
-                MouseArea {
-                    anchors.fill: parent
-                    onClicked: root.launch(["kitty", "-e", "impala"])
-                }
+            ctx.clearRect(0, 0, w, height)
+            ctx.fillStyle = Theme.barBackground
+            ctx.beginPath()
+
+            // one clockwise outline: top edge, right cap, bottom edge
+            // (with the roll detours when expanded), left cap. Every arc
+            // starts at the point the path is already standing on, or
+            // canvas silently inserts a straight connector and the curve
+            // collapses (Corners.qml learned this the hard way).
+            ctx.moveTo(r, 0)
+            ctx.lineTo(w - r, 0)
+            ctx.arc(w - r, r, r, -Math.PI / 2, 0, false)               // right cap, top
+            ctx.arc(w - r, r, r, 0, Math.PI / 2, false)                // right cap, bottom
+
+            // the fillet radius tracks the card's visible overhang. The
+            // card's bottom edge sits cardRadius below the bar's bottom
+            // edge once fully expanded (that distance is the tuck), and
+            // rises toward the bar as the card collapses — so the roll's
+            // depth is the card's height past its tucked strip, minus
+            // whatever the card's own bottom corner is rounding off,
+            // clamped to the card's corner radius. The roll's tip then
+            // lands exactly where the card's corner arc begins at every
+            // height, and both curves are tangent-vertical there: the
+            // junction reads as one smooth S instead of a roll that
+            // stops short of the corner or overshoots it. No window
+            // where the corner is bare, and no tab hanging off the bar
+            // with the card short of it.
+            var over = cardClip.height - root.cardRadius
+            var rb = Math.min(root.cardRadius, Math.max(0, over / 2))
+            var fr = Math.max(0, Math.min(root.cardRadius, over - rb))
+
+            if (fr > 0.5) {
+                // the rolls, one fillet per card edge. Traversing the
+                // bottom edge right-to-left, each detour dives down
+                // around the added material and comes back up along the
+                // card's edge, which the roll shares. The visible
+                // boundary is smooth at both ends: each arc is tangent
+                // to the bottom edge where it leaves it and tangent to
+                // the card's edge where it lands, and the corner where
+                // the detour rejoins the bottom edge is interior — the
+                // card's material fills it. Mid-swipe the fillet is just
+                // a smaller version of the same curve.
+                var nx = (w - root.cardWidth) / 2                     // card's left edge
+                var cx = nx + root.cardWidth                          // card's right edge
+
+                // right roll: bottom edge -> outer curve down -> card's edge back up
+                ctx.lineTo(cx + fr, bh)                               // bottom edge, to the roll's start
+                ctx.arc(cx + fr, bh + fr, fr, -Math.PI / 2, -Math.PI, true) // roll down to the card's edge
+                ctx.lineTo(cx, bh)                                    // back up along the card's edge
+
+                // left roll: mirrored — down the card's edge, then the
+                // outer curve back up to the bottom edge
+                ctx.lineTo(nx, bh)                                    // bottom edge, to the card's edge
+                ctx.lineTo(nx, bh + fr)                               // down along the card's edge
+                ctx.arc(nx - fr, bh + fr, fr, 0, -Math.PI / 2, true)  // roll back up to the bottom edge
             }
 
-            // volume — click opens pavucontrol, wheel adjusts
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                text: Audio.muted ? "muted" : "vol " + Math.round(Audio.volume * 100)
-                color: Audio.muted ? Theme.barDim : Theme.barForeground
-                font.family: Theme.barFontFamily
-                font.pixelSize: Theme.barFontSize
+            ctx.lineTo(r, bh)                                          // rest of the bottom edge
+            ctx.arc(r, r, r, Math.PI / 2, Math.PI, false)              // left cap, bottom
+            ctx.arc(r, r, r, Math.PI, 3 * Math.PI / 2, false)          // left cap, top
+            ctx.closePath()
+            ctx.fill()
+        }
 
-                MouseArea {
-                    anchors.fill: parent
-                    onClicked: root.launch(["pavucontrol"])
-                    onWheel: function (wheel) {
-                        Audio.nudge(wheel.angleDelta.y > 0 ? 0.05 : -0.05)
+        // ---- top band: the bar itself ------------------------------------
+        // The bar is just this 36px strip — everything always-visible
+        // lives here, and nothing about the island ever changes it.
+        Item {
+            id: topBand
+            anchors.top: parent.top
+            anchors.left: parent.left
+            anchors.right: parent.right
+            height: root.barHeight
+
+            // ---- left: // + now playing + workspaces ------------------------
+            Row {
+                id: leftRow
+                anchors.left: parent.left
+                anchors.leftMargin: 14
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 12
+
+                // decorative prefix
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "//"
+                    color: Theme.barForeground
+                    font.family: Theme.barFontFamily
+                    font.pixelSize: Theme.barFontSize
+                }
+
+                // ---- now playing: circular art + scrolling "Artist - Song" ---
+                // Always visible — shows a dim "Not playing" when no player has a
+                // track, so the left zone keeps a stable shape.
+                Item {
+                    anchors.verticalCenter: parent.verticalCenter
+                    height: 26
+                    width: artCircle.width + 10 + mediaScroll.width
+
+                    Rectangle {
+                        id: artCircle
+                        width: 22
+                        height: 22
+                        anchors.verticalCenter: parent.verticalCenter
+                        radius: width / 2
+                        color: Theme.barHighlight
+                        clip: true
+
+                        Image {
+                            anchors.fill: parent
+                            sourceSize: Qt.size(22, 22)
+                            fillMode: Image.PreserveAspectCrop
+                            source: Media.artUrl
+                        }
+                    }
+
+                    // marquee window: clips the text and scrolls it whenever the
+                    // full "Artist - Song" string is wider than the window, so
+                    // nothing is permanently cut off
+                    Item {
+                        id: mediaScroll
+                        anchors.left: artCircle.right
+                        anchors.leftMargin: 10
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 180
+                        height: mediaText.implicitHeight
+                        clip: true
+
+                        property real overflow: Math.max(0, mediaText.implicitWidth - width)
+                        property bool needsScroll: overflow > 1
+
+                        onNeedsScrollChanged: if (!needsScroll) mediaText.x = 0
+
+                        Text {
+                            id: mediaText
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: {
+                                if (!Media.hasPlayer)
+                                    return "Not playing"
+                                var a = (Media.artist || "").trim()
+                                var t = (Media.title || "").trim()
+                                if (a && t)
+                                    return a + " - " + t
+                                return a || t || "Not playing"
+                            }
+                            color: Media.hasPlayer ? Theme.barForeground : Theme.barDim
+                            font.family: Theme.barFontFamily
+                            font.pixelSize: Theme.barFontSize
+                            width: implicitWidth
+
+                            onTextChanged: {
+                                mediaText.x = 0
+                                if (mediaScroll.needsScroll)
+                                    scrollAnim.restart()
+                            }
+                        }
+
+                        SequentialAnimation {
+                            id: scrollAnim
+                            running: mediaScroll.needsScroll
+                            loops: Animation.Infinite
+                            NumberAnimation {
+                                target: mediaText
+                                property: "x"
+                                from: 0
+                                to: -mediaScroll.overflow
+                                duration: mediaScroll.overflow * 30
+                            }
+                            PauseAnimation { duration: 1600 }
+                            NumberAnimation {
+                                target: mediaText
+                                property: "x"
+                                from: -mediaScroll.overflow
+                                to: 0
+                                duration: mediaScroll.overflow * 30
+                            }
+                            PauseAnimation { duration: 1600 }
+                        }
+                    }
+
+                    // click toggles playback, wheel skips — waybar's media bindings
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: Media.toggle()
+                        onWheel: function (wheel) {
+                            if (wheel.angleDelta.y > 0)
+                                Media.next()
+                            else
+                                Media.previous()
+                        }
+                    }
+                }
+
+                // ---- workspaces: black pill with circular buttons -------------
+                // Inverted island inside the white pill — near-black container,
+                // circular buttons, active one filled white with a dark number.
+                Rectangle {
+                    id: workspacePill
+                    anchors.verticalCenter: parent.verticalCenter
+                    height: root.workspacePillHeight
+                    radius: height / 2
+                    color: Theme.barInk
+                    width: workspaceRow.implicitWidth + 8
+
+                    Row {
+                        id: workspaceRow
+                        anchors.centerIn: parent
+                        spacing: 4
+
+                        Repeater {
+                            model: root.workspaces
+                            Rectangle {
+                                required property var modelData
+                                implicitWidth: root.workspaceCircleSize
+                                implicitHeight: root.workspaceCircleSize
+                                radius: implicitWidth / 2
+                                color: modelData.active ? Theme.barBackground : "transparent"
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: modelData.id
+                                    color: modelData.active ? Theme.barInk : Theme.barDim
+                                    font.family: Theme.barFontFamily
+                                    font.pixelSize: Theme.barFontSizeSmall
+                                }
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    onClicked: root.activateWorkspace(modelData.id)
+                                }
+                            }
+                        }
                     }
                 }
             }
 
-            // memory — click opens btop
+            // ---- center: clock ------------------------------------------------
             Text {
+                anchors.horizontalCenter: parent.horizontalCenter
                 anchors.verticalCenter: parent.verticalCenter
-                text: Memory.available ? "mem " + Memory.usedGb.toFixed(1) + "G" : "mem --"
+                text: Qt.formatDateTime(clock.date, "hh:mm ddd, MMM d")
                 color: Theme.barForeground
                 font.family: Theme.barFontFamily
                 font.pixelSize: Theme.barFontSize
+            }
 
-                MouseArea {
-                    anchors.fill: parent
-                    onClicked: root.launch(["kitty", "-e", "btop"])
+            // ---- right: network, volume, memory, battery --------------------
+            Row {
+                id: rightRow
+                anchors.right: parent.right
+                anchors.rightMargin: 14
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 18
+
+                // network — click opens impala
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: {
+                        if (!Network.connected)
+                            return "offline"
+                        return Network.kind === "wifi" ? Network.ssid : "ethernet"
+                    }
+                    color: Network.connected ? Theme.barForeground : Theme.barDim
+                    font.family: Theme.barFontFamily
+                    font.pixelSize: Theme.barFontSize
+                    elide: Text.ElideRight
+                    width: 120
+
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: root.launch(["kitty", "-e", "impala"])
+                    }
+                }
+
+                // volume — click opens pavucontrol, wheel adjusts
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: Audio.muted ? "muted" : "vol " + Math.round(Audio.volume * 100)
+                    color: Audio.muted ? Theme.barDim : Theme.barForeground
+                    font.family: Theme.barFontFamily
+                    font.pixelSize: Theme.barFontSize
+
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: root.launch(["pavucontrol"])
+                        onWheel: function (wheel) {
+                            Audio.nudge(wheel.angleDelta.y > 0 ? 0.05 : -0.05)
+                        }
+                    }
+                }
+
+                // memory — click opens btop
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: Memory.available ? "mem " + Memory.usedGb.toFixed(1) + "G" : "mem --"
+                    color: Theme.barForeground
+                    font.family: Theme.barFontFamily
+                    font.pixelSize: Theme.barFontSize
+
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: root.launch(["kitty", "-e", "btop"])
+                    }
+                }
+
+                // battery
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: Battery.present ? Math.round(Battery.percentage * 100) + "%" : "--"
+                    color: Battery.charging ? Theme.barForeground : (Battery.percentage <= 0.15 ? Theme.barUrgent : Theme.barForeground)
+                    font.family: Theme.barFontFamily
+                    font.pixelSize: Theme.barFontSize
                 }
             }
-
-            // battery
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                text: Battery.present ? Math.round(Battery.percentage * 100) + "%" : "--"
-                color: Battery.charging ? Theme.barForeground : (Battery.percentage <= 0.15 ? Theme.barUrgent : Theme.barForeground)
-                font.family: Theme.barFontFamily
-                font.pixelSize: Theme.barFontSize
-            }
         }
+
+        // ---- hover: the clock ----------------------------------------------
+        // Opens the island. Narrow enough that it never reaches the workspace
+        // pill on the left or the status readouts on the right, so those stay
+        // clickable whether the island is open or not.
+        MouseArea {
+            id: clockZone
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.top: parent.top
+            width: 320
+            height: root.barHeight
+            hoverEnabled: true
+        }
+
+
     }
 }
