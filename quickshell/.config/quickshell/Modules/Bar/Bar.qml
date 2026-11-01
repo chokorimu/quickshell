@@ -307,12 +307,14 @@ Item {
 
                 // drop shadow to the right of the strip — a soft
                 // black gradient fading into the card body, so the
-                // column reads as raised above the darker surface
-                var shadow = ctx.createLinearGradient(root.cardColumnWidth, 0, root.cardColumnWidth + 24, 0)
-                shadow.addColorStop(0, "rgba(0, 0, 0, 0.35)")
+                // column reads as raised above the darker surface.
+                // Kept narrow and light: a wide or dark shadow reads
+                // as a smudge against the card.
+                var shadow = ctx.createLinearGradient(root.cardColumnWidth, 0, root.cardColumnWidth + 16, 0)
+                shadow.addColorStop(0, "rgba(0, 0, 0, 0.2)")
                 shadow.addColorStop(1, "rgba(0, 0, 0, 0)")
                 ctx.fillStyle = shadow
-                ctx.fillRect(root.cardColumnWidth, 0, 24, h)
+                ctx.fillRect(root.cardColumnWidth, 0, 16, h)
                 ctx.restore()
             }
 
@@ -338,15 +340,18 @@ Item {
 
                 // ---- page switcher: vertical tab column --------------------
                 // Two buttons down the card's left edge, flush against the
-                // card's edge and each other (no margin, no gaps). The
+                // card's edge and each other (no margin, no gaps) and as
+                // wide as the column strip itself, so the block fills the
+                // strip edge to edge with no dead space beside it. The
                 // selected page takes the accent fill — square corners,
-                // near-black glyph, and a thin black line down its left
-                // edge — so it reads as one solid lime block; the
-                // unselected one stays transparent. Clicking a button
-                // switches pages outright; the bar's hover triggers (clock,
-                // volume icon) still select a page on the way in. The block
-                // ends at x=40; VolumeCard's content keeps a 56px left
-                // margin to clear it.
+                // near-black glyph, and a black block down its left edge
+                // taking the full height and the left 20% of the button —
+                // so it reads as one solid lime slab; the unselected one
+                // stays transparent. Clicking a button switches pages
+                // outright; the bar's hover triggers (clock, volume icon)
+                // still select a page on the way in. The block fills the
+                // 56px strip; VolumeCard's content keeps an 80px left
+                // margin to clear the strip and its shadow.
                 Column {
                     anchors.left: parent.left
                     anchors.top: parent.top
@@ -355,17 +360,17 @@ Item {
                     spacing: 0
 
                     Rectangle {
-                        width: 40
+                        width: root.cardColumnWidth
                         height: 40
                         color: root.islandPage === "media" ? Theme.cardAccent : "transparent"
 
-                        // the selected marker: a thin black line down
-                        // the block's left edge, inset onto the lime
-                        // fill so it reads against the yellow rather
-                        // than the card body behind it
+                        // the selected marker: a black block down the
+                        // button's left edge, taking the full height
+                        // and the left 20% of the width — no inset, so
+                        // it reads as part of the button's silhouette
                         Rectangle {
-                            x: 5
-                            width: 3
+                            x: 0
+                            width: parent.width * 0.2
                             height: parent.height
                             color: "black"
                             visible: root.islandPage === "media"
@@ -386,17 +391,17 @@ Item {
                     }
 
                     Rectangle {
-                        width: 40
+                        width: root.cardColumnWidth
                         height: 40
                         color: root.islandPage === "volume" ? Theme.cardAccent : "transparent"
 
-                        // the selected marker: a thin black line down
-                        // the block's left edge, inset onto the lime
-                        // fill so it reads against the yellow rather
-                        // than the card body behind it
+                        // the selected marker: a black block down the
+                        // button's left edge, taking the full height
+                        // and the left 20% of the width — no inset, so
+                        // it reads as part of the button's silhouette
                         Rectangle {
-                            x: 5
-                            width: 3
+                            x: 0
+                            width: parent.width * 0.2
                             height: parent.height
                             color: "black"
                             visible: root.islandPage === "volume"

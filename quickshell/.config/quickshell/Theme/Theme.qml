@@ -95,11 +95,11 @@ Singleton {
     readonly property color cardAccentOn: "#1b1b1f"
     // card surface — the DARK surface against the bar's light one:
     // the card body sits darker than the pill in both palettes
-    // (charcoal under the white light pill, deeper charcoal under
-    // the dark pill), so its content is always light-on-dark. The
-    // matugen path keeps the card on the bar color (no inversion
-    // is computable from an arbitrary palette).
-    readonly property color cardBackground: barUseMatugen ? barColor : (darkMode ? "#1c1c20" : "#26262b")
+    // (a softer charcoal under the white light pill, deeper
+    // charcoal under the dark pill), so its content is always
+    // light-on-dark. The matugen path keeps the card on the bar
+    // color (no inversion is computable from an arbitrary palette).
+    readonly property color cardBackground: barUseMatugen ? barColor : (darkMode ? "#1c1c20" : "#2e2e34")
     // card content palette — the card is dark in both fixed
     // palettes, so its content is light regardless of darkMode.
     readonly property color cardForeground: "#e8e8ea"
