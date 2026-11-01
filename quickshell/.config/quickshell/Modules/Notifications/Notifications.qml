@@ -54,6 +54,15 @@ PanelWindow {
         id: notificationServer
         keepOnReload: true
 
+        // Every notification arrives through this signal first, and the
+        // server DISCARDS it on the spot unless a handler marks it
+        // tracked — an untracked notification never reaches the
+        // trackedNotifications model, so the stack stays empty no matter
+        // what apps send. This one line is the difference between popups
+        // and silence; it cost a full source dive into 0.3.2's
+        // NotificationServer::Notify to find.
+        onNotification: (notification) => notification.tracked = true
+
         // advertise what the cards can render so apps send bodies, actions
         // and icons instead of degrading to plain text
         Component.onCompleted: {
@@ -71,12 +80,22 @@ PanelWindow {
         anchors.top: parent.top
         anchors.topMargin: 56 // bar band (8 + 36) + 12px gap
         width: 420
-        height: stack.height
+        height: stack.contentHeight
 
         ListView {
             id: stack
-            width: parent.width
-            height: contentHeight
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            // The view needs a height that does NOT depend on its own
+            // content: a ListView whose height binds to contentHeight
+            // starts at zero, and a zero-height view instantiates no
+            // delegates — so the content never grows and the stack stays
+            // empty forever. Give it the window's full band below the top
+            // margin instead; the wrapper above — and with it the input
+            // mask — still tracks contentHeight, so only the cards
+            // themselves take input.
+            height: root.implicitHeight - 56
             spacing: 8
             interactive: false
             model: notificationServer.trackedNotifications

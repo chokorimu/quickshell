@@ -20,8 +20,15 @@ import "../../Theme"
 Rectangle {
     id: card
 
-    // the injected delegate model — the Notification object
-    property var notification: modelData
+    // The notification object, captured ONCE at creation rather than bound
+    // to modelData: modelData is resolved through the delegate's model
+    // context, and that context is invalidated the moment the notification
+    // leaves the model — while this card outlives it by its exit animation.
+    // Bound directly, every property read on the fading card would hit null
+    // and flood the log with TypeErrors. The RetainableLock at the bottom
+    // keeps the captured object alive until the card itself is destroyed.
+    property var notification: null
+    Component.onCompleted: notification = modelData
 
     // fixed geometry — the stack never jumps as content changes
     width: 420
@@ -62,7 +69,11 @@ Rectangle {
             height: 22
             sourceSize: Qt.size(22, 22)
             fillMode: Image.PreserveAspectFit
-            source: Quickshell.iconPath(card.notification.appIcon, "application-x-executable")
+            // iconPath("") mangles into a broken "?fallback=..." request,
+            // so only ask when the app actually named an icon
+            source: card.notification.appIcon.length > 0
+                ? Quickshell.iconPath(card.notification.appIcon, "application-x-executable")
+                : ""
         }
 
         Column {
@@ -164,5 +175,15 @@ Rectangle {
         running: card.notification.expireTimeout > 0
         interval: card.notification.expireTimeout
         onTriggered: card.notification.expire()
+    }
+
+    // The notification object is destroyed the moment it leaves the model,
+    // but this card outlives that by its exit animation — without a lock
+    // every binding on the fading card reads a null notification and floods
+    // the log with TypeErrors. The lock is released when the card itself is
+    // destroyed, so nothing leaks.
+    RetainableLock {
+        object: card.notification
+        locked: true
     }
 }
