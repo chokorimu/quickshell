@@ -979,7 +979,10 @@ Item {
 
                     // marquee window: clips the text and scrolls it whenever the
                     // full "Artist - Song" string is wider than the window, so
-                    // nothing is permanently cut off
+                    // nothing is permanently cut off. The scroll is infinite:
+                    // the text renders as repeated copies, which makes the
+                    // content periodic, so the loop wraps with no visible
+                    // reset and never runs out of string.
                     Item {
                         id: mediaScroll
                         anchors.left: artCircle.right
@@ -989,23 +992,60 @@ Item {
                         height: mediaText.implicitHeight
                         clip: true
 
-                        property real overflow: Math.max(0, mediaText.implicitWidth - width)
+                        // the raw string, before any repetition
+                        property string baseText: {
+                            if (!Media.hasPlayer)
+                                return "Not playing"
+                            var a = (Media.artist || "").trim()
+                            var t = (Media.title || "").trim()
+                            if (a && t)
+                                return a + " - " + t
+                            return a || t || "Not playing"
+                        }
+
+                        // gap between copies while scrolling
+                        property string separator: "  •  "
+
+                        // measured from the same strings the text renders
+                        // from, so the period is exact
+                        property real baseWidth: baseMetrics.width
+                        property real unitWidth: unitMetrics.width
+
+                        property real overflow: Math.max(0, baseWidth - width)
                         property bool needsScroll: overflow > 1
 
+                        // scroll distance that brings the string's tail to
+                        // the window's right edge — the first leg of every
+                        // loop. Clamped so the animation's duration never
+                        // goes negative while the string fits and the
+                        // animation sits idle.
+                        property real tailScroll: Math.max(0, baseWidth - width)
+
                         onNeedsScrollChanged: if (!needsScroll) mediaText.x = 0
+
+                        TextMetrics {
+                            id: baseMetrics
+                            font: mediaText.font
+                            text: mediaScroll.baseText
+                        }
+
+                        TextMetrics {
+                            id: unitMetrics
+                            font: mediaText.font
+                            text: mediaScroll.baseText + mediaScroll.separator
+                        }
 
                         Text {
                             id: mediaText
                             anchors.verticalCenter: parent.verticalCenter
-                            text: {
-                                if (!Media.hasPlayer)
-                                    return "Not playing"
-                                var a = (Media.artist || "").trim()
-                                var t = (Media.title || "").trim()
-                                if (a && t)
-                                    return a + " - " + t
-                                return a || t || "Not playing"
-                            }
+                            // three copies separated by the gap — enough that
+                            // the window never runs out of string (the loop
+                            // only ever scrolls within one period), and the
+                            // repetition is what makes the wrap invisible.
+                            // A single static copy when it fits.
+                            text: mediaScroll.needsScroll
+                                ? mediaScroll.baseText + mediaScroll.separator + mediaScroll.baseText + mediaScroll.separator + mediaScroll.baseText
+                                : mediaScroll.baseText
                             color: Media.hasPlayer ? Theme.barForeground : Theme.barDim
                             font.family: Theme.barFontFamily
                             font.pixelSize: Theme.barFontSize
@@ -1018,28 +1058,38 @@ Item {
                             }
                         }
 
-                        // right-to-left only: the text holds at the top of
-                        // the window for a beat — so the start of the
-                        // string is readable before it moves, and the loop's
-                        // reset has somewhere calm to land — then scrolls
-                        // left until its tail clears the window, holds
-                        // again, and loops. The NumberAnimation's `from: 0`
-                        // snaps the text back to the top on each restart,
-                        // where the leading pause catches it. No return
-                        // leg, so the motion is always right-to-left.
+                        // infinite right-to-left scroll, one hold — at the
+                        // tail. Each loop is exactly one period (unitWidth):
+                        //   1. scroll until the string's tail reaches the
+                        //      window's right edge, so the whole "Artist -
+                        //      Song" has passed through, and hold there;
+                        //   2. scroll the rest of the period — the tail
+                        //      exits left, the gap flows through, and the
+                        //      next copy's head arrives at the left edge.
+                        // The loop's `from: 0` then snaps x back to the top,
+                        // invisibly: the content one period over is
+                        // identical, so the snap lands on the same picture.
+                        // No return leg and no hold at the top — the only
+                        // stillness is at the tail.
                         SequentialAnimation {
                             id: scrollAnim
                             running: mediaScroll.needsScroll
                             loops: Animation.Infinite
-                            PauseAnimation { duration: 1600 }
                             NumberAnimation {
                                 target: mediaText
                                 property: "x"
                                 from: 0
-                                to: -mediaScroll.overflow
-                                duration: mediaScroll.overflow * 30
+                                to: -mediaScroll.tailScroll
+                                duration: mediaScroll.tailScroll * 30
                             }
                             PauseAnimation { duration: 1600 }
+                            NumberAnimation {
+                                target: mediaText
+                                property: "x"
+                                from: -mediaScroll.tailScroll
+                                to: -mediaScroll.unitWidth
+                                duration: (mediaScroll.unitWidth - mediaScroll.tailScroll) * 30
+                            }
                         }
                     }
 
