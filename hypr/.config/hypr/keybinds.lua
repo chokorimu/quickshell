@@ -24,6 +24,7 @@ local screenshot      = "grim ~/Pictures/Screenshots/$(date +%Y-%m-%d-%H%M%S).pn
 local screenshotArea  = "grim -g \"$(slurp; sleep 0.2)\" ~/Pictures/Screenshots/$(date +%Y-%m-%d-%H%M%S).png && notify-send 'Screenshot taken' 'Saved to ~/Pictures/Screenshots/$(date +%Y-%m-%d-%H%M%S).png'"
 local menu            = "qs ipc call launcher toggle"
 local reloadBar       = "pkill -x qs; sleep 1; qs"
+local testNotif       = "notify-send -t 10000 'SUPER+N test' 'This body runs long on purpose so the three-line clamp has something to cut, and every card stays exactly the same size no matter how much text arrives.'"
 local powermenu       = "pkill -SIGUSR2 rofi; rofi -show menu -modi \"menu:~/.config/rofi/custom/powermenu.sh\" -theme \"~/.config/rofi/custom/powermenu.rasi\""
 local wallpapermenu   = "pkill -SIGUSR2 rofi; rofi -show wallpaper -modi \"wallpaper:~/.config/rofi/custom/wallpapermenu.sh\" -theme \"~/.config/rofi/custom/wallpapermenu.rasi\" -show-icons"
 
@@ -47,6 +48,7 @@ hl.bind(mainMod .. " + E", hl.dsp.exec_cmd(fileManager))
 hl.bind(mainMod .. " + Print", hl.dsp.exec_cmd(screenshot))
 hl.bind(mainMod .. " + SHIFT + Print", hl.dsp.exec_cmd(screenshotArea))
 hl.bind(mainMod .. " + R", hl.dsp.exec_cmd(reloadBar))
+hl.bind(mainMod .. " + N", hl.dsp.exec_cmd(testNotif))
 hl.bind(mainMod .. " + D", hl.dsp.exec_cmd(menu))
 hl.bind(mainMod .. " + G", hl.dsp.exec_cmd(wallpapermenu))
 hl.bind(mainMod .. " + L", hl.dsp.exec_cmd(powermenu))
