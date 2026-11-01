@@ -732,11 +732,12 @@ Item {
                     }
                 }
 
-                // ---- workspaces: light-gray pill with circular buttons ----
-                // A light-gray island inside the bar pill — the active
-                // circle takes the ink role on top of it (dark fill, light
-                // number), the same inverted language as the transport
-                // circles and the island's tab column.
+                // ---- workspaces: pill with circular buttons ------------------
+                // The pill flips with the palette — near-black ink in dark
+                // mode, light gray in light mode. The active circle takes
+                // barBackground (a shade lighter than the ink in dark mode,
+                // white in light mode) with a barForeground number, so the
+                // button reads in both palettes.
                 Rectangle {
                     id: workspacePill
                     anchors.verticalCenter: parent.verticalCenter
@@ -757,12 +758,12 @@ Item {
                                 implicitWidth: root.workspaceCircleSize
                                 implicitHeight: root.workspaceCircleSize
                                 radius: implicitWidth / 2
-                                color: modelData.active ? Theme.barInk : "transparent"
+                                color: modelData.active ? Theme.barBackground : "transparent"
 
                                 Text {
                                     anchors.centerIn: parent
                                     text: modelData.id
-                                    color: modelData.active ? Theme.barOnInk : Theme.barWorkspaceDim
+                                    color: modelData.active ? Theme.barForeground : Theme.barWorkspaceDim
                                     font.family: Theme.barFontFamily
                                     font.pixelSize: Theme.barFontSizeSmall
                                 }
