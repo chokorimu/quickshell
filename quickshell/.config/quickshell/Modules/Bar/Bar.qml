@@ -3,6 +3,11 @@
 //   center: clock — hover it and a media card pops open from the top center
 //   right:  tray, network, volume, battery
 //
+// SUPER+L opens the island straight on the session page (hyprland runs
+// `qs ipc call island session`); SUPER+L again, ESC, or leaving the
+// active area closes it. The rofi powermenu that used to live on
+// SUPER+L moved to SUPER+SHIFT+L.
+//
 // The window reserves the pill's band via exclusiveZone in shell.qml, so
 // windows are pushed down while the pill still floats centered inside it.
 // The card pops open past that band, which is why the window is taller
@@ -26,6 +31,20 @@ Item {
     // root is 0x0 and the pill's horizontalCenter anchor centers against
     // nothing, parking half the pill off the left edge.
     anchors.fill: parent
+
+    // ESC closes the keyboard-opened session menu. Only live while the
+    // island is pinned: that is the only state in which shell.qml gives
+    // the window keyboard focus, so the keys have somewhere to land.
+    // `focus` itself is flipped by the sessionPinned handler below —
+    // leaving it true permanently would let the always-mapped bar
+    // window hold Qt's active focus (and with it the compositor's)
+    // outside that state.
+    Keys.onPressed: function (event) {
+        if (event.key === Qt.Key_Escape) {
+            root.dismissSession()
+            event.accepted = true
+        }
+    }
 
     readonly property int barHeight: 40
     readonly property int topMargin: 8
@@ -116,13 +135,63 @@ Item {
         || (islandPage === "media" && clockZone.containsMouse)
         || (islandPage === "volume" && volumeIcon.containsMouse)
 
-    readonly property bool expanded: hovered || collapseGrace.running
+    // ---- the keyboard-opened session menu ---------------------------------
+    // SUPER+L pins the island open on the session page with the cursor
+    // nowhere near it. The pin is released the moment the cursor
+    // reaches the island (onHoveredChanged), from which point the
+    // ordinary hover rules apply — so "hover, then leave the active
+    // area" closes it exactly like a hover-opened card. SUPER+L again
+    // or ESC dismisses it outright.
+    property bool sessionPinned: false
+
+    // Set when ESC or the toggle closes the island while the cursor is
+    // resting on it: without the latch the hover zones would reopen the
+    // card under a stationary cursor. Cleared the moment the cursor
+    // actually leaves, so the next hover behaves normally.
+    property bool keyboardDismissed: false
+
+    readonly property bool expanded: (hovered && !keyboardDismissed)
+        || collapseGrace.running
+        || sessionPinned
 
     onHoveredChanged: {
-        if (hovered)
+        if (hovered) {
+            // handoff: the cursor has arrived, the pin is no longer needed
+            root.sessionPinned = false
             collapseGrace.stop()
-        else
+        } else {
+            root.keyboardDismissed = false
             collapseGrace.restart()
+        }
+    }
+
+    onSessionPinnedChanged: {
+        if (sessionPinned) {
+            root.islandPage = "session"
+            // shell.qml flips the window's keyboardFocus to OnDemand for
+            // exactly this state, and that commit lands on the next
+            // polish — the pop animation guarantees a frame within ~16ms.
+            // Take active focus a beat later so the compositor has the
+            // interactivity change before the activation request, or
+            // hyprland can drop the request and ESC never lands. Active
+            // focus is cleared on the way out (below) so every open is
+            // a real null -> root transition and re-requests activation.
+            root.focus = true
+            focusGrab.restart()
+        } else {
+            root.focus = false
+            if (!root.hovered) {
+                // dismissed by key before the cursor ever arrived — reset
+                // the page now; the hover path resets it via the grace timer
+                root.islandPage = "media"
+            }
+        }
+    }
+
+    Timer {
+        id: focusGrab
+        interval: 50
+        onTriggered: root.forceActiveFocus()
     }
 
     Timer {
@@ -131,6 +200,36 @@ Item {
         // a collapsed island always reopens on the media page, so the next
         // clock hover never inherits a stale volume menu
         onTriggered: root.islandPage = "media"
+    }
+
+    // ---- the session menu over IPC ----------------------------------------
+    // hyprland binds SUPER+L to `qs ipc call island session`; the rofi
+    // powermenu that used to live on SUPER+L moved to SUPER+SHIFT+L.
+    // The toggle closes an island already showing the session page and
+    // opens one otherwise. One handler per bar: with several monitors
+    // the IPC registry keeps the first registration and warns about the
+    // rest, so exactly one island ever answers the call.
+    function openSession() {
+        root.keyboardDismissed = false
+        root.sessionPinned = true
+    }
+
+    function dismissSession() {
+        root.sessionPinned = false
+        // hold hover off while the cursor rests on the card, or the
+        // hover zones reopen the island the instant it is dismissed
+        root.keyboardDismissed = root.hovered
+    }
+
+    IpcHandler {
+        target: "island"
+        function session(): void {
+            if (root.expanded && root.islandPage === "session")
+                root.dismissSession()
+            else
+                root.openSession()
+        }
+        function close(): void { root.dismissSession() }
     }
 
     // The card pops open from the top center instead of swiping down: one

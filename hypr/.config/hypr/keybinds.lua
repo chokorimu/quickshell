@@ -22,6 +22,7 @@ local fileManager     = "thunar"
 local screenshot      = "grim ~/Pictures/Screenshots/$(date +%Y-%m-%d-%H%M%S).png && notify-send 'Screenshot taken' 'Saved to ~/Pictures/Screenshots/$(date +%Y-%m-%d-%H%M%S).png'"
 local screenshotArea  = "grim -g \"$(slurp; sleep 0.2)\" ~/Pictures/Screenshots/$(date +%Y-%m-%d-%H%M%S).png && notify-send 'Screenshot taken' 'Saved to ~/Pictures/Screenshots/$(date +%Y-%m-%d-%H%M%S).png'"
 local menu            = "qs ipc call launcher toggle"
+local sessionmenu     = "qs ipc call island session"
 local reloadBar       = "pkill -x qs; sleep 1; qs"
 local testNotif       = "notify-send -t 10000 'SUPER+N test' 'This body runs long on purpose so the two-line clamp has something to cut, and every card stays exactly the same size no matter how much text arrives.'"
 local powermenu       = "pkill -SIGUSR2 rofi; rofi -show menu -modi \"menu:~/.config/rofi/custom/powermenu.sh\" -theme \"~/.config/rofi/custom/powermenu.rasi\""
@@ -50,7 +51,10 @@ hl.bind(mainMod .. " + R", hl.dsp.exec_cmd(reloadBar))
 hl.bind(mainMod .. " + N", hl.dsp.exec_cmd(testNotif))
 hl.bind(mainMod .. " + D", hl.dsp.exec_cmd(menu))
 hl.bind(mainMod .. " + G", hl.dsp.exec_cmd(wallpapermenu))
-hl.bind(mainMod .. " + L", hl.dsp.exec_cmd(powermenu))
+-- the island's session page, opened straight from the keyboard; the
+-- rofi powermenu it replaces moved to SHIFT
+hl.bind(mainMod .. " + L", hl.dsp.exec_cmd(sessionmenu))
+hl.bind(mainMod .. " + SHIFT + L", hl.dsp.exec_cmd(powermenu))
 
 -- Move focus with mainMod + arrow keys
 hl.bind(mainMod .. " + left",  hl.dsp.focus({ direction = "left" }))
