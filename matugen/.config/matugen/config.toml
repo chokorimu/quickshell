@@ -25,3 +25,7 @@ post_hook = "pkill -SIGUSR1 kitty"
 input_path = "~/.config/matugen/templates/cava"
 output_path = "~/.config/cava/themes/custom"
 post_hook = "pkill -SIGUSR1 cava"
+
+[templates.quickshell]
+input_path = "~/.config/matugen/templates/quickshell.qml"
+output_path = "~/.config/quickshell/Theme/Colors.qml"
