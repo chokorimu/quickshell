@@ -8,9 +8,11 @@
 //
 // Delegate over NotificationServer.trackedNotifications, so modelData is
 // the Notification. Click anywhere dismisses; action buttons invoke their
-// action then dismiss; a Timer expires the card per its expireTimeout
-// (0 means the app asked to keep it up until dismissed — that is how
-// critical notifications behave).
+// action then dismiss; a Timer expires the card per its expireTimeout,
+// which is three-valued: 0 means the app asked to keep it up until
+// dismissed (that is how critical notifications behave), and a negative
+// value means "server default" — Discord sends -1 — which falls back to
+// the card's defaultExpireTimeout rather than being read as "never".
 import QtQml
 import QtQuick
 import Quickshell
@@ -170,10 +172,27 @@ Rectangle {
         }
     }
 
-    // auto-expire; 0 means never
+    // expireTimeout is three-valued per the freedesktop spec:
+    //   > 0  — the app named a timeout in milliseconds; use it
+    //   0    — the app asked to keep the card up until dismissed
+    //   < 0  — "server default" (Discord sends -1); fall back to
+    //          defaultExpireTimeout. The old `> 0` guard read -1 as
+    //          "never expire", so every Discord popup stuck on screen
+    //          until it was clicked or the app closed it itself.
+    readonly property int effectiveTimeout: {
+        var t = card.notification.expireTimeout
+        if (t > 0)
+            return t
+        if (t === 0)
+            return 0
+        return defaultExpireTimeout
+    }
+    // the server default used when the app sends a negative timeout
+    readonly property int defaultExpireTimeout: 5000
+
     Timer {
-        running: card.notification.expireTimeout > 0
-        interval: card.notification.expireTimeout
+        running: card.effectiveTimeout > 0
+        interval: card.effectiveTimeout
         onTriggered: card.notification.expire()
     }
 
