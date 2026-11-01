@@ -459,7 +459,7 @@ Item {
                         height: 40
                         color: root.islandPage === "media" ? Theme.cardAccent : "transparent"
 
-                        // the selected marker: a black block down the
+                        // the selected marker: a white block down the
                         // button's left edge, taking the full height
                         // and the left 10% of the resting strip — no
                         // inset, so it reads as part of the silhouette
@@ -467,7 +467,7 @@ Item {
                             x: 0
                             width: root.cardColumnWidth * 0.1
                             height: parent.height
-                            color: "black"
+                            color: "white"
                             visible: root.islandPage === "media"
                         }
 
@@ -521,7 +521,7 @@ Item {
                         height: 40
                         color: root.islandPage === "volume" ? Theme.cardAccent : "transparent"
 
-                        // the selected marker: a black block down the
+                        // the selected marker: a white block down the
                         // button's left edge, taking the full height
                         // and the left 10% of the resting strip — no
                         // inset, so it reads as part of the silhouette
@@ -529,7 +529,7 @@ Item {
                             x: 0
                             width: root.cardColumnWidth * 0.1
                             height: parent.height
-                            color: "black"
+                            color: "white"
                             visible: root.islandPage === "volume"
                         }
 
@@ -583,7 +583,7 @@ Item {
                         height: 40
                         color: root.islandPage === "session" ? Theme.cardAccent : "transparent"
 
-                        // the selected marker: a black block down the
+                        // the selected marker: a white block down the
                         // button's left edge, taking the full height
                         // and the left 10% of the resting strip — no
                         // inset, so it reads as part of the silhouette
@@ -591,7 +591,7 @@ Item {
                             x: 0
                             width: root.cardColumnWidth * 0.1
                             height: parent.height
-                            color: "black"
+                            color: "white"
                             visible: root.islandPage === "session"
                         }
 
