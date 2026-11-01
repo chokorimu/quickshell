@@ -457,7 +457,7 @@ Item {
 
                         Text {
                             anchors.centerIn: parent
-                            text: "\uF011" // power
+                            text: "\uF08B" // sign-out
                             color: root.islandPage === "session" ? Theme.cardAccentOn : Theme.barDim
                             font.family: Theme.iconFont
                             font.pixelSize: 17
@@ -935,7 +935,7 @@ Item {
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.verticalCenter: parent.verticalCenter
-                text: Qt.formatDateTime(clock.date, "ddd, MMM d   hh:mm")
+                text: Qt.formatDateTime(clock.date, "ddd, MMM d  hh:mm")
                 color: Theme.barForeground
                 font.family: Theme.barFontFamily
                 font.pixelSize: Theme.barFontSize
