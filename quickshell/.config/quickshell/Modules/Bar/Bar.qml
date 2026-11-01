@@ -1018,16 +1018,20 @@ Item {
                             }
                         }
 
-                        // right-to-left only: the text scrolls left until
-                        // its tail clears the window, holds for a beat,
-                        // then the loop restarts — the NumberAnimation's
-                        // `from: 0` snaps the text back to the top of the
-                        // window and it scrolls again. No return leg, so
-                        // the motion is always right-to-left.
+                        // right-to-left only: the text holds at the top of
+                        // the window for a beat — so the start of the
+                        // string is readable before it moves, and the loop's
+                        // reset has somewhere calm to land — then scrolls
+                        // left until its tail clears the window, holds
+                        // again, and loops. The NumberAnimation's `from: 0`
+                        // snaps the text back to the top on each restart,
+                        // where the leading pause catches it. No return
+                        // leg, so the motion is always right-to-left.
                         SequentialAnimation {
                             id: scrollAnim
                             running: mediaScroll.needsScroll
                             loops: Animation.Infinite
+                            PauseAnimation { duration: 1600 }
                             NumberAnimation {
                                 target: mediaText
                                 property: "x"
