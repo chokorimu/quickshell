@@ -123,6 +123,13 @@ Singleton {
     readonly property color cardInk:       darkMode ? "#e8e8ea" : "#1b1b1f"
     readonly property color cardOnInk:     cardBackground
 
+    // launcher selection — the active row's fill. Fixed in both
+    // palettes like cardAccent: LO asked for yellow across all
+    // themes, so this deliberately does not flip with darkMode or
+    // follow matugen. Near-black label for contrast on the yellow.
+    readonly property color launcherSelection:   "#ffd400"
+    readonly property color launcherSelectionOn: "#1b1b1f"
+
     // typography
     readonly property string fontFamily: "monospace"
     readonly property string barFontFamily: "Montserrat Semibold"

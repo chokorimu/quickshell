@@ -502,11 +502,15 @@ PanelWindow {
                         width: list.width
                         height: 40
                         onClicked: root.launch(modelData)
+                        // every row is clickable, so the cursor says so
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
 
                         Rectangle {
                             anchors.fill: parent
-                            radius: 12
-                            color: index === root.selected ? Theme.cardInk : "transparent"
+                            // square — the yellow reads as a full-width
+                            // bar, no rounding (LO's call)
+                            color: index === root.selected ? Theme.launcherSelection : "transparent"
                         }
 
                         Row {
@@ -527,7 +531,7 @@ PanelWindow {
                             Text {
                                 anchors.verticalCenter: parent.verticalCenter
                                 text: modelData.name
-                                color: index === root.selected ? Theme.cardOnInk : Theme.cardForeground
+                                color: index === root.selected ? Theme.launcherSelectionOn : Theme.cardForeground
                                 font.family: Theme.barFontFamily
                                 font.pixelSize: Theme.launcherFontSize
                                 elide: Text.ElideRight
