@@ -308,10 +308,10 @@ Item {
                 // drop shadow to the right of the strip — a soft
                 // black gradient fading into the card body, so the
                 // column reads as raised above the darker surface.
-                // Kept narrow and light: a wide or dark shadow reads
+                // Kept narrow and faint: a wide or dark shadow reads
                 // as a smudge against the card.
                 var shadow = ctx.createLinearGradient(root.cardColumnWidth, 0, root.cardColumnWidth + 16, 0)
-                shadow.addColorStop(0, "rgba(0, 0, 0, 0.2)")
+                shadow.addColorStop(0, "rgba(0, 0, 0, 0.12)")
                 shadow.addColorStop(1, "rgba(0, 0, 0, 0)")
                 ctx.fillStyle = shadow
                 ctx.fillRect(root.cardColumnWidth, 0, 16, h)
@@ -347,11 +347,12 @@ Item {
                 // near-black glyph, and a black block down its left edge
                 // taking the full height and the left 20% of the button —
                 // so it reads as one solid lime slab; the unselected one
-                // stays transparent. Clicking a button switches pages
-                // outright; the bar's hover triggers (clock, volume icon)
-                // still select a page on the way in. The block fills the
-                // 56px strip; VolumeCard's content keeps an 80px left
-                // margin to clear the strip and its shadow.
+                // stays transparent. Hovering a button switches pages
+                // outright — no click needed; the bar's hover triggers
+                // (clock, volume icon) still select a page on the way
+                // in. The block fills the 56px strip; VolumeCard's
+                // content keeps an 80px left margin to clear the strip
+                // and its shadow.
                 Column {
                     anchors.left: parent.left
                     anchors.top: parent.top
@@ -386,7 +387,8 @@ Item {
 
                         MouseArea {
                             anchors.fill: parent
-                            onClicked: root.islandPage = "media"
+                            hoverEnabled: true
+                            onEntered: root.islandPage = "media"
                         }
                     }
 
@@ -417,7 +419,8 @@ Item {
 
                         MouseArea {
                             anchors.fill: parent
-                            onClicked: root.islandPage = "volume"
+                            hoverEnabled: true
+                            onEntered: root.islandPage = "volume"
                         }
                     }
                 }
