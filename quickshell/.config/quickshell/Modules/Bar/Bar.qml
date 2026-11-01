@@ -662,7 +662,7 @@ Item {
                 // circular Rectangle did not clip either (the mask never
                 // masked the source — the art stayed square). A Canvas
                 // clips its own paint with an arc path, which always
-                // works, and the whole disc spins CCW while a track
+                // works, and the whole disc spins clockwise while a track
                 // plays — a rotating circle is rotation-invariant, so only
                 // the art inside moves. Pausing freezes it mid-turn; a
                 // track change keeps the angle, like a record.
@@ -678,14 +678,14 @@ Item {
                     width: 200
                     height: 200
 
-                    // one revolution per 10s, counter-clockwise (rotation
-                    // decreases — Qt's positive direction is clockwise).
-                    // The -360 → 0 loop snap is invisible: -360 ≡ 0.
+                    // one revolution per 10s, clockwise (rotation
+                    // increases — Qt's positive direction is clockwise).
+                    // The 0 → 360 loop snap is invisible: 360 ≡ 0.
                     RotationAnimation {
                         target: bigArt
                         property: "rotation"
                         from: 0
-                        to: -360
+                        to: 360
                         duration: 10000
                         loops: Animation.Infinite
                         running: Media.playing && Media.hasPlayer

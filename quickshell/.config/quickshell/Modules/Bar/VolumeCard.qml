@@ -62,6 +62,7 @@ Item {
 
     // app streams
     ListView {
+        id: appList
         anchors.top: masterRow.bottom
         anchors.topMargin: 8
         anchors.bottom: parent.bottom
@@ -75,7 +76,13 @@ Item {
         model: AppAudio.streams
         delegate: VolumeRow {
             required property var modelData
-            width: ListView.width
+            // appList.width, never ListView.width: with no id on the view,
+            // `ListView` resolves to the TYPE object (typeof "object"), whose
+            // .width is undefined — the delegate's width silently becomes 0
+            // and the row's slider anchors collapse to nothing (left 132
+            // against right -82), leaving the app name with no slider. No
+            // error is logged, which is how it shipped.
+            width: appList.width
             height: 40
             label: modelData.app
             streamId: modelData.id
