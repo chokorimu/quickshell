@@ -1,2 +1,12 @@
 *.log
 .DS_Store
+
+# Personal wallpapers — large binaries, kept local (see README)
+rofi/.config/rofi/wallpapers/
+
+# Backup files
+*.bak
+*~
+
+# OS / editor junk
+*.swp

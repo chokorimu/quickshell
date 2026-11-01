@@ -1,0 +1,163 @@
+{   
+    "height": 22,
+    "margin": "0px, 0px, 0px, 0px",    
+    "layer": "top",
+    "position": "bottom",
+    "spacing": "0px",
+
+    "modules-left": [
+        "custom/osu",
+        "custom/spotify",
+        "custom/cava"
+    ],
+    
+    "image#album-art": {
+        "path": "./icons/arch.png",
+        "size": 20, // 40,
+        "interval": 1,
+        "on-click": "rofi -show menu -modi \"menu:~/.config/rofi/custom/powermenu.sh\" -theme \"~/.config/rofi/custom/powermenu.rasi\""
+    },
+
+    "custom/spotify": {
+        "exec": "/usr/bin/python3 $HOME/.config/waybar/scripts/mediaplayer.py --player spotify",
+        "format": "{}",
+        "return-type": "json",
+        "max-length": 55,   
+        "on-click": "playerctl play-pause",
+        "on-scroll-up": "playerctl next",
+        "on-scroll-down": "playerctl previous"
+    },
+    
+    "custom/cava": {
+        "format": "{}",
+        "return-type": "json",
+        "exec": "~/.config/waybar/scripts/cava.sh"
+    },
+    
+    "custom/osu": {
+        "exec": "~/.config/waybar/scripts/osu-status.sh",
+        "interval": 1,            
+        "format": "{}",          
+        "return-type": "json",     
+        "max-length": 55,   
+        "tooltip": false
+    },
+
+    "modules-center": [
+        "hyprland/workspaces"
+    ],
+
+    "hyprland/workspaces": {
+        "format": "",
+        "on-click": "activate",
+        "sort-by-number": true,
+        "persistent-workspaces": {
+            "1": [], "2": [], "3": [], "4": []
+        }
+    },
+    
+    "modules-right": [
+        "tray",
+        "network",
+        "memory",
+        "pulseaudio",
+        "clock",
+        "battery"
+    ],
+
+    "tray": {
+        "icon-size": 26,
+        "spacing": 14,
+        "icons": {
+            "blueman": "bluetooth",
+            "TelegramDesktop": "$HOME/.local/share/icons/hicolor/16x16/apps/telegram.png"
+        }
+    },
+
+    "network": {
+        "on-click": "kitty -e impala",
+        "interface": "wlan0",
+        "format": "{ifname}",
+        "format-wifi": "",
+        "format-ethernet": "{ipaddr}/{cidr} ",
+        "format-disconnected": "",
+        "tooltip-format": "{ifname} via {gwaddr} 󰊗",
+        "tooltip-format-wifi": "{essid} ({signalStrength}%)",
+        "tooltip-format-ethernet": "{ifname} ",
+        "tooltip-format-disconnected": "Disconnected"
+    },
+
+    "memory": {
+        "on-click": "kitty -e btop",
+        "interval": 5,
+        "format": "mem {used:0.1f}G",
+        "tooltip-format": "{percentage}% used"
+    },
+
+    "pulseaudio": {
+        "format": "vol {volume}",
+        "format-bluetooth": "󰂰 {volume}",
+        "format-muted": "vol 0",
+        "format-icons": {
+            "headphone": "",
+            "hands-free": "",
+            "headset": "",
+            "phone": "",
+            "portable": "",
+            "car": "",
+            "default": [
+                "", "", "󰕾", ""
+            ]
+            
+        },
+        "scroll-step": 5.0,
+        "tooltip-format": "{icon} {desc} | {volume}%",
+        "smooth-scrolling-threshold": 1,
+        "on-click": "pavucontrol",
+        "ignored-sinks": ["Easy Effects Sink"]
+    },
+    
+    "clock": {
+        "interval": 1,
+        "format": "time {:%H:%M}",
+        "format-alt": "time {:%H:%M   %A, %d %B %Y}",
+        "tooltip-format": "<tt><small>{calendar}</small></tt>",
+        "calendar": {
+            "mode": "year",
+            "mode-mon-col": 6,
+            "weeks-pos": "right",
+            "on-scroll": 1,
+            "format": {
+                "months": "<span color='#ffead3'><b>{}</b></span>",
+                "days": "<span color='#ecc6d9'><b>{}</b></span>",
+                "weeks": "<span color='#99ffdd'><b>W{}</b></span>",
+                "weekdays": "<span color='#ffcc66'><b>{}</b></span>",
+                "today": "<span color='#ff6699'><b><u>{}</u></b></span>"
+            }
+        }
+    },
+    
+    "battery": {
+        "adapter": "ADP0",
+        "full-at": 100,
+        "interval": 60,
+        "align": 0,
+        "rotate": 0,
+        "design-capacity": false,
+        "states": {
+            "low": 30,
+            "critical": 15
+        },
+        "format": "{icon} {capacity}%",
+        "format-charging": "{capacity}%",
+        "format-plugged": "{capacity}%",
+        "format-full": "FULL",
+        "format-icons": [
+            "󰂎", "󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"
+        ],
+        "on-click": "~/.config/waybar/scripts/blur_control.sh",
+        "format-time": "{H}h {M}min",
+        "tooltip": true,
+        "tooltip-format": "{timeTo} {capacity}%"
+    }
+}

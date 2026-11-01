@@ -1,0 +1,73 @@
+@import "config.rasi"
+@import "colors.rasi"
+
+configuration {
+    show-icons: true;
+}
+
+window {
+    width: 900px;
+    padding: 10px;
+    border: 0px;
+    border-radius: 22px;
+    background-color: @background;
+}
+
+inputbar {
+    enabled: false;
+}
+
+listview {
+    border: 0px;
+    columns: 5;
+    lines: 1;
+    cycle: true;
+    dynamic: true;
+    scrollbar: false;
+    layout: vertical;
+    reverse: false;
+    fixed-height: true;
+    fixed-columns: true;
+    spacing: 0px;
+    background-color: transparent;
+    text-color: @foreground;
+}
+
+element {
+    padding: 200px 10px 200px 10px;
+    background-color: inherit;
+    text-color: inherit;
+    orientation: vertical;
+}
+
+element selected.normal {
+    border-radius: 12px;
+    background-color: @selected;
+    text-color: @selected-foreground;
+}
+
+element-text {
+    background-color: inherit;
+    text-color: inherit;
+    vertical-align: 0.5;
+    horizontal-align: 0.5;
+}
+
+element-icon {
+    size: 128px;
+    margin: 0px 0px 15px 0px;
+    horizontal-align: 0.5;
+    background-color: inherit;
+    text-color: inherit;
+}
+
+element alternate.normal {
+    background-color: inherit;
+    text-color: inherit;
+}
+
+mode-switcher {
+    enabled: false;    
+    spacing: 0;
+}
+  
