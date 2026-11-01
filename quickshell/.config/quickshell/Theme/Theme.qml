@@ -36,20 +36,20 @@ Singleton {
     // label color on those ink fills — white on the near-black
     readonly property color fixedBarOnInk:   "#ffffff"
 
-    // Dark pill — classic dark grey, hardcoded for the same reason. The
+    // Dark pill — deep charcoal, hardcoded for the same reason. The
     // workspace pill and the transport buttons keep the inverted
     // language: barInk stays DARKER than the bar (the light palette's
     // near-black-on-white, greyed down), and barOnInk is the label
     // color that sits on those ink fills.
-    readonly property color fixedDarkBarBg:      "#2b2b2b"
-    readonly property color fixedDarkBarSurface: "#3c3c3c"
-    readonly property color fixedDarkBarText:    "#e0e0e0"
-    readonly property color fixedDarkBarMuted:   "#909090"
-    readonly property color fixedDarkBarUrgent:  "#d9534f"
+    readonly property color fixedDarkBarBg:      "#1a1a1c"
+    readonly property color fixedDarkBarSurface: "#2a2a2e"
+    readonly property color fixedDarkBarText:    "#e8e8ea"
+    readonly property color fixedDarkBarMuted:   "#9a9aa0"
+    readonly property color fixedDarkBarUrgent:  "#e05252"
     // darker than the bar — the inverted workspace pill and transport
     // buttons stay the dark element inside the lighter surface
-    readonly property color fixedDarkBarInk:     "#1c1c1c"
-    readonly property color fixedDarkBarOnInk:   "#e0e0e0"
+    readonly property color fixedDarkBarInk:     "#101012"
+    readonly property color fixedDarkBarOnInk:   "#e8e8ea"
 
     // TEMPORARY dark-mode toggle — flips the fixed palette between the
     // light and dark pills. Click the "//" prefix in the bar to flip it.
