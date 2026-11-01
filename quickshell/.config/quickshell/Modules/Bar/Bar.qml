@@ -1,7 +1,7 @@
 // Bar.qml — floating pill top bar with a dynamic island.
 //   left:   "//" + now playing (circular art, scrolling "Artist - Song") + workspaces
 //   center: clock — hover it and a media card swipes down out of the bar
-//   right:  network, volume, battery
+//   right:  tray, network, volume, battery
 //
 // The window reserves the pill's band via exclusiveZone in shell.qml, so
 // windows are pushed down while the pill still floats centered inside it.
@@ -14,6 +14,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Io
+import Quickshell.Services.SystemTray
 import "../../Theme"
 import "../../Services"
 
@@ -692,13 +693,42 @@ Item {
                 font.pixelSize: Theme.barFontSize
             }
 
-            // ---- right: network, volume, battery --------------------------
+            // ---- right: tray, network, volume, battery --------------------
             Row {
                 id: rightRow
                 anchors.right: parent.right
                 anchors.rightMargin: 14
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 12
+
+                // tray — SNI items; left-click activates, right-click opens
+                // the item's menu. Empty when nothing registers, so the row
+                // stays compact on a clean session.
+                Row {
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 10
+
+                    Repeater {
+                        model: SystemTray.items
+                        Image {
+                            width: 16
+                            height: 16
+                            source: modelData.icon
+                            fillMode: Image.PreserveAspectFit
+
+                            MouseArea {
+                                anchors.fill: parent
+                                acceptedButtons: Qt.LeftButton | Qt.RightButton
+                                onClicked: function (mouse) {
+                                    if (mouse.button === Qt.RightButton)
+                                        modelData.display(root, mouse.x, mouse.y)
+                                    else
+                                        modelData.activate()
+                                }
+                            }
+                        }
+                    }
+                }
 
                 // network — icon only, no SSID; click opens impala
                 Text {
