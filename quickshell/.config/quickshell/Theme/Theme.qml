@@ -86,6 +86,10 @@ Singleton {
     // Fixed in both palettes, like screenCornerColor: it is an accent,
     // not a surface.
     readonly property color cardAccent: "#cdf34e"
+    // label color on the accent — the island tab column's selected
+    // button takes the lime fill, and near-black reads on it. Fixed
+    // for the same reason cardAccent is: the accent never flips.
+    readonly property color cardAccentOn: "#1b1b1f"
 
     // typography
     readonly property string fontFamily: "monospace"

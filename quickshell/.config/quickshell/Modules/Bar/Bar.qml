@@ -322,6 +322,62 @@ Item {
                     visible: root.islandPage === "volume"
                 }
 
+                // ---- page switcher: vertical tab column --------------------
+                // Two buttons down the card's left edge, flush against each
+                // other (no gaps) and past the lime accent strip. The
+                // selected page takes the accent fill — square corners,
+                // near-black glyph — so it reads as one solid lime block;
+                // the unselected one stays transparent. Clicking a button
+                // switches pages outright; the bar's hover triggers (clock,
+                // volume icon) still select a page on the way in. The block
+                // ends at x=56 (leftMargin 16 + 40 wide); VolumeCard's
+                // content keeps a 64px left margin to clear it.
+                Column {
+                    anchors.left: parent.left
+                    anchors.top: parent.top
+                    anchors.topMargin: 28
+                    anchors.leftMargin: 16
+                    spacing: 0
+
+                    Rectangle {
+                        width: 40
+                        height: 40
+                        color: root.islandPage === "media" ? Theme.cardAccent : "transparent"
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: "\uF001" // music note
+                            color: root.islandPage === "media" ? Theme.cardAccentOn : Theme.barDim
+                            font.family: Theme.iconFont
+                            font.pixelSize: 17
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            onClicked: root.islandPage = "media"
+                        }
+                    }
+
+                    Rectangle {
+                        width: 40
+                        height: 40
+                        color: root.islandPage === "volume" ? Theme.cardAccent : "transparent"
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: "\uF028" // speaker
+                            color: root.islandPage === "volume" ? Theme.cardAccentOn : Theme.barDim
+                            font.family: Theme.iconFont
+                            font.pixelSize: 17
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            onClicked: root.islandPage = "volume"
+                        }
+                    }
+                }
+
                 // big circular art — click toggles, wheel skips. Anchored
                 // near the top of the card, centered.
                 Rectangle {

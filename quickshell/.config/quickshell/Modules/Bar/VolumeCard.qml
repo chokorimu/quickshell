@@ -19,13 +19,15 @@ import "../../Theme"
 Item {
     id: volumeCard
 
-    // title row — speaker glyph + "Volume", left-aligned
+    // title row — speaker glyph + "Volume", left-aligned. The 64px
+    // margin clears the tab column's block (ends at x=56) with 8px
+    // to spare.
     Row {
         id: titleRow
         anchors.top: parent.top
         anchors.topMargin: 28
         anchors.left: parent.left
-        anchors.leftMargin: 48
+        anchors.leftMargin: 64
         spacing: 12
 
         Text {
@@ -53,7 +55,7 @@ Item {
         anchors.topMargin: 20
         anchors.left: parent.left
         anchors.right: parent.right
-        anchors.leftMargin: 48
+        anchors.leftMargin: 64
         anchors.rightMargin: 28
         height: 40
         label: "System"
@@ -70,7 +72,7 @@ Item {
         anchors.bottomMargin: 16
         anchors.left: parent.left
         anchors.right: parent.right
-        anchors.leftMargin: 48
+        anchors.leftMargin: 64
         anchors.rightMargin: 28
         clip: true
         spacing: 4
