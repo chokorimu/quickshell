@@ -71,11 +71,17 @@ Rectangle {
             height: 22
             sourceSize: Qt.size(22, 22)
             fillMode: Image.PreserveAspectFit
-            // iconPath("") mangles into a broken "?fallback=..." request,
-            // so only ask when the app actually named an icon
-            source: card.notification.appIcon.length > 0
-                ? Quickshell.iconPath(card.notification.appIcon, "application-x-executable")
-                : ""
+            // The notification's own image wins over the app icon: that
+            // is the sender's picture (Discord sends the profile photo
+            // as image-data, which is what swaync showed), falling back
+            // to the app's icon when the app sent no image. iconPath("")
+            // mangles into a broken "?fallback=..." request, so only ask
+            // when the app actually named an icon.
+            source: card.notification.image.length > 0
+                ? card.notification.image
+                : (card.notification.appIcon.length > 0
+                    ? Quickshell.iconPath(card.notification.appIcon, "application-x-executable")
+                    : "")
         }
 
         Column {
