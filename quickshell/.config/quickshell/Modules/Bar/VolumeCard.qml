@@ -6,10 +6,10 @@
 // playback tab, in the shell's own language. The list scrolls when more
 // apps are playing than the card can hold.
 //
-// Layout follows the reference design: a speaker glyph + "Volume" title
-// left-aligned past the menu column strip, then the rows. The strip
-// is 56px wide, and the content keeps an 80px left margin, so nothing
-// rides it.
+// Layout follows the reference design: the header mark + "Volume"
+// title left-aligned past the menu column strip, then the rows. The
+// strip is 56px wide, and the content keeps an 80px left margin, so
+// nothing rides it.
 import QtQml
 import QtQuick
 import Quickshell
@@ -19,7 +19,7 @@ import "../../Theme"
 Item {
     id: volumeCard
 
-    // title row — speaker glyph + "Volume", left-aligned. The 80px
+    // title row — header mark + "Volume", left-aligned. The 80px
     // margin clears the menu column strip (56 wide), so nothing rides
     // it.
     Row {
@@ -30,12 +30,8 @@ Item {
         anchors.leftMargin: 80
         spacing: 12
 
-        Text {
+        HeaderIcon {
             anchors.verticalCenter: parent.verticalCenter
-            text: "\uF028" // speaker
-            color: Theme.cardForeground
-            font.family: Theme.iconFont
-            font.pixelSize: 20
         }
 
         Text {
@@ -58,7 +54,7 @@ Item {
         anchors.leftMargin: 80
         anchors.rightMargin: 28
         height: 40
-        label: "System"
+        label: "Master volume"
         streamId: -1
         value: Audio.volume
         muted: Audio.muted
