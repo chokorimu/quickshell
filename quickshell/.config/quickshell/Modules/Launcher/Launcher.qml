@@ -5,8 +5,8 @@
 // card's pop mechanics (Bar.qml), mirrored: one `pop` progress value
 // drives the clip's height and the card's horizontal scale, so the
 // card grows upward out of the screen's bottom edge instead of fading
-// in over it. In with a slight overshoot (OutBack), out faster and
-// without one (OutCubic). The card's side edges flare into tangent
+// in over it. In with a slight overshoot, out faster and without one
+// (OutCubic). The card's side edges flare into tangent
 // fillet tabs at the screen's bottom edge (below) — the island's pill
 // rolls, mirrored.
 // metrics mirror rofi's config.rasi: 500px card, r22, 7 rows, r12 selection
@@ -26,8 +26,8 @@ PanelWindow {
     // ---- card metrics ----------------------------------------------------
     readonly property real cardWidth: 500
     readonly property real cardRadius: 22
-    // the pop's overshoot headroom: OutBack peaks at ~1.1x, so the clip
-    // runs wider than the card or the overshoot gets shaved off
+    // the pop's overshoot headroom: the pop-in bezier peaks at ~1.04x, so
+    // the clip runs wider than the card or the overshoot gets shaved off
     readonly property real popOvershoot: 1.12
     // the content column plus its 10px padding top and bottom — the
     // clip binds to this, so the card fits its results (7 rows max)
@@ -47,8 +47,15 @@ PanelWindow {
         target: root
         property: "pop"
         to: 1
-        duration: 380
-        easing.type: Easing.OutBack
+        duration: 300
+        // a tamed back-ease: the bezier's first control point lifts the
+        // curve to ~1.04x before it settles, so the card keeps a little
+        // life without the spring OutBack's 10% overshoot gave it
+        // (measured: 1.0408 vs 1.1000). Qt 6 exposes the curve as a
+        // flat list — c1x, c1y, c2x, c2y, endX, endY — not as
+        // controlPoint1/2, and Easing is not creatable standalone.
+        easing.type: Easing.Bezier
+        easing.bezierCurve: [0.34, 1.35, 0.64, 1.0, 1.0, 1.0]
     }
 
     NumberAnimation {
@@ -56,7 +63,7 @@ PanelWindow {
         target: root
         property: "pop"
         to: 0
-        duration: 240
+        duration: 200
         easing.type: Easing.OutCubic
         // the filter clears only once the card has fully retracted —
         // clearing it in close() would visibly empty the card on its
