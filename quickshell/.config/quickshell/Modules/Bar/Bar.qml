@@ -152,21 +152,18 @@ Item {
     }
 
     onSessionPinnedChanged: {
-        if (sessionPinned) {
+        if (sessionPinned)
             root.islandPage = "session"
-        } else if (!root.hovered) {
-            // dismissed by key before the cursor ever arrived — reset
-            // the page now; the hover path resets it via the grace timer
-            root.islandPage = "media"
-        }
     }
 
     Timer {
         id: collapseGrace
         interval: 350
-        // a collapsed island always reopens on the media page, so the next
-        // clock hover never inherits a stale volume menu
-        onTriggered: root.islandPage = "media"
+        // Holds the card open through the linger after the cursor leaves.
+        // The page is deliberately not touched here — it survives the
+        // collapse and resets once the card is fully gone (popOut below),
+        // so the shrink animates the menu the user was last looking at
+        // instead of flashing the default mid-animation.
     }
 
     // ---- the session menu over IPC ----------------------------------------
@@ -232,6 +229,18 @@ Item {
         to: 0
         duration: 200
         easing.type: Easing.OutCubic
+        // The page outlives the collapse: it holds the last active menu
+        // through the whole shrink and resets to the default only once
+        // the card is fully gone, so the flip happens behind nothing and
+        // the shrink animates the menu the user was last looking at
+        // instead of flashing media mid-animation. The next open either
+        // claims its own page (clock, volume icon, tab buttons, SUPER+L)
+        // or starts from this default. onStopped rather than onFinished
+        // so a degenerate no-op collapse still resets, with the !expanded
+        // guard dropping the interrupted case — the cursor coming back
+        // mid-shrink stops popOut with the card on its way open, and
+        // that must leave the page alone.
+        onStopped: if (!root.expanded) root.islandPage = "media"
     }
 
     onExpandedChanged: root.expanded ? popIn.start() : popOut.start()
