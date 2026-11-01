@@ -11,6 +11,7 @@
 // swallow every click meant for the windows underneath.
 import QtQml
 import QtQuick
+import Qt5Compat.GraphicalEffects
 import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Io
@@ -701,9 +702,10 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 12
 
-                // tray — SNI items; left-click activates, right-click opens
-                // the item's menu. Empty when nothing registers, so the row
-                // stays compact on a clean session.
+                // tray — SNI icons tinted to the bar ink; left-click
+                // activates, right-click opens the item's menu. Empty when
+                // nothing registers, so the row stays compact on a clean
+                // session.
                 Row {
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: 10
@@ -711,11 +713,18 @@ Item {
                     Repeater {
                         model: SystemTray.items
                         Image {
-                            width: 24
-                            height: 24
-                            sourceSize: Qt.size(24, 24)
+                            width: 20
+                            height: 20
+                            sourceSize: Qt.size(20, 20)
                             source: modelData.icon
                             fillMode: Image.PreserveAspectFit
+                            // tint to the bar's ink so brand-colored icons
+                            // match the monochrome status glyphs; the derived
+                            // property flips with darkMode/matugen for free
+                            layer.enabled: true
+                            layer.effect: ColorOverlay {
+                                color: Theme.barForeground
+                            }
 
                             MouseArea {
                                 anchors.fill: parent
