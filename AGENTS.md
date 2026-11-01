@@ -99,6 +99,13 @@ The Arch `*.qmltypes` files are **stale** (the Hyprland one is an empty stub). T
 - Keyboard: Up/Down wrap (rofi's `cycle: true`), Enter launches, Escape closes. Click outside the card dismisses; clicks on the card are swallowed by a `MouseArea`.
 - Metrics mirror rofi's `config.rasi`: 500px card, radius 22, 7 visible rows, radius 12 selection, 30px icons.
 
+## Icons
+
+- **Status icons are Nerd Font glyphs, not images.** `Theme.iconFont` is `"JetBrainsMonoNL Nerd Font"` (verified to cover Font Awesome `f000–f381` and Material `f0001–f1af0`). It is set explicitly on each glyph `Text` — the bar's UI font is not an NF family, so inheriting it renders every glyph as tofu. The bar's status readouts (network, volume, battery) are icon-only: state rides the glyph tier (ban/wifi/globe, speaker-off/down/up, bolt/tiered cells) plus the palette color, with no value text — the SSID and percentages were deliberately dropped. Because the glyph is text it inherits `color` and follows the palette/dark toggle for free.
+- **Do not use SVG for status icons.** Qt's SVG renderer (`libqsvg.so`, installed) draws symbolic SVGs as authored and does not resolve `currentColor`, so the fill is baked in — one color cannot serve both the light and dark pills. SVG app icons in the launcher are fine precisely because brand color is the point there.
+- **Launcher app icons stay `Quickshell.iconPath` + `Image`** (`sourceSize` 30; bump to 48 if they ever look soft at the 1.6 DPR). `Quickshell.Widgets.IconImage` is a thin `Image` wrapper — same loader, icon-sane defaults, no SVG magic. Themeable-vector fallback if ever needed: `Shape` + `PathSVG`.
+- **Glyph coverage is per-codepoint, not per-range.** `F538` (md-memory) sits in the gap *between* the FA and Material blocks — not inside either — and renders as tofu (it shipped once as the memory icon before that readout was removed). Verify any new glyph against the font before shipping it: `fc-query -f '%{charset}\n' <font-file>` lists the covered ranges, and a codepoint is only safe inside one of them.
+
 ## Git state
 
 - Single branch `main`, no remote configured. No branch/PR/release conventions are encoded anywhere — ask before inventing them.

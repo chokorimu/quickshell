@@ -1,7 +1,7 @@
 // Bar.qml — floating pill top bar with a dynamic island.
 //   left:   "//" + now playing (circular art, scrolling "Artist - Song") + workspaces
 //   center: clock — hover it and a media card swipes down out of the bar
-//   right:  network, volume, memory, battery
+//   right:  network, volume, battery
 //
 // The window reserves the pill's band via exclusiveZone in shell.qml, so
 // windows are pushed down while the pill still floats centered inside it.
@@ -692,27 +692,25 @@ Item {
                 font.pixelSize: Theme.barFontSize
             }
 
-            // ---- right: network, volume, memory, battery --------------------
+            // ---- right: network, volume, battery --------------------------
             Row {
                 id: rightRow
                 anchors.right: parent.right
                 anchors.rightMargin: 14
                 anchors.verticalCenter: parent.verticalCenter
-                spacing: 18
+                spacing: 12
 
-                // network — click opens impala
+                // network — icon only, no SSID; click opens impala
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     text: {
                         if (!Network.connected)
-                            return "offline"
-                        return Network.kind === "wifi" ? Network.ssid : "ethernet"
+                            return "\uF05E"                        // ban
+                        return Network.kind === "wifi" ? "\uF1EB" : "\uF0AC" // wifi / globe
                     }
                     color: Network.connected ? Theme.barForeground : Theme.barDim
-                    font.family: Theme.barFontFamily
+                    font.family: Theme.iconFont
                     font.pixelSize: Theme.barFontSize
-                    elide: Text.ElideRight
-                    width: 120
 
                     MouseArea {
                         anchors.fill: parent
@@ -720,12 +718,12 @@ Item {
                     }
                 }
 
-                // volume — click opens pavucontrol, wheel adjusts
+                // volume — icon only; click opens pavucontrol, wheel adjusts
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
-                    text: Audio.muted ? "muted" : "vol " + Math.round(Audio.volume * 100)
+                    text: Audio.muted ? "\uF026" : (Audio.volume < 0.5 ? "\uF027" : "\uF028")
                     color: Audio.muted ? Theme.barDim : Theme.barForeground
-                    font.family: Theme.barFontFamily
+                    font.family: Theme.iconFont
                     font.pixelSize: Theme.barFontSize
 
                     MouseArea {
@@ -737,26 +735,24 @@ Item {
                     }
                 }
 
-                // memory — click opens btop
+                // battery — icon only; bolt while charging, otherwise a
+                // tiered cell
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
-                    text: Memory.available ? "mem " + Memory.usedGb.toFixed(1) + "G" : "mem --"
-                    color: Theme.barForeground
-                    font.family: Theme.barFontFamily
-                    font.pixelSize: Theme.barFontSize
-
-                    MouseArea {
-                        anchors.fill: parent
-                        onClicked: root.launch(["kitty", "-e", "btop"])
+                    text: {
+                        if (!Battery.present)
+                            return ""
+                        if (Battery.charging)
+                            return "\uF0E7"                        // bolt
+                        var p = Battery.percentage
+                        if (p > 0.75) return "\uF240"
+                        if (p > 0.5)  return "\uF241"
+                        if (p > 0.25) return "\uF242"
+                        if (p > 0.10) return "\uF243"
+                        return "\uF244"
                     }
-                }
-
-                // battery
-                Text {
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: Battery.present ? Math.round(Battery.percentage * 100) + "%" : "--"
-                    color: Battery.charging ? Theme.barForeground : (Battery.percentage <= 0.15 ? Theme.barUrgent : Theme.barForeground)
-                    font.family: Theme.barFontFamily
+                    color: !Battery.present ? Theme.barDim : (Battery.charging || Battery.percentage > 0.15 ? Theme.barForeground : Theme.barUrgent)
+                    font.family: Theme.iconFont
                     font.pixelSize: Theme.barFontSize
                 }
             }

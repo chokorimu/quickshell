@@ -73,6 +73,11 @@ Singleton {
     // typography
     readonly property string fontFamily: "monospace"
     readonly property string barFontFamily: "Montserrat Semibold"
+    // Nerd Font for status glyphs (bar/OSD icons). Set explicitly on each
+    // glyph Text — the bar's UI font is not an NF family, so inheriting it
+    // would render every glyph as tofu. Verified to cover the Font Awesome
+    // (f000-f381) and Material (f0001-f1af0) ranges.
+    readonly property string iconFont: "JetBrainsMonoNL Nerd Font"
     readonly property int fontSize: 16
     readonly property int barFontSize: 16
     readonly property int barFontSizeSmall: 12
