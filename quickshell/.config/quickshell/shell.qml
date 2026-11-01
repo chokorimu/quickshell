@@ -7,6 +7,7 @@ import Quickshell.Hyprland
 import "Theme"
 import "Modules/Bar"
 import "Modules/Launcher"
+import "Modules/Notifications"
 import "Modules/Corners"
 
 ShellRoot {
@@ -72,4 +73,5 @@ ShellRoot {
 
     // single instance, not per-monitor
     Launcher {}
+    Notifications {}
 }
