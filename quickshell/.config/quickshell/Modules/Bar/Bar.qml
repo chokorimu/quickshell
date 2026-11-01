@@ -1,11 +1,11 @@
 // Bar.qml — floating pill top bar with a dynamic island.
 //   left:   "//" + now playing (circular art, scrolling "Artist - Song") + workspaces
-//   center: clock — hover it and a media card swipes down out of the bar
+//   center: clock — hover it and a media card pops open from the top center
 //   right:  tray, network, volume, battery
 //
 // The window reserves the pill's band via exclusiveZone in shell.qml, so
 // windows are pushed down while the pill still floats centered inside it.
-// The card swipes down past that band, which is why the window is taller
+// The card pops open past that band, which is why the window is taller
 // than the reservation and carries an input mask tracking both the pill
 // and the card: without the mask the transparent area around them would
 // swallow every click meant for the windows underneath.
@@ -41,10 +41,15 @@ Item {
     readonly property int tabColumnWidth: 56
     readonly property int workspacePillHeight: 30
     readonly property int workspaceCircleSize: 22
+    // the pop's overshoot headroom. OutBack peaks at ~1.1x, so the clip
+    // runs wider than the card and the window runs taller than the card's
+    // resting bottom — without both, the overshoot gets shaved off by the
+    // clip's side edges and the window's bounds respectively.
+    readonly property real popOvershoot: 1.12
 
-    // window geometry for shell.qml — tall enough for the card to swipe
-    // clear of the bar plus a little slack
-    readonly property int windowHeight: topMargin + barHeight + cardHeight + 8
+    // window geometry for shell.qml — the card's resting bottom plus
+    // slack for the pop's overshoot (the 8 is the original clearance)
+    readonly property int windowHeight: topMargin + barHeight + cardHeight + 8 + (cardHeight + cardRadius) * (popOvershoot - 1)
 
     // the pill and the card, so shell.qml can point its input mask at both
     readonly property Item pillItem: pill
@@ -85,6 +90,35 @@ Item {
         // clock hover never inherits a stale volume menu
         onTriggered: root.islandPage = "media"
     }
+
+    // The card pops open from the top center instead of swiping down: one
+    // progress value drives the clip's height — and with it the window's
+    // input mask and the pill's roll fillets — plus the card's own
+    // horizontal scale, so the card grows outward from the top center,
+    // height from the bar's bottom edge and width from the center line.
+    // In with a slight overshoot for the pop; out faster and without one,
+    // so the card never dips below zero (a negative scale would mirror it).
+    property real pop: 0
+
+    NumberAnimation {
+        id: popIn
+        target: root
+        property: "pop"
+        to: 1
+        duration: 380
+        easing.type: Easing.OutBack
+    }
+
+    NumberAnimation {
+        id: popOut
+        target: root
+        property: "pop"
+        to: 0
+        duration: 240
+        easing.type: Easing.OutCubic
+    }
+
+    onExpandedChanged: root.expanded ? popIn.start() : popOut.start()
 
     SystemClock {
         id: clock
@@ -171,37 +205,49 @@ Item {
     // Declared before the pill so the pill paints over the card's top
     // strip: the card tucks up behind the bar by its corner radius, which
     // hides its rounded top corners and makes the junction seamless — no
-    // gap between the two shapes. The clipped container's height animates
-    // 0 -> cardHeight + cardRadius, so the card swipes down out from
+    // gap between the two shapes. The clipped container's height tracks
+    // the pop progress (0 -> cardHeight + cardRadius) while the card
+    // scales outward from the top center, so the card grows out from
     // behind the bar's bottom edge instead of fading in over it.
     Item {
         id: cardClip
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: parent.top
         anchors.topMargin: root.topMargin + root.barHeight - root.cardRadius
-        width: root.cardWidth
-        height: root.expanded ? root.cardHeight + root.cardRadius : 0
+        // wider than the card by the overshoot headroom: the card scales
+        // past its resting width on the way in, and a clip at exactly
+        // cardWidth would shave the overshoot off and flash the card's
+        // side edges square against the boundary
+        width: root.cardWidth * root.popOvershoot
+        height: root.pop * (root.cardHeight + root.cardRadius)
         clip: true
 
-        // no fade — the clip does all the work: the card swipes out
+        // no fade — the clip does all the work: the card pops out
         // from behind the bar fully opaque, and retracts back into it
         // on collapse
-        Behavior on height { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
 
         // A Canvas, not a Rectangle: the bottom corners stay rounded
-        // through the whole swipe. A Rectangle's radius is fixed, so an
+        // through the whole pop. A Rectangle's radius is fixed, so an
         // 18px corner on a card the clip hasn't finished revealing reads
         // as a clipped square — the rounding only "appears" once the
-        // card is fully down. Here the bottom radius tracks the card's
+        // card is fully open. Here the bottom radius tracks the card's
         // visible height: full cardRadius once there's room for one, a
         // semicircular cap while the card is shorter than that, and zero
         // before the card clears the bar's bottom edge. The top corners
         // keep the full radius — they're tucked behind the bar anyway.
-        // The canvas fills the clip, so it repaints every frame of the
-        // swipe (same per-frame repaint the pill's roll uses).
+        // The canvas fills the clip's height, so it repaints every frame
+        // of the pop (same per-frame repaint the pill's roll uses).
         Canvas {
             id: card
-            anchors.fill: parent
+            anchors.top: parent.top
+            anchors.bottom: parent.bottom
+            anchors.horizontalCenter: parent.horizontalCenter
+            width: root.cardWidth
+
+            // the pop: the whole card — painted background and content
+            // alike — scales outward from the top center. The height
+            // comes from the clip (pop-bound); this handles the width.
+            transform: Scale { origin.x: card.width / 2; origin.y: 0; xScale: root.pop }
 
             Connections {
                 target: cardClip
@@ -255,7 +301,7 @@ Item {
                 enabled: root.expanded
 
                 // ---- volume page: per-app sliders, pavucontrol style -------
-                // Same card, same swipe — the volume icon in the bar's right
+                // Same card, same pop — the volume icon in the bar's right
                 // row hovers this page open. Gated on the page so the media
                 // content below never paints underneath it.
                 VolumeCard {
@@ -493,9 +539,9 @@ Item {
     //
     // The roll is not tied to `expanded`: its radius tracks the card's
     // visible overhang (see onPaint), so the junction stays smooth
-    // through the entire swipe in both directions. Tying it to the
+    // through the entire pop in both directions. Tying it to the
     // boolean instead would pop the rolls off the moment a collapse
-    // starts, leaving the sharp corner bare for the full 300ms the card
+    // starts, leaving the sharp corner bare for the full 240ms the card
     // takes to retreat — and on the way in the rolls would flash before
     // the card's edges had grown into them.
     Canvas {
@@ -510,7 +556,7 @@ Item {
         readonly property real radius: root.barHeight / 2
 
         // the roll's radius tracks the card's height, so repaint on
-        // every frame of the swipe — the fillet shrinks and grows with
+        // every frame of the pop — the fillet shrinks and grows with
         // the card instead of popping with the expanded boolean
         Connections {
             target: cardClip
@@ -561,7 +607,9 @@ Item {
             // with the card short of it.
             var over = cardClip.height - root.cardRadius
             var rb = Math.min(root.cardRadius, Math.max(0, over / 2))
-            var fr = Math.max(0, Math.min(root.cardRadius, over - rb))
+            // the card's painted corner radius is rb scaled by the pop,
+            // so the roll's tip lands where that arc begins
+            var fr = Math.max(0, Math.min(root.cardRadius, over - rb * root.pop))
 
             if (fr > 0.5) {
                 // the rolls, one fillet per card edge. Traversing the
@@ -572,10 +620,11 @@ Item {
                 // to the bottom edge where it leaves it and tangent to
                 // the card's edge where it lands, and the corner where
                 // the detour rejoins the bottom edge is interior — the
-                // card's material fills it. Mid-swipe the fillet is just
+                // card's material fills it. Mid-pop the fillet is just
                 // a smaller version of the same curve.
-                var nx = (w - root.cardWidth) / 2                     // card's left edge
-                var cx = nx + root.cardWidth                          // card's right edge
+                var cw = root.cardWidth * root.pop                    // card's popped width
+                var nx = (w - cw) / 2                                 // card's left edge
+                var cx = nx + cw                                      // card's right edge
 
                 // right roll: bottom edge -> outer curve down -> card's edge back up
                 ctx.lineTo(cx + fr, bh)                               // bottom edge, to the roll's start

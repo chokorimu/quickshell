@@ -27,7 +27,7 @@ ShellRoot {
                 }
                 // floating pill: the window is transparent and full-width, but it
                 // reserves the band so windows get pushed down below the pill.
-                // The card swipes down past that band, so the window is taller
+                // The card pops open past that band, so the window is taller
                 // than it reserves.
                 implicitHeight: bar.windowHeight
                 exclusiveZone: bar.barHeight + bar.topMargin
@@ -36,12 +36,11 @@ ShellRoot {
                 // The extra height would swallow every click around the pill
                 // and the card, so the window carries an input mask tracking
                 // both, and everything outside passes through to the windows
-                // underneath. The card's region tracks its element's geometry
-                // (and radius) through the swipe animation. The pill's region
-                // is explicit rather than item-based: the pill's canvas is
-                // taller than the bar by the roll's depth, and an item-based
-                // region would cover that strip and swallow clicks below the
-                // bar's edge — so it is pinned to the bar's own 36px band.
+                // underneath. Both regions are explicit geometry rather than
+                // item-based: the pill's because its canvas is taller than the
+                // bar by the roll's depth, and an item-based region would cover
+                // that strip and swallow clicks below the bar's edge — so it is
+                // pinned to the bar's own 36px band.
                 mask: Region {
                     x: bar.pillItem.x
                     y: bar.pillItem.y
@@ -52,9 +51,23 @@ ShellRoot {
                     bottomLeftRadius: bar.pillItem.radius
                     bottomRightRadius: bar.pillItem.radius
 
+                    // The card's region is explicit for the same class of
+                    // reason: the card pops open scaled, and a Region tracks
+                    // an item's geometry, never its transform — an item-based
+                    // region would sit at full width through the whole pop
+                    // and swallow clicks beside the animating card. These
+                    // bindings mirror the card's popped geometry exactly, so
+                    // the region is the visible card at every frame and
+                    // collapses to nothing when the card does.
                     Region {
-                        item: bar.cardItem
-                        radius: bar.cardRadius
+                        x: bar.pillItem.x + (bar.barWidth - bar.cardWidth * bar.pop) / 2
+                        y: bar.cardItem.y
+                        width: bar.cardWidth * bar.pop
+                        height: (bar.cardHeight + bar.cardRadius) * bar.pop
+                        topLeftRadius: bar.cardRadius
+                        topRightRadius: bar.cardRadius
+                        bottomLeftRadius: bar.cardRadius
+                        bottomRightRadius: bar.cardRadius
                     }
                 }
 

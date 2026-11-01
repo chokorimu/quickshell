@@ -1,6 +1,6 @@
 // VolumeCard.qml — the island's second menu: per-app volume.
 //
-// Lives inside the same swipe-down card as the media page; Bar.qml gates
+// Lives inside the same pop-open card as the media page; Bar.qml gates
 // which page is visible. Master sink row on top (the Audio service), a
 // divider, then one row per playback stream from AppAudio — pavucontrol's
 // playback tab, in the shell's own language. The list scrolls when more
