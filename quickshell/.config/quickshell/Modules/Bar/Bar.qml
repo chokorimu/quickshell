@@ -33,7 +33,7 @@ Item {
     readonly property int barWidth: 1200
     // the card is 4:3 at half the bar's width — 600x450
     readonly property int cardWidth: 600
-    readonly property int cardHeight: 450
+    readonly property int cardHeight: 400
     readonly property int cardRadius: 24
     // the menu column's strip down the card's left edge — the tab
     // buttons' own region (40 wide, flush at the card's edge), painted
@@ -481,17 +481,17 @@ Item {
                     // the column strip owns the left edge
                     anchors.horizontalCenterOffset: root.cardColumnWidth / 2
                     anchors.top: parent.top
-                    anchors.topMargin: 32
+                    anchors.topMargin: 28
                     visible: root.islandPage === "media"
-                    width: 220
-                    height: 220
+                    width: 200
+                    height: 200
                     radius: width / 2
                     color: Theme.cardHighlight
                     clip: true
 
                     Image {
                         anchors.fill: parent
-                        sourceSize: Qt.size(220, 220)
+                        sourceSize: Qt.size(200, 200)
                         fillMode: Image.PreserveAspectCrop
                         source: Media.artUrl
                     }
@@ -514,7 +514,7 @@ Item {
                     anchors.horizontalCenter: parent.horizontalCenter
                     anchors.horizontalCenterOffset: root.cardColumnWidth / 2
                     anchors.top: bigArt.bottom
-                    anchors.topMargin: 26
+                    anchors.topMargin: 15
                     spacing: 6
                     visible: root.islandPage === "media"
 
@@ -546,7 +546,7 @@ Item {
                     anchors.horizontalCenter: parent.horizontalCenter
                     anchors.horizontalCenterOffset: root.cardColumnWidth / 2
                     anchors.bottom: parent.bottom
-                    anchors.bottomMargin: 36
+                    anchors.bottomMargin: 28
                     spacing: 24
                     visible: root.islandPage === "media"
 

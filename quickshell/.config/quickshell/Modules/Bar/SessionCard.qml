@@ -88,12 +88,15 @@ Item {
         spacing: 24
 
         // avatar — click to change; a user glyph stands in until an
-        // image is picked. The pencil badge says "editable" without
-        // needing a hover state.
+        // image is picked. Centered on the column with an explicit
+        // anchor — a plain Column left-aligns its children, so without
+        // it the frame would sit at the column's left edge while the
+        // text and grid below center themselves.
         Rectangle {
             id: avatarFrame
-            width: 140
-            height: 140
+            anchors.horizontalCenter: parent.horizontalCenter
+            width: 160
+            height: 160
             radius: width / 2
             color: Theme.cardHighlight
             clip: true
@@ -112,26 +115,7 @@ Item {
                 visible: avatar.status !== Image.Ready
                 color: Theme.cardDim
                 font.family: Theme.iconFont
-                font.pixelSize: 64
-            }
-
-            Rectangle {
-                anchors.right: parent.right
-                anchors.bottom: parent.bottom
-                anchors.rightMargin: 8
-                anchors.bottomMargin: 8
-                width: 34
-                height: 34
-                radius: width / 2
-                color: Theme.cardInk
-
-                Text {
-                    anchors.centerIn: parent
-                    text: "\uF040" // pencil
-                    color: Theme.cardOnInk
-                    font.family: Theme.iconFont
-                    font.pixelSize: 15
-                }
+                font.pixelSize: 72
             }
 
             MouseArea {
