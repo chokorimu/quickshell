@@ -411,10 +411,11 @@ Item {
                 // hover zone over the whole column strip — expands the
                 // column wherever the cursor lands on it, and keeps the
                 // island open (OR'd into hovered via columnHovered).
-                // Declared after the pages so the expanded column paints
-                // above them, and before the buttons so they keep their
-                // own hover. Its width tracks the expansion so the
-                // revealed label area stays live.
+                // Its width tracks the expansion so the revealed label
+                // area stays live. Declared before the buttons so they
+                // keep their own hover; being a MouseArea it paints
+                // nothing itself — the cover Rectangle below is what
+                // sits above the pages.
                 MouseArea {
                     id: columnZone
                     anchors.left: parent.left
@@ -423,6 +424,27 @@ Item {
                     width: root.columnWidth
                     height: root.cardHeight - 28
                     hoverEnabled: true
+                }
+
+                // the expansion's cover. The card canvas paints the
+                // strip across the full columnWidth, but the pages
+                // render above the canvas — so without this the
+                // revealed 56..columnWidth region would show page
+                // content through the transparent buttons. This
+                // Rectangle sits above the pages and below the
+                // buttons, painting the strip's color over whatever
+                // the expansion covers. It starts past cardColumnWidth
+                // so it never touches the card's rounded left corners
+                // (the canvas keeps those) and every edge it does have
+                // lands on a straight card edge. Zero width at rest,
+                // and a plain Rectangle takes no hover, so columnZone
+                // and the buttons keep their input.
+                Rectangle {
+                    anchors.top: parent.top
+                    anchors.bottom: parent.bottom
+                    x: root.cardColumnWidth
+                    width: root.columnWidth - root.cardColumnWidth
+                    color: Theme.barBackground
                 }
 
                 Column {
@@ -439,11 +461,11 @@ Item {
 
                         // the selected marker: a black block down the
                         // button's left edge, taking the full height
-                        // and the left 10% of the width — no inset, so
-                        // it reads as part of the button's silhouette
+                        // and the left 10% of the resting strip — no
+                        // inset, so it reads as part of the silhouette
                         Rectangle {
                             x: 0
-                            width: parent.width * 0.1
+                            width: root.cardColumnWidth * 0.1
                             height: parent.height
                             color: "black"
                             visible: root.islandPage === "media"
@@ -501,11 +523,11 @@ Item {
 
                         // the selected marker: a black block down the
                         // button's left edge, taking the full height
-                        // and the left 10% of the width — no inset, so
-                        // it reads as part of the button's silhouette
+                        // and the left 10% of the resting strip — no
+                        // inset, so it reads as part of the silhouette
                         Rectangle {
                             x: 0
-                            width: parent.width * 0.1
+                            width: root.cardColumnWidth * 0.1
                             height: parent.height
                             color: "black"
                             visible: root.islandPage === "volume"
@@ -563,11 +585,11 @@ Item {
 
                         // the selected marker: a black block down the
                         // button's left edge, taking the full height
-                        // and the left 10% of the width — no inset, so
-                        // it reads as part of the button's silhouette
+                        // and the left 10% of the resting strip — no
+                        // inset, so it reads as part of the silhouette
                         Rectangle {
                             x: 0
-                            width: parent.width * 0.1
+                            width: root.cardColumnWidth * 0.1
                             height: parent.height
                             color: "black"
                             visible: root.islandPage === "session"
