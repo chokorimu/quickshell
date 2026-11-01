@@ -1,9 +1,16 @@
-// NotificationCard.qml — one popup card in the centered notification stack.
-// Delegate over NotificationServer.trackedNotifications, so modelData is the
-// Notification. Click anywhere dismisses; action buttons invoke their action
-// then dismiss; a Timer expires the card per its expireTimeout (0 means the
-// app asked to keep it up until dismissed — that is how critical
-// notifications behave).
+// NotificationCard.qml — one popup card in the notification stack.
+//
+// Every card is exactly 420x140: the body clamps at three lines with an
+// ellipsis and the card never resizes, so the stack stays uniform no
+// matter how much text an app sends. The actions row claims a fixed
+// bottom slot when the app offered actions; when it is absent the body
+// takes that space instead.
+//
+// Delegate over NotificationServer.trackedNotifications, so modelData is
+// the Notification. Click anywhere dismisses; action buttons invoke their
+// action then dismiss; a Timer expires the card per its expireTimeout
+// (0 means the app asked to keep it up until dismissed — that is how
+// critical notifications behave).
 import QtQml
 import QtQuick
 import Quickshell
@@ -16,10 +23,12 @@ Rectangle {
     // the injected delegate model — the Notification object
     property var notification: modelData
 
+    // fixed geometry — the stack never jumps as content changes
     width: 420
-    implicitHeight: content.implicitHeight + 28
+    height: 140
     radius: 18
     color: Theme.barBackground
+
     // critical notifications get the urgent border, everything else the
     // subtle surface lift
     border.width: 1
@@ -35,99 +44,115 @@ Rectangle {
         onClicked: card.notification.dismiss()
     }
 
-    Column {
-        id: content
+    // header — app icon, app name, summary; fixed band
+    Row {
+        id: header
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
-        anchors.margins: 14
-        spacing: 8
+        anchors.leftMargin: 14
+        anchors.rightMargin: 14
+        anchors.topMargin: 14
+        height: 36
+        spacing: 10
 
-        // header: app icon, app name, summary
-        Row {
-            width: parent.width
-            spacing: 10
+        Image {
+            anchors.verticalCenter: parent.verticalCenter
+            width: 22
+            height: 22
+            sourceSize: Qt.size(22, 22)
+            fillMode: Image.PreserveAspectFit
+            source: Quickshell.iconPath(card.notification.appIcon, "application-x-executable")
+        }
 
-            Image {
-                anchors.verticalCenter: parent.verticalCenter
-                width: 22
-                height: 22
-                sourceSize: Qt.size(22, 22)
-                fillMode: Image.PreserveAspectFit
-                source: Quickshell.iconPath(card.notification.appIcon, "application-x-executable")
+        Column {
+            anchors.verticalCenter: parent.verticalCenter
+            width: parent.width - 32 // 22px icon + 10px spacing
+            spacing: 1
+
+            Text {
+                width: parent.width
+                text: card.notification.appName
+                color: Theme.barDim
+                font.family: Theme.barFontFamily
+                font.pixelSize: 11
+                elide: Text.ElideRight
+                maximumLineCount: 1
             }
 
-            Column {
-                anchors.verticalCenter: parent.verticalCenter
-                width: parent.width - 32 // 22px icon + 10px spacing
-                spacing: 1
+            Text {
+                width: parent.width
+                text: card.notification.summary
+                color: Theme.barForeground
+                font.family: Theme.barFontFamily
+                font.pixelSize: 14
+                font.weight: Font.DemiBold
+                elide: Text.ElideRight
+                maximumLineCount: 1
+            }
+        }
+    }
+
+    // body — three lines max, then ellipsis; fills whatever the actions
+    // row leaves, top-aligned so multi-line bodies read consistently
+    Text {
+        id: body
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: header.bottom
+        anchors.bottom: actionRow.visible ? actionRow.top : parent.bottom
+        anchors.leftMargin: 14
+        anchors.rightMargin: 14
+        anchors.topMargin: 8
+        anchors.bottomMargin: actionRow.visible ? 8 : 14
+        visible: card.notification.body.length > 0
+        text: card.notification.body
+        color: Theme.barForeground
+        font.family: Theme.barFontFamily
+        font.pixelSize: 13
+        wrapMode: Text.WordWrap
+        maximumLineCount: 3
+        elide: Text.ElideRight
+        verticalAlignment: Text.AlignTop
+    }
+
+    // actions — fixed bottom slot, hidden when the app offered none
+    Row {
+        id: actionRow
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        anchors.leftMargin: 14
+        anchors.rightMargin: 14
+        anchors.bottomMargin: 14
+        height: 26
+        spacing: 8
+        visible: card.notification.actions.length > 0
+
+        Repeater {
+            model: card.notification.actions
+            Rectangle {
+                property var action: modelData
+
+                implicitWidth: actionLabel.implicitWidth + 20
+                implicitHeight: 26
+                radius: 13
+                color: Theme.barHighlight
 
                 Text {
-                    width: parent.width
-                    text: card.notification.appName
-                    color: Theme.barDim
-                    font.family: Theme.barFontFamily
-                    font.pixelSize: 11
-                    elide: Text.ElideRight
-                    maximumLineCount: 1
-                }
-
-                Text {
-                    width: parent.width
-                    text: card.notification.summary
+                    id: actionLabel
+                    anchors.centerIn: parent
+                    text: parent.action.text
                     color: Theme.barForeground
                     font.family: Theme.barFontFamily
-                    font.pixelSize: 14
-                    font.weight: Font.DemiBold
-                    elide: Text.ElideRight
-                    maximumLineCount: 1
+                    font.pixelSize: 12
                 }
-            }
-        }
 
-        // body — hidden entirely when the app sent none
-        Text {
-            width: parent.width
-            visible: card.notification.body.length > 0
-            text: card.notification.body
-            color: Theme.barForeground
-            font.family: Theme.barFontFamily
-            font.pixelSize: 13
-            wrapMode: Text.WordWrap
-            maximumLineCount: 4
-            elide: Text.ElideRight
-        }
-
-        // actions — hidden when the app offered none
-        Row {
-            spacing: 8
-            visible: card.notification.actions.length > 0
-
-            Repeater {
-                model: card.notification.actions
-                Rectangle {
-                    property var action: modelData
-
-                    implicitWidth: actionLabel.implicitWidth + 20
-                    implicitHeight: 26
-                    radius: 13
-                    color: Theme.barHighlight
-
-                    Text {
-                        id: actionLabel
-                        anchors.centerIn: parent
-                        text: parent.action.text
-                        color: Theme.barForeground
-                        font.family: Theme.barFontFamily
-                        font.pixelSize: 12
-                    }
-
-                    MouseArea {
-                        anchors.fill: parent
-                        onClicked: {
-                            parent.action.invoke()
-                            card.notification.dismiss()
-                        }
+                MouseArea {
+                    anchors.fill: parent
+                    onClicked: {
+                        parent.action.invoke()
+                        card.notification.dismiss()
                     }
                 }
             }

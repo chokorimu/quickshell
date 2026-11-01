@@ -32,10 +32,12 @@ PanelWindow {
     exclusionMode: ExclusionMode.Ignore
 
     // Overlay so popups still show over fullscreen windows, matching how
-    // swaync behaved
-    WlrLayershell {
-        layer: WlrLayershell.Overlay
-    }
+    // swaync behaved. Property syntax, NOT an attached-object block:
+    // `WlrLayershell { layer: ... }` is accepted silently in 0.3.2 but
+    // spawns a stray default-sized Overlay surface (hyprland centers it
+    // in the workarea — a 100x100 white square mid-screen) and leaves
+    // this window at Top. Corners.qml carries the working form.
+    WlrLayershell.layer: WlrLayershell.Overlay
 
     // only the stack takes input; everything else passes through
     mask: Region {
