@@ -27,9 +27,9 @@ Item {
     // nothing, parking half the pill off the left edge.
     anchors.fill: parent
 
-    readonly property int barHeight: 32
+    readonly property int barHeight: 40
     readonly property int topMargin: 8
-    readonly property int barWidth: 1200
+    readonly property int barWidth: 1000
     // the card is 3:2 at half the bar's width — 600x400
     readonly property int cardWidth: 600
     readonly property int cardHeight: 400
@@ -438,15 +438,18 @@ Item {
                 // render above the canvas — so without this the
                 // revealed 56..columnWidth region would show page
                 // content through the transparent buttons. This
-                // Rectangle sits above the pages and below the
-                // buttons, painting the strip's color over whatever
-                // the expansion covers. It starts past cardColumnWidth
-                // so it never touches the card's rounded left corners
-                // (the canvas keeps those) and every edge it does have
+                // Rectangle carries z:1, which puts it above the
+                // media content too (the art/title/transport are
+                // declared before it, so the strip now covers them
+                // properly instead of the title painting over the
+                // accordion). It starts past cardColumnWidth so it
+                // never touches the card's rounded left corners (the
+                // canvas keeps those) and every edge it does have
                 // lands on a straight card edge. Zero width at rest,
                 // and a plain Rectangle takes no hover, so columnZone
                 // and the buttons keep their input.
                 Rectangle {
+                    z: 1
                     anchors.top: parent.top
                     anchors.bottom: parent.bottom
                     x: root.cardColumnWidth
@@ -455,6 +458,7 @@ Item {
                 }
 
                 Column {
+                    z: 2
                     anchors.left: parent.left
                     anchors.top: parent.top
                     anchors.topMargin: 28
@@ -665,12 +669,9 @@ Item {
                 Item {
                     id: bigArt
                     anchors.horizontalCenter: parent.horizontalCenter
-                    // center in the content area, not the full card — the
-                    // column strip owns the left edge. Tracks columnWidth,
-                    // not the resting cardColumnWidth: when the accordion
-                    // expands, the whole media page re-centers in the
-                    // visible area instead of sitting under the strip
-                    anchors.horizontalCenterOffset: root.columnWidth / 2
+                    // center in the content area, not the full card —
+                    // the column strip owns the left edge
+                    anchors.horizontalCenterOffset: root.cardColumnWidth / 2
                     anchors.top: parent.top
                     anchors.topMargin: 28
                     visible: root.islandPage === "media"
@@ -757,30 +758,22 @@ Item {
                     }
                 }
 
-                // title / artist under the art, centered in the visible
-                // content area — elided so a long name can't push the
-                // controls off the card. The box tracks the column's
-                // width: at rest it is the same 520px box centered past
-                // the 56px strip, and as the accordion expands its left
-                // edge rides the column's right edge (always 12px clear)
-                // while its right edge stays pinned at 588 — so the text
-                // re-centers in the visible area at every frame of the
-                // 200ms expansion instead of running under the strip.
-                // Without this the title painted over the expanded
-                // accordion: the media content is declared after the
-                // strip's cover Rectangle, so nothing masked it.
+                // title / artist under the art, centered — elided so a long
+                // name can't push the controls off the card. The expanded
+                // accordion covers the title's left end like it covers the
+                // other pages: the cover Rectangle below carries z:1, so
+                // the strip paints over this content (declared before it)
+                // while the tab buttons stay above at z:2.
                 Column {
-                    id: mediaMeta
                     anchors.horizontalCenter: parent.horizontalCenter
-                    anchors.horizontalCenterOffset: root.columnWidth / 2
+                    anchors.horizontalCenterOffset: root.cardColumnWidth / 2
                     anchors.top: bigArt.bottom
                     anchors.topMargin: 15
                     spacing: 6
                     visible: root.islandPage === "media"
-                    width: Math.min(520, root.cardWidth - root.columnWidth - 24)
 
                     Text {
-                        width: parent.width
+                        width: 520
                         horizontalAlignment: Text.AlignHCenter
                         text: Media.hasPlayer ? (Media.title || "Unknown title") : "Not playing"
                         color: Media.hasPlayer ? Theme.cardForeground : Theme.cardDim
@@ -790,7 +783,7 @@ Item {
                     }
 
                     Text {
-                        width: parent.width
+                        width: 520
                         horizontalAlignment: Text.AlignHCenter
                         text: Media.hasPlayer ? (Media.artist || "Unknown artist") : "nothing playing right now"
                         color: Theme.cardDim
@@ -810,10 +803,7 @@ Item {
                 Rectangle {
                     id: transportPill
                     anchors.horizontalCenter: parent.horizontalCenter
-                    // tracks the column's width like the art and title —
-                    // the media page re-centers as one unit when the
-                    // accordion expands
-                    anchors.horizontalCenterOffset: root.columnWidth / 2
+                    anchors.horizontalCenterOffset: root.cardColumnWidth / 2
                     anchors.bottom: parent.bottom
                     anchors.bottomMargin: 28
                     visible: root.islandPage === "media"
@@ -902,7 +892,7 @@ Item {
     }
 
     // ---- the pill -------------------------------------------------------
-    // The bar never moves: it stays 1200x36 forever. The island is the
+    // The bar never moves: it stays 1000x40 forever. The island is the
     // card below it — its own element, flush against the bar's bottom
     // edge — so the side zones stay exactly where they are and stay live
     // the whole time.
@@ -1037,7 +1027,7 @@ Item {
         }
 
         // ---- top band: the bar itself ------------------------------------
-        // The bar is just this 32px strip — everything always-visible
+        // The bar is just this 40px strip — everything always-visible
         // lives here, and nothing about the island ever changes it.
         Item {
             id: topBand

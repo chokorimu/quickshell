@@ -40,7 +40,7 @@ ShellRoot {
                 // item-based: the pill's because its canvas is taller than the
                 // bar by the roll's depth, and an item-based region would cover
                 // that strip and swallow clicks below the bar's edge — so it is
-                // pinned to the bar's own 32px band.
+                // pinned to the bar's own 40px band.
                 mask: Region {
                     x: bar.pillItem.x
                     y: bar.pillItem.y
