@@ -112,7 +112,7 @@ PanelWindow {
         anchors.centerIn: parent
         width: 500
         height: card.height + 20
-        color: Theme.barColor
+        color: Theme.barBackground
         radius: 22
 
         // swallow clicks so they don't reach the dismiss layer
@@ -129,7 +129,7 @@ PanelWindow {
                 width: parent.width
                 height: 44
                 radius: 12
-                color: Theme.surface
+                color: Theme.barHighlight
 
                 TextInput {
                     id: input
@@ -137,7 +137,7 @@ PanelWindow {
                     anchors.leftMargin: 12
                     anchors.rightMargin: 12
                     verticalAlignment: Text.AlignVCenter
-                    color: Theme.text
+                    color: Theme.barForeground
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.launcherFontSize
                     selectByMouse: true
@@ -150,7 +150,7 @@ PanelWindow {
                         anchors.fill: parent
                         verticalAlignment: Text.AlignVCenter
                         text: "Search Apps..."
-                        color: Theme.muted
+                        color: Theme.barDim
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.launcherFontSize
                         visible: input.text.length === 0
@@ -202,7 +202,7 @@ PanelWindow {
                     Rectangle {
                         anchors.fill: parent
                         radius: 12
-                        color: index === root.selected ? Theme.accent : "transparent"
+                        color: index === root.selected ? Theme.barInk : "transparent"
                     }
 
                     Row {
@@ -223,7 +223,7 @@ PanelWindow {
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
                             text: modelData.name
-                            color: index === root.selected ? Theme.barColor : Theme.text
+                            color: index === root.selected ? Theme.barOnInk : Theme.barForeground
                             font.family: Theme.fontFamily
                             font.pixelSize: Theme.launcherFontSize
                             elide: Text.ElideRight

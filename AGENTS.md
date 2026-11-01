@@ -98,6 +98,7 @@ The Arch `*.qmltypes` files are **stale** (the Hyprland one is an empty stub). T
 - TextInput → filter must use `onTextEdited: root.filter = input.text`. A `text: root.filter` binding is one-way and breaks on the first keystroke, so the list never filters.
 - Keyboard: Up/Down wrap (rofi's `cycle: true`), Enter launches, Escape closes. Click outside the card dismisses; clicks on the card are swallowed by a `MouseArea`.
 - Metrics mirror rofi's `config.rasi`: 500px card, radius 22, 7 visible rows, radius 12 selection, 30px icons.
+- The launcher references only the derived `bar*` palette properties (`barBackground`, `barHighlight`, `barForeground`, `barDim`, `barInk`, `barOnInk`) — never the raw semantic ones (`barColor`, `surface`, `text`, `muted`, `accent`), which read `Colors.qml` and ignore `darkMode`. It shipped once on the raw palette and rendered a catppuccin card under the fixed pills. The selection row uses `barInk`/`barOnInk`, the same inverted language as the workspace pill.
 
 ## Icons
 
