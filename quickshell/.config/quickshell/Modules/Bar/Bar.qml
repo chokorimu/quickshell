@@ -4,9 +4,9 @@
 //   right:  tray, network, volume, battery
 //
 // SUPER+L opens the island straight on the session page (hyprland runs
-// `qs ipc call island session`); SUPER+L again, ESC, or leaving the
-// active area closes it. The rofi powermenu that used to live on
-// SUPER+L moved to SUPER+SHIFT+L.
+// `qs ipc call island session`); SUPER+L again, or leaving the active
+// area, closes it. The rofi powermenu that used to live on SUPER+L
+// moved to SUPER+SHIFT+L.
 //
 // The window reserves the pill's band via exclusiveZone in shell.qml, so
 // windows are pushed down while the pill still floats centered inside it.
@@ -31,20 +31,6 @@ Item {
     // root is 0x0 and the pill's horizontalCenter anchor centers against
     // nothing, parking half the pill off the left edge.
     anchors.fill: parent
-
-    // ESC closes the keyboard-opened session menu. Only live while the
-    // island is pinned: that is the only state in which shell.qml gives
-    // the window keyboard focus, so the keys have somewhere to land.
-    // `focus` itself is flipped by the sessionPinned handler below —
-    // leaving it true permanently would let the always-mapped bar
-    // window hold Qt's active focus (and with it the compositor's)
-    // outside that state.
-    Keys.onPressed: function (event) {
-        if (event.key === Qt.Key_Escape) {
-            root.dismissSession()
-            event.accepted = true
-        }
-    }
 
     readonly property int barHeight: 40
     readonly property int topMargin: 8
@@ -141,13 +127,13 @@ Item {
     // reaches the island (onHoveredChanged), from which point the
     // ordinary hover rules apply — so "hover, then leave the active
     // area" closes it exactly like a hover-opened card. SUPER+L again
-    // or ESC dismisses it outright.
+    // dismisses it outright.
     property bool sessionPinned: false
 
-    // Set when ESC or the toggle closes the island while the cursor is
-    // resting on it: without the latch the hover zones would reopen the
-    // card under a stationary cursor. Cleared the moment the cursor
-    // actually leaves, so the next hover behaves normally.
+    // Set when the toggle closes the island while the cursor is resting
+    // on it: without the latch the hover zones would reopen the card
+    // under a stationary cursor. Cleared the moment the cursor actually
+    // leaves, so the next hover behaves normally.
     property bool keyboardDismissed: false
 
     readonly property bool expanded: (hovered && !keyboardDismissed)
@@ -168,30 +154,11 @@ Item {
     onSessionPinnedChanged: {
         if (sessionPinned) {
             root.islandPage = "session"
-            // shell.qml flips the window's keyboardFocus to OnDemand for
-            // exactly this state, and that commit lands on the next
-            // polish — the pop animation guarantees a frame within ~16ms.
-            // Take active focus a beat later so the compositor has the
-            // interactivity change before the activation request, or
-            // hyprland can drop the request and ESC never lands. Active
-            // focus is cleared on the way out (below) so every open is
-            // a real null -> root transition and re-requests activation.
-            root.focus = true
-            focusGrab.restart()
-        } else {
-            root.focus = false
-            if (!root.hovered) {
-                // dismissed by key before the cursor ever arrived — reset
-                // the page now; the hover path resets it via the grace timer
-                root.islandPage = "media"
-            }
+        } else if (!root.hovered) {
+            // dismissed by key before the cursor ever arrived — reset
+            // the page now; the hover path resets it via the grace timer
+            root.islandPage = "media"
         }
-    }
-
-    Timer {
-        id: focusGrab
-        interval: 50
-        onTriggered: root.forceActiveFocus()
     }
 
     Timer {

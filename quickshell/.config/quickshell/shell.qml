@@ -4,7 +4,6 @@
 import QtQuick
 import Quickshell
 import Quickshell.Hyprland
-import Quickshell.Wayland
 import "Theme"
 import "Modules/Bar"
 import "Modules/Launcher"
@@ -33,22 +32,6 @@ ShellRoot {
                 implicitHeight: bar.windowHeight
                 exclusiveZone: bar.barHeight + bar.topMargin
                 color: "transparent"
-
-                // Keyboard focus tracks the island's session pin and
-                // nothing else. None the rest of the time — the window
-                // is mapped for the shell's whole life, so a focusable
-                // bar would be a focus thief sitting on screen forever.
-                // OnDemand while pinned is what lets Bar.qml's ESC
-                // handler see the key: the bar takes Qt's active focus
-                // when the pin goes up and hyprland grants the layer
-                // focus on that activation request (the launcher's
-                // mechanism, proven). Flipping back to None is the
-                // release — a surface with none interactivity cannot
-                // hold keyboard focus, so the compositor hands it back
-                // to whatever window had it before.
-                WlrLayershell.keyboardFocus: bar.sessionPinned
-                    ? WlrKeyboardFocus.OnDemand
-                    : WlrKeyboardFocus.None
 
                 // The extra height would swallow every click around the pill
                 // and the card, so the window carries an input mask tracking
