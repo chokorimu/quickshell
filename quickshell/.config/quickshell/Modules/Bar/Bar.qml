@@ -1305,34 +1305,39 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 12
 
-                // tray — SNI icons in their own brand colors, each riding
-                // in a neutral pill so they read on both the light and the
-                // dark bar; left-click activates, right-click opens the
-                // item's menu. Empty when nothing registers, so the row
-                // stays compact on a clean session.
-                Row {
+                // tray — all SNI icons in ONE pill, cut from the same
+                // cloth as the workspace pill: same barWorkspacePill
+                // surface, same height and height/2 radius, same 4px side
+                // padding. Icons ride in their own brand colors; left-click
+                // activates, right-click opens the item's menu. Hidden when
+                // nothing registers, so the row stays compact on a clean
+                // session.
+                Rectangle {
+                    id: trayPill
                     anchors.verticalCenter: parent.verticalCenter
-                    spacing: 10
+                    height: root.workspacePillHeight
+                    radius: height / 2
+                    color: Theme.barWorkspacePill
+                    width: trayRow.implicitWidth + 8
+                    visible: trayRow.implicitWidth > 0
 
-                    Repeater {
-                        model: SystemTray.items
-                        Rectangle {
-                            width: 30
-                            height: 24
-                            radius: 12
-                            color: Theme.trayPill
+                    Row {
+                        id: trayRow
+                        anchors.centerIn: parent
+                        spacing: 8
 
+                        Repeater {
+                            model: SystemTray.items
                             Image {
-                                anchors.centerIn: parent
                                 width: 20
                                 height: 20
                                 sourceSize: Qt.size(20, 20)
                                 source: modelData.icon
                                 fillMode: Image.PreserveAspectFit
 
-                                // the MouseArea stays on the icon, not the
-                                // pill: mouse.x/y feed modelData.display()
-                                // and must keep the icon-relative origin
+                                // the MouseArea stays on the icon: mouse.x/y
+                                // feed modelData.display() and must keep the
+                                // icon-relative origin
                                 MouseArea {
                                     anchors.fill: parent
                                     acceptedButtons: Qt.LeftButton | Qt.RightButton
