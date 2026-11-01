@@ -19,7 +19,7 @@ set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKUP_DIR="$HOME/.dotfiles-backup-$(date +%Y%m%d-%H%M%S)"
 
-ALL_PACKAGES=(quickshell hypr rofi kitty cava swaync btop fastfetch matugen bash zsh OpenTabletDriver)
+ALL_PACKAGES=(quickshell hypr rofi kitty cava btop fastfetch matugen bash zsh OpenTabletDriver)
 
 PACKAGES=("$@")
 [ ${#PACKAGES[@]} -eq 0 ] && PACKAGES=("${ALL_PACKAGES[@]}")
