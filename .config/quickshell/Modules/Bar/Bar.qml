@@ -316,7 +316,7 @@ Item {
                         Text {
                             anchors.centerIn: parent
                             text: "prev"
-                            color: Theme.barBackground
+                            color: Theme.barOnInk
                             font.family: Theme.barFontFamily
                             font.pixelSize: 12
                         }
@@ -336,7 +336,7 @@ Item {
                         Text {
                             anchors.centerIn: parent
                             text: Media.playing ? "pause" : "play"
-                            color: Theme.barBackground
+                            color: Theme.barOnInk
                             font.family: Theme.barFontFamily
                             font.pixelSize: 14
                         }
@@ -356,7 +356,7 @@ Item {
                         Text {
                             anchors.centerIn: parent
                             text: "next"
-                            color: Theme.barBackground
+                            color: Theme.barOnInk
                             font.family: Theme.barFontFamily
                             font.pixelSize: 12
                         }
@@ -521,13 +521,20 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 12
 
-                // decorative prefix
+                // decorative prefix — TEMPORARY dark-mode toggle (moves to
+                // a menu later): click flips the bar between the fixed
+                // light and fixed dark palettes
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     text: "//"
                     color: Theme.barForeground
                     font.family: Theme.barFontFamily
                     font.pixelSize: Theme.barFontSize
+
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: Theme.darkMode = !Theme.darkMode
+                    }
                 }
 
                 // ---- now playing: circular art + scrolling "Artist - Song" ---
@@ -660,7 +667,7 @@ Item {
                                 Text {
                                     anchors.centerIn: parent
                                     text: modelData.id
-                                    color: modelData.active ? Theme.barInk : Theme.barDim
+                                    color: modelData.active ? Theme.barText : Theme.barDim
                                     font.family: Theme.barFontFamily
                                     font.pixelSize: Theme.barFontSizeSmall
                                 }

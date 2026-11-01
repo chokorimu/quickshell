@@ -21,10 +21,10 @@ Singleton {
     property color surface: _colors.surface
 
     // ---- bar palette ----------------------------------------------------
-    // Fixed dark gray. These live here rather than in Colors.qml because
+    // Fixed palettes. These live here rather than in Colors.qml because
     // matugen overwrites Colors.qml on every wallpaper change, which would
     // recolour the bar the moment a palette is regenerated.
-    // White pill. Text is deliberately near-black — a white surface with the
+    // Light pill. Text is deliberately near-black — a white surface with the
     // old light-gray text would be unreadable.
     readonly property color fixedBarBg:      "#ffffff"
     readonly property color fixedBarSurface: "#e6e6e9"
@@ -33,18 +33,42 @@ Singleton {
     readonly property color fixedBarUrgent:  "#c0392b"
     // near-black for the inverted workspace pill inside the white bar pill
     readonly property color fixedBarInk:     "#1b1b1f"
+    // label color on those ink fills — white on the near-black
+    readonly property color fixedBarOnInk:   "#ffffff"
+
+    // Dark pill — classic dark grey, hardcoded for the same reason. The
+    // workspace pill and the transport buttons keep the inverted
+    // language: barInk stays DARKER than the bar (the light palette's
+    // near-black-on-white, greyed down), and barOnInk is the label
+    // color that sits on those ink fills.
+    readonly property color fixedDarkBarBg:      "#2b2b2b"
+    readonly property color fixedDarkBarSurface: "#3c3c3c"
+    readonly property color fixedDarkBarText:    "#e0e0e0"
+    readonly property color fixedDarkBarMuted:   "#909090"
+    readonly property color fixedDarkBarUrgent:  "#d9534f"
+    // darker than the bar — the inverted workspace pill and transport
+    // buttons stay the dark element inside the lighter surface
+    readonly property color fixedDarkBarInk:     "#1c1c1c"
+    readonly property color fixedDarkBarOnInk:   "#e0e0e0"
+
+    // TEMPORARY dark-mode toggle — flips the fixed palette between the
+    // light and dark pills. Click the "//" prefix in the bar to flip it.
+    // Moves to a proper menu later; the matugen path below is untouched
+    // and still wins when barUseMatugen is on.
+    property bool darkMode: false
 
     // Flip to true once the matugen toggle UI exists. Bar.qml only ever
-    // references the four derived properties below, so switching is a
+    // references the derived properties below, so switching is a
     // one-line change here rather than a rewrite of the bar.
     readonly property bool barUseMatugen: false
 
-    readonly property color barBackground: barUseMatugen ? barColor   : fixedBarBg
-    readonly property color barHighlight:  barUseMatugen ? accent     : fixedBarSurface
-    readonly property color barForeground: barUseMatugen ? barText    : fixedBarText
-    readonly property color barDim:        barUseMatugen ? muted      : fixedBarMuted
-    readonly property color barUrgent:     barUseMatugen ? urgent     : fixedBarUrgent
-    readonly property color barInk:        barUseMatugen ? barColor   : fixedBarInk
+    readonly property color barBackground: barUseMatugen ? barColor   : (darkMode ? fixedDarkBarBg      : fixedBarBg)
+    readonly property color barHighlight:  barUseMatugen ? accent     : (darkMode ? fixedDarkBarSurface : fixedBarSurface)
+    readonly property color barForeground: barUseMatugen ? barText    : (darkMode ? fixedDarkBarText    : fixedBarText)
+    readonly property color barDim:        barUseMatugen ? muted      : (darkMode ? fixedDarkBarMuted   : fixedBarMuted)
+    readonly property color barUrgent:     barUseMatugen ? urgent     : (darkMode ? fixedDarkBarUrgent  : fixedBarUrgent)
+    readonly property color barInk:        barUseMatugen ? barColor   : (darkMode ? fixedDarkBarInk     : fixedBarInk)
+    readonly property color barOnInk:      barUseMatugen ? barText    : (darkMode ? fixedDarkBarOnInk   : fixedBarOnInk)
 
     // typography
     readonly property string fontFamily: "monospace"
