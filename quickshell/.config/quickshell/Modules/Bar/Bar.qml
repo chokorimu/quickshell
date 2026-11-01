@@ -49,7 +49,7 @@ Item {
     readonly property int columnExpandedWidth: 150
     readonly property int workspacePillHeight: 30
     readonly property int workspaceCircleSize: 22
-    // the pop's overshoot headroom. The pop-in bezier peaks at ~1.04x, so
+    // the pop's overshoot headroom. The pop-in bezier peaks at ~1.02x, so
     // the clip runs wider than the card and the window runs taller than
     // the card's resting bottom — without both, the overshoot gets shaved
     // off by the clip's side edges and the window's bounds respectively.
@@ -137,7 +137,7 @@ Item {
     // height from the bar's bottom edge and width from the center line.
     // In with a slight overshoot for the pop; out faster and without one,
     // so the card never dips below zero (a negative scale would mirror it).
-    // The overshoot is a tamed bezier (~1.04x), not OutBack's 1.1x spring.
+    // The overshoot is a tamed bezier (~1.02x), not OutBack's 1.1x spring.
     property real pop: 0
 
     NumberAnimation {
@@ -147,13 +147,13 @@ Item {
         to: 1
         duration: 300
         // a tamed back-ease: the bezier's first control point lifts the
-        // curve to ~1.04x before it settles, so the card keeps a little
+        // curve to ~1.02x before it settles, so the card keeps a hint of
         // life without the spring OutBack's 10% overshoot gave it
-        // (measured: 1.0408 vs 1.1000). Qt 6 exposes the curve as a
+        // (measured: 1.0204 vs 1.1000). Qt 6 exposes the curve as a
         // flat list — c1x, c1y, c2x, c2y, endX, endY — not as
         // controlPoint1/2, and Easing is not creatable standalone.
         easing.type: Easing.Bezier
-        easing.bezierCurve: [0.34, 1.35, 0.64, 1.0, 1.0, 1.0]
+        easing.bezierCurve: [0.34, 1.25, 0.64, 1.0, 1.0, 1.0]
     }
 
     NumberAnimation {

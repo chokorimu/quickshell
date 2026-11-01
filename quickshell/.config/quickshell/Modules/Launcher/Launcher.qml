@@ -26,7 +26,7 @@ PanelWindow {
     // ---- card metrics ----------------------------------------------------
     readonly property real cardWidth: 500
     readonly property real cardRadius: 22
-    // the pop's overshoot headroom: the pop-in bezier peaks at ~1.04x, so
+    // the pop's overshoot headroom: the pop-in bezier peaks at ~1.02x, so
     // the clip runs wider than the card or the overshoot gets shaved off
     readonly property real popOvershoot: 1.12
     // the content column plus its 10px padding top and bottom — the
@@ -49,13 +49,13 @@ PanelWindow {
         to: 1
         duration: 300
         // a tamed back-ease: the bezier's first control point lifts the
-        // curve to ~1.04x before it settles, so the card keeps a little
+        // curve to ~1.02x before it settles, so the card keeps a hint of
         // life without the spring OutBack's 10% overshoot gave it
-        // (measured: 1.0408 vs 1.1000). Qt 6 exposes the curve as a
+        // (measured: 1.0204 vs 1.1000). Qt 6 exposes the curve as a
         // flat list — c1x, c1y, c2x, c2y, endX, endY — not as
         // controlPoint1/2, and Easing is not creatable standalone.
         easing.type: Easing.Bezier
-        easing.bezierCurve: [0.34, 1.35, 0.64, 1.0, 1.0, 1.0]
+        easing.bezierCurve: [0.34, 1.25, 0.64, 1.0, 1.0, 1.0]
     }
 
     NumberAnimation {
