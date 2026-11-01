@@ -509,8 +509,15 @@ PanelWindow {
                         Rectangle {
                             anchors.fill: parent
                             // square — the yellow reads as a full-width
-                            // bar, no rounding (LO's call)
-                            color: index === root.selected ? Theme.launcherSelection : "transparent"
+                            // bar, no rounding (LO's call). The selected
+                            // row keeps the yellow; hovering any other
+                            // row fills it with the card's subtle
+                            // highlight surface so the list answers the
+                            // cursor. Hover does not move the selection —
+                            // the keyboard's chosen row stays chosen.
+                            color: index === root.selected
+                                ? Theme.launcherSelection
+                                : (parent.containsMouse ? Theme.cardHighlight : "transparent")
                         }
 
                         Row {
