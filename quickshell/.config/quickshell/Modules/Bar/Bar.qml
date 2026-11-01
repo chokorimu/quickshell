@@ -793,17 +793,19 @@ Item {
 
                         // prev — inactive circle, transparent
                         Rectangle {
-                            width: 40
-                            height: 40
+                            width: 46
+                            height: 46
                             radius: width / 2
                             color: "transparent"
 
                             Text {
-                                anchors.centerIn: parent
+                                anchors.fill: parent
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
                                 text: "\uF048" // fa-step-backward
                                 color: Theme.cardOnInk
                                 font.family: Theme.iconFont
-                                font.pixelSize: 18
+                                font.pixelSize: 20
                             }
 
                             MouseArea {
@@ -820,7 +822,9 @@ Item {
                             color: Theme.cardBackground
 
                             Text {
-                                anchors.centerIn: parent
+                                anchors.fill: parent
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
                                 text: Media.playing ? "\uF04C" : "\uF04B" // fa-pause / fa-play
                                 color: Theme.cardForeground
                                 font.family: Theme.iconFont
@@ -835,17 +839,19 @@ Item {
 
                         // next — inactive circle, transparent
                         Rectangle {
-                            width: 40
-                            height: 40
+                            width: 46
+                            height: 46
                             radius: width / 2
                             color: "transparent"
 
                             Text {
-                                anchors.centerIn: parent
+                                anchors.fill: parent
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
                                 text: "\uF051" // fa-step-forward
                                 color: Theme.cardOnInk
                                 font.family: Theme.iconFont
-                                font.pixelSize: 18
+                                font.pixelSize: 20
                             }
 
                             MouseArea {
