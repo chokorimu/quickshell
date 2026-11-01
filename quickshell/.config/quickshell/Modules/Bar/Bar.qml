@@ -55,7 +55,15 @@ Item {
     // growing container, slip out of the mask, and close the island on
     // its way in. Holding `expanded` for a moment after the cursor leaves
     // gives the container time to finish and the cursor time to land.
-    property bool hovered: clockZone.containsMouse || cardZone.containsMouse
+    // Which menu the card shows: "media" (clock hover) or "volume"
+    // (volume-icon hover). Resets to media whenever the island collapses,
+    // so the clock always opens the media page fresh. Derived hover keeps
+    // the card open while the cursor is over it regardless of page.
+    property string islandPage: "media"
+
+    property bool hovered: cardZone.containsMouse
+        || (islandPage === "media" && clockZone.containsMouse)
+        || (islandPage === "volume" && volumeIcon.containsMouse)
 
     readonly property bool expanded: hovered || collapseGrace.running
 
@@ -69,6 +77,9 @@ Item {
     Timer {
         id: collapseGrace
         interval: 350
+        // a collapsed island always reopens on the media page, so the next
+        // clock hover never inherits a stale volume menu
+        onTriggered: root.islandPage = "media"
     }
 
     SystemClock {
@@ -239,6 +250,15 @@ Item {
                 height: root.cardHeight
                 enabled: root.expanded
 
+                // ---- volume page: per-app sliders, pavucontrol style -------
+                // Same card, same swipe — the volume icon in the bar's right
+                // row hovers this page open. Gated on the page so the media
+                // content below never paints underneath it.
+                VolumeCard {
+                    anchors.fill: parent
+                    visible: root.islandPage === "volume"
+                }
+
                 // big circular art — click toggles, wheel skips. Anchored
                 // near the top of the card, centered.
                 Rectangle {
@@ -246,6 +266,7 @@ Item {
                     anchors.horizontalCenter: parent.horizontalCenter
                     anchors.top: parent.top
                     anchors.topMargin: 32
+                    visible: root.islandPage === "media"
                     width: 220
                     height: 220
                     radius: width / 2
@@ -278,6 +299,7 @@ Item {
                     anchors.top: bigArt.bottom
                     anchors.topMargin: 26
                     spacing: 6
+                    visible: root.islandPage === "media"
 
                     Text {
                         width: 520
@@ -308,6 +330,7 @@ Item {
                     anchors.bottom: parent.bottom
                     anchors.bottomMargin: 36
                     spacing: 24
+                    visible: root.islandPage === "media"
 
                     Rectangle {
                         width: 48
@@ -688,7 +711,7 @@ Item {
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.verticalCenter: parent.verticalCenter
-                text: Qt.formatDateTime(clock.date, "hh:mm ddd, MMM d")
+                text: Qt.formatDateTime(clock.date, "ddd, MMM d   hh:mm")
                 color: Theme.barForeground
                 font.family: Theme.barFontFamily
                 font.pixelSize: Theme.barFontSize
@@ -758,7 +781,9 @@ Item {
                     }
                 }
 
-                // volume — icon only; click opens pavucontrol, wheel adjusts
+                // volume — icon only; hover opens the island's app-volume
+                // page, click still opens pavucontrol for the full mixer,
+                // wheel adjusts the master
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     text: Audio.muted ? "\uF026" : (Audio.volume < 0.5 ? "\uF027" : "\uF028")
@@ -767,7 +792,10 @@ Item {
                     font.pixelSize: Theme.barFontSize
 
                     MouseArea {
+                        id: volumeIcon
                         anchors.fill: parent
+                        hoverEnabled: true
+                        onContainsMouseChanged: if (containsMouse) root.islandPage = "volume"
                         onClicked: root.launch(["pavucontrol"])
                         onWheel: function (wheel) {
                             Audio.nudge(wheel.angleDelta.y > 0 ? 0.05 : -0.05)
@@ -809,6 +837,7 @@ Item {
             width: 320
             height: root.barHeight
             hoverEnabled: true
+            onContainsMouseChanged: if (containsMouse) root.islandPage = "media"
         }
 
 

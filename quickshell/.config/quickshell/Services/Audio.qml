@@ -27,7 +27,9 @@ Singleton {
     }
 
     function setVolume(v) {
-        var clamped = Math.max(0, Math.min(1, v))
+        // 1.5 headroom so the master row in the volume card matches the
+        // app rows' boost range (pavucontrol's over-unity default)
+        var clamped = Math.max(0, Math.min(1.5, v))
         ctlProc.command = ["wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", clamped.toFixed(3)]
         ctlProc.running = true
     }

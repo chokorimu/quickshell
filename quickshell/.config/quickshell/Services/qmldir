@@ -1,3 +1,4 @@
+singleton AppAudio 1.0 AppAudio.qml
 singleton Audio 1.0 Audio.qml
 singleton Battery 1.0 Battery.qml
 singleton Matugen 1.0 Matugen.qml
