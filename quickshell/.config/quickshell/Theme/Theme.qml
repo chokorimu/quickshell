@@ -50,10 +50,19 @@ Singleton {
     readonly property color fixedDarkBarText:    "#e8e8ea"
     readonly property color fixedDarkBarMuted:   "#9a9aa0"
     readonly property color fixedDarkBarUrgent:  "#e05252"
-    // darker than the bar — the inverted workspace pill and transport
-    // buttons stay the dark element inside the lighter surface
+    // darker than the bar — the inverted fills stay the dark element
+    // inside the lighter surface
     readonly property color fixedDarkBarInk:     "#16161a"
     readonly property color fixedDarkBarOnInk:   "#e8e8ea"
+
+    // Island surfaces — the workspace pill and the island card share
+    // one surface per palette, so the island reads as a single
+    // material family: deep charcoal in the dark palette, light gray
+    // in the light one. The card still sits darker than the pill in
+    // both palettes (light gray under the white light pill, deep
+    // charcoal under the dark pill).
+    readonly property color fixedCardBgDark:  "#1c1c20"
+    readonly property color fixedCardBgLight: "#e2e2e6"
 
     // TEMPORARY dark-mode toggle — flips the fixed palette between the
     // light and dark pills. Click the "//" prefix in the bar to flip it.
@@ -75,12 +84,13 @@ Singleton {
     readonly property color barOnInk:      barUseMatugen ? barText    : (darkMode ? fixedDarkBarOnInk   : fixedBarOnInk)
 
     // ---- workspace pill ------------------------------------------------
-    // Flips with darkMode: dark mode keeps the original near-black
-    // inverted island (fixedDarkBarInk), light mode is a light-gray
-    // surface. The active circle takes barBackground — lighter than the
-    // ink in dark mode, white in light mode — with a barForeground
-    // number, the one label color that reads on both fills.
-    readonly property color barWorkspacePill: darkMode ? fixedDarkBarInk : "#e2e2e6"
+    // Shares the island card's surface (fixedCardBg*): deep charcoal
+    // in dark mode, light gray in light mode — the pill and the card
+    // read as one material family. The active circle takes
+    // barBackground — lighter than the surface in dark mode, white in
+    // light mode — with a barForeground number, the one label color
+    // that reads on both fills.
+    readonly property color barWorkspacePill: darkMode ? fixedCardBgDark : fixedCardBgLight
     // inactive numbers on the pill — the dark palette's muted gray, or a
     // deeper gray that survives on the light surface (barDim's light
     // value washes out against light gray)
@@ -93,23 +103,24 @@ Singleton {
     // label color on the accent — the selected button's glyph. Fixed
     // for the same reason cardAccent is: the accent never flips.
     readonly property color cardAccentOn: "#1b1b1f"
-    // card surface — the DARK surface against the bar's light one:
-    // the card body sits darker than the pill in both palettes
-    // (a softer charcoal under the white light pill, deeper
-    // charcoal under the dark pill), so its content is always
-    // light-on-dark. The matugen path keeps the card on the bar
+    // card surface — the island surface, shared with the workspace
+    // pill (fixedCardBg*): the card still sits darker than the pill
+    // in both palettes (light gray under the white light pill, deep
+    // charcoal under the dark pill), so card and pill read as one
+    // material family. The matugen path keeps the card on the bar
     // color (no inversion is computable from an arbitrary palette).
-    readonly property color cardBackground: barUseMatugen ? barColor : (darkMode ? "#1c1c20" : "#2e2e34")
-    // card content palette — the card is dark in both fixed
-    // palettes, so its content is light regardless of darkMode.
-    readonly property color cardForeground: "#e8e8ea"
-    readonly property color cardDim:       "#9a9aa0"
+    readonly property color cardBackground: barUseMatugen ? barColor : (darkMode ? fixedCardBgDark : fixedCardBgLight)
+    // card content palette — flips with the card surface:
+    // light-on-dark in the dark palette, dark-on-light in the
+    // light one.
+    readonly property color cardForeground: darkMode ? "#e8e8ea" : "#1b1b1f"
+    readonly property color cardDim:       darkMode ? "#9a9aa0" : "#6e6e73"
     // subtle surface on the card — slider track, art circle
-    readonly property color cardHighlight: "#3a3a40"
-    // inverted fills on the card — the transport circles stay the
-    // light element inside the dark surface, labelled in the card's
-    // own color (cardOnInk) for the knockout look
-    readonly property color cardInk:       "#e8e8ea"
+    readonly property color cardHighlight: darkMode ? "#3a3a40" : "#d2d2d6"
+    // inverted fills on the card — the transport circles take the
+    // opposite of the card surface, labelled in the card's own
+    // color (cardOnInk) for the knockout look
+    readonly property color cardInk:       darkMode ? "#e8e8ea" : "#1b1b1f"
     readonly property color cardOnInk:     cardBackground
 
     // typography

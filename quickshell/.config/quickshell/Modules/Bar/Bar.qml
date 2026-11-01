@@ -366,11 +366,11 @@ Item {
 
                         // the selected marker: a black block down the
                         // button's left edge, taking the full height
-                        // and the left 20% of the width — no inset, so
+                        // and the left 10% of the width — no inset, so
                         // it reads as part of the button's silhouette
                         Rectangle {
                             x: 0
-                            width: parent.width * 0.2
+                            width: parent.width * 0.1
                             height: parent.height
                             color: "black"
                             visible: root.islandPage === "media"
@@ -397,11 +397,11 @@ Item {
 
                         // the selected marker: a black block down the
                         // button's left edge, taking the full height
-                        // and the left 20% of the width — no inset, so
+                        // and the left 10% of the width — no inset, so
                         // it reads as part of the button's silhouette
                         Rectangle {
                             x: 0
-                            width: parent.width * 0.2
+                            width: parent.width * 0.1
                             height: parent.height
                             color: "black"
                             visible: root.islandPage === "volume"
