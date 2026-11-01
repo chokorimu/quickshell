@@ -2,19 +2,24 @@
 #
 # install.sh — deploy these dotfiles with GNU Stow
 #
+# This repo is the whole desktop: the Quickshell shell plus Hyprland,
+# matugen and the apps around them. Every top-level directory is a stow
+# package containing .config/<app>/ (or a dotfile at its root).
+#
 # Usage:
 #   ./install.sh              # stow every package
 #   ./install.sh hypr waybar  # stow only the named packages
 #
 # Existing files that conflict with the repo are moved to
-# ~/.dotfiles-backup-<timestamp>/ before stowing.
+# ~/.dotfiles-backup-<timestamp>/ before stowing. Note: pre-existing
+# SYMLINKS are not backed up — remove them by hand first.
 
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKUP_DIR="$HOME/.dotfiles-backup-$(date +%Y%m%d-%H%M%S)"
 
-ALL_PACKAGES=(bash zsh hypr waybar rofi kitty cava swaync btop fastfetch matugen OpenTabletDriver)
+ALL_PACKAGES=(quickshell hypr waybar rofi kitty cava swaync btop fastfetch matugen bash zsh OpenTabletDriver)
 
 PACKAGES=("$@")
 [ ${#PACKAGES[@]} -eq 0 ] && PACKAGES=("${ALL_PACKAGES[@]}")

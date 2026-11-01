@@ -1,29 +1,34 @@
 # AGENTS.md
 
-Quickshell (QML) Hyprland shell, deployed as a dotfiles package. This is a config repo, not a software project.
+Desktop dotfiles ecosystem: the Quickshell (QML) Hyprland shell plus Hyprland, matugen and the apps around them. Every top-level directory is a stow package. This is a config repo, not a software project.
 
 ## There is no toolchain — do not look for one
 
 - No `package.json`, build system, test runner, linter, formatter, typecheck, CI, pre-commit, or task runner exists. Nothing to "run".
 - **Quickshell 0.3.2 is installed** (`qs --version`). The scaffold was written against 1.x, so most API names needed correcting — see the API section below. Verify against the installed version, not the README.
-- The only real verification is `qs -p .config/quickshell` (or `qs` once stow-deployed). QML errors surface on load, so a clean launch is the smoke test.
+- The only real verification is `qs -p ~/.config/quickshell` (plain `qs` once stow-deployed). QML errors surface on load, so a clean launch is the smoke test.
 
 ## Deploying
 
+One stow package per top-level directory; each package contains `.config/<app>/` (or a dotfile at its root). Deploy everything with the installer, or name packages to deploy a subset:
+
 ```bash
-cd ~/quickshell-theme && stow --dir=. --target="$HOME" .
+./install.sh                  # all 13 packages, dry-run + conflict backup first
+./install.sh hypr quickshell  # just the named ones
 ```
 
-- Creates `~/.config/quickshell` → `~/quickshell-theme/.config/quickshell`. Currently **not deployed** (`~/.config/quickshell` does not exist), so nothing you edit here is live.
-- Undo with `stow --dir=. --target="$HOME" -D .`
-- The whole repo root is stowed as one package. GNU Stow 2.4.1's default ignore list covers `README.md`, `.git`, and `.gitignore`, so only `.config` is linked. On stow < 2.4.0, `README.md` would land at `~/README.md` — check `stow --version` before running this elsewhere.
-- The sibling repo `~/hypr-dotfiles` uses a *different* convention: one stow package per top-level directory plus an `install.sh` that dry-runs and backs conflicts up to `~/.dotfiles-backup-<timestamp>/`. This repo deliberately has no `install.sh`. Don't "fix" that asymmetry without asking.
+- Packages: `quickshell`, `hypr`, `waybar`, `rofi`, `kitty`, `cava`, `swaync`, `btop`, `fastfetch`, `matugen`, `bash`, `zsh`, `OpenTabletDriver`.
+- Conflicts (real files) are moved to `~/.dotfiles-backup-<timestamp>/` before stowing. Pre-existing **symlinks** are not backed up — remove them by hand first (that is how the `~/hypr-dotfiles` migration was done).
+- Undo a single package with `stow --dir=. --target="$HOME" -D <pkg>`.
+- **Never `stow .`** — the repo root is not a package. With 13 package dirs at the root it would try to link all of them straight into `$HOME`. Always name the package (or use `install.sh`).
+- GNU Stow 2.4.1 verified. On stow < 2.4.0 the default ignore list drops `README.md`, which would land at `~/README.md` — check `stow --version` before running this elsewhere.
 
 ## Layout and real entrypoints
 
-- `.config/quickshell/shell.qml` is the only entrypoint (`ShellRoot`). One `PanelWindow` per monitor via `Variants { model: Quickshell.screens }`. The bar window is full-width but transparent; `Bar.qml` draws a centered pill inside it. The window reserves the pill's band via `exclusiveZone` (bound to `bar.barHeight + bar.topMargin`), so windows are pushed down while the pill still floats — drop `exclusionMode` entirely, since `ExclusionMode.Normal` is the default and what makes the reservation take effect.
+- `quickshell/.config/quickshell/shell.qml` is the only entrypoint (`ShellRoot`). One `PanelWindow` per monitor via `Variants { model: Quickshell.screens }`. The bar window is full-width but transparent; `Bar.qml` draws a centered pill inside it. The window reserves the pill's band via `exclusiveZone` (bound to `bar.barHeight + bar.topMargin`), so windows are pushed down while the pill still floats — drop `exclusionMode` entirely, since `ExclusionMode.Normal` is the default and what makes the reservation take effect.
 - `Modules/Bar` (media / workspaces+clock / network+volume+memory+battery, plus a hover-expanded dynamic island: the pill never moves, a 600×450 (4:3, half the bar's width) media card swipes down from behind it, and each junction where the card's side edge meets the bar's bottom edge is smoothed by a tangent fillet in the pill's canvas that tracks the card's height through the swipe; the card itself is a Canvas whose bottom-corner radius tracks its visible height, so its corners stay rounded through the whole swipe instead of only at full expansion), `Modules/Launcher` (rofi drun replacement), and `Modules/Corners` (painted rounded screen corners) are live. `Modules/Notifications`, `Modules/OSD`, `Modules/Session` are still `visible: false` stubs whose intent lives in their `// TODO:` header comments.
 - `Services/` holds the data singletons the bar reads (`Audio`, `Media`, `Battery`, `Network`, `Memory`) plus `Matugen`. See the Services section below — the lazy-initialisation rule there is the thing most likely to bite.
+- The other packages' entrypoints: `hypr/.config/hypr/hyprland.lua` (pure-Lua Hyprland config; requires `animations`, `effects`, `keybinds`), `matugen/.config/matugen/config.toml` (palette templates for hypr/rofi/waybar/kitty/cava — no quickshell template yet), and `waybar`/`rofi`/`swaync`, which the quickshell modules are replacing one by one.
 
 ## Theme singleton — the non-obvious part
 
@@ -48,15 +53,14 @@ cd ~/quickshell-theme && stow --dir=. --target="$HOME" .
 ## Working agreement
 
 - **Never drive the user's input.** No synthetic keyboard/mouse via `/dev/uinput`, no screenshots to verify interactive behaviour. Inputs and clicks are the user's to test.
-- **Verification is a separate phase.** When something needs checking, do it in a clearly separated troubleshooting step — not interleaved with implementation edits. Inline load checks (`qs -p .config/quickshell` starts clean) are fine.
-- **`~/hypr-dotfiles` is read-only.** Read it for context (matugen templates, keybinds, waybar metrics) but never modify it.
-- **Config belongs in this repo.** Add settings here rather than reaching into the sibling repo. When a change genuinely must land in `~/hypr-dotfiles` (the autostart line, a keybind), write the exact snippet for the user to apply instead of editing it yourself.
+- **Verification is a separate phase.** When something needs checking, do it in a clearly separated troubleshooting step — not interleaved with implementation edits. Inline load checks (`qs -p ~/.config/quickshell` starts clean) are fine.
+- **All config lives here.** Hyprland, matugen, waybar, rofi — everything is a package in this repo now. The old `~/hypr-dotfiles` repo is a read-only archive until burn-in passes; never edit it.
 
-## Cross-repo coupling — the edits are often NOT in this repo
+## In-repo coupling — the edits that span packages
 
-- **matugen is configured in the other repo**: `~/hypr-dotfiles/matugen/.config/matugen/config.toml`. Templates live in `~/hypr-dotfiles/matugen/.config/matugen/templates/` and use `{{colors.primary.default.hex}}`-style placeholders; each `[templates.*]` entry has `input_path`, `output_path`, and an optional signal-based `post_hook` (e.g. `pkill -SIGUSR2 waybar`).
-- There is **no quickshell matugen template yet**. Making `Services/Matugen.qml`'s "matugen output feeds Theme/Colors.qml" comment true requires adding a `[templates.quickshell]` block to that `config.toml` with a template that emits QML. That config lives in `~/hypr-dotfiles`, so prepare the block + template and hand it to the user rather than editing it.
-- **Hyprland autostart also lives in the other repo**: `~/hypr-dotfiles/hypr/.config/hypr/keybinds.lua`, line 11, `hl.exec_cmd("waybar")` inside `hl.on("hyprland.start", ...)`. Swapping waybar for `qs` is an edit *there* — hand the user the snippet, don't touch the file. Note the hypr config is written in Lua with an `hl.bind(mainMod .. " + X", hl.dsp.exec_cmd(cmd))` helper, not `hyprland.conf`.
+- **matugen** (`matugen/.config/matugen/config.toml`) regenerates palettes for hypr, rofi, waybar, kitty and cava on wallpaper change; templates live in `matugen/.config/matugen/templates/` and use `{{colors.primary.default.hex}}`-style placeholders. Each `[templates.*]` entry has `input_path`, `output_path`, and an optional signal-based `post_hook` (e.g. `pkill -SIGUSR2 waybar`). There is **no quickshell template yet** — making `Services/Matugen.qml`'s "matugen output feeds Theme/Colors.qml" comment true requires a `[templates.quickshell]` block plus a template that emits QML.
+- **Hyprland autostart** lives in `hypr/.config/hypr/keybinds.lua` (line 11, `hl.exec_cmd("waybar")` inside `hl.on("hyprland.start", ...)`). Swapping waybar for `qs` is an edit in this repo now. The hypr config is Lua with an `hl.bind(mainMod .. " + X", hl.dsp.exec_cmd(cmd))` helper, not `hyprland.conf`.
+- **matugen's hypr output is currently dead**: the template writes `hypr/.config/hypr/config/colors.lua`, but `require("colors")` in `hyprland.lua` is commented out and hyprlock sources the hand-written `colors.conf` instead. Either re-enable the require (`require("config.colors")`) or drop the template — undecided.
 
 ## Quickshell API — verified against 0.3.2, not the 1.x scaffold
 
@@ -67,7 +71,7 @@ The Arch `*.qmltypes` files are **stale** (the Hyprland one is an empty stub). T
 - `DesktopEntries.applications` is an `UntypedObjectModel`. Read it as **`.values`** (a JS array), and wait for the **`applicationsChanged`** signal — it is empty at `Component.onCompleted` time. Same pattern for `Hyprland.workspaces.values`.
 - **Services initialise lazily and stay empty until observed.** See the Services section — this is the single most common cause of a silently blank widget.
 - `Hyprland.workspaces` carries the special workspace (`id === -98`) and is unordered. Filter to `id > 0` and sort before rendering.
-- **`Hyprland.dispatch(request)` interpolates the request raw into a Lua call** (`return hl.dispatch(<request>)`), and this machine's Hyprland runs a Lua config. The legacy string form `"workspace N"` dies with a Lua syntax error (`')' expected near '1'`), and the quoted form `"'workspace N'"` dies with `expected a dispatcher`. The working request is a real dispatcher object: **`Hyprland.dispatch("hl.dsp.focus({workspace = " + id + "})")`** — confirmed switching *and* creating missing workspaces. `hyprctl dispatch workspace N` from the shell hits the same Lua wrapper and fails identically, so a `Process` fallback is not a way out. Native `workspace.activate()` also works, but only for workspaces that already exist (useless for the bar's persistent 1–4 placeholders). Dispatcher syntax ground truth is the user's own `~/hypr-dotfiles/hypr/.config/hypr/keybinds.lua` (workspace switching is `hl.dsp.focus({ workspace = i })`; `hl.dsp.workspace` is a table, not callable). Note: `Hyprland.workspaces`' `valuesChanged` does **not** fire when only the active flag changes — verify switches with `hyprctl activeworkspace`, not with the model signal.
+- **`Hyprland.dispatch(request)` interpolates the request raw into a Lua call** (`return hl.dispatch(<request>)`), and this machine's Hyprland runs a Lua config. The legacy string form `"workspace N"` dies with a Lua syntax error (`')' expected near '1'`), and the quoted form `"'workspace N'"` dies with `expected a dispatcher`. The working request is a real dispatcher object: **`Hyprland.dispatch("hl.dsp.focus({workspace = " + id + "})")`** — confirmed switching *and* creating missing workspaces. `hyprctl dispatch workspace N` from the shell hits the same Lua wrapper and fails identically, so a `Process` fallback is not a way out. Native `workspace.activate()` also works, but only for workspaces that already exist (useless for the bar's persistent 1–4 placeholders). Dispatcher syntax ground truth is `hypr/.config/hypr/keybinds.lua` in this repo (workspace switching is `hl.dsp.focus({ workspace = i })`; `hl.dsp.workspace` is a table, not callable). Note: `Hyprland.workspaces`' `valuesChanged` does **not** fire when only the active flag changes — verify switches with `hyprctl activeworkspace`, not with the model signal.
 - `Mpris` player fields are `trackTitle` / `trackArtist` / `trackArtUrl` — there are no plain `title` / `artist` properties, and they read `undefined` until a track is loaded.
 - `Quickshell.screens` is a JS-array-like list; use `.length` / `[i]`, not `.count`.
 - `Quickshell.env()` is a **method**, not a property.
@@ -111,4 +115,4 @@ The Arch `*.qmltypes` files are **stale** (the Hyprland one is an empty stub). T
 
 - Single branch `main`, no remote configured. No branch/PR/release conventions are encoded anywhere — ask before inventing them.
 - One commit per module/phase, and the user reviews and approves each commit message before committing. Don't batch unrelated modules into one commit.
-- As of this writing: 8 commits, HEAD `fc87385` (painted rounded screen corners). The tree is dirty with the dynamic-island work (`Modules/Bar/Bar.qml`, `shell.qml`, `AGENTS.md`) — the island is implemented and verified, awaiting the user's input test before it is committed.
+- As of this writing: 13 commits. The repo became a desktop ecosystem in `e341109` (import of the 12 packages from `~/hypr-dotfiles`, which is now a read-only archive pending burn-in). Quickshell's own history predates the import under the old root layout (`.config/quickshell` → `quickshell/.config/quickshell`).

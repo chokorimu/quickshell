@@ -1,54 +1,51 @@
 # quickshell-theme
 
-quickshell shell for hyprland — bar, launcher, notifications, osd, session menu, matugen theming.
+whole-desktop dotfiles: the quickshell shell plus hyprland, matugen and the apps around them. every top-level directory is a stow package.
 
-scaffolded against quickshell 1.x. verify api details against the installed version (`qs --version`) — the 0.x → 1.x jump moved a few things around (`Quickshell.screens`, `SystemClock.Seconds`, `Hyprland.workspaces` fields, `PanelWindow.exclusiveZone`).
+## packages
 
-## structure
-
-| path | what |
+| package | what |
 |---|---|
-| `shell.qml` | root `ShellRoot` — one bar per monitor via `Variants` |
-| `Modules/Bar` | top bar: workspaces, clock (waybar replacement) |
-| `Modules/Launcher` | app launcher (rofi replacement) |
-| `Modules/Notifications` | notification popups (swaync replacement) |
-| `Modules/OSD` | volume / brightness on-screen display |
-| `Modules/Session` | power menu: lock, logout, reboot, shutdown |
-| `Services/Matugen` | wallpaper → palette regeneration |
-| `Theme` | `Theme` singleton + `Colors` palette |
+| `quickshell` | the shell: bar + dynamic island, launcher, osd, notifications, session menu, matugen theming |
+| `hypr` | hyprland config (pure lua — `hyprland.lua` requires animations/effects/keybinds) + hyprlock |
+| `matugen` | wallpaper → palette templates for hypr, rofi, waybar, kitty, cava |
+| `waybar` | status bar — being replaced by the quickshell bar |
+| `rofi` | launcher + wallpaper/power menus — drun replaced by the quickshell launcher |
+| `swaync` | notifications — being replaced by the quickshell notifications module |
+| `kitty` `cava` `btop` `fastfetch` | terminal, audio visualiser, system monitor, fetch |
+| `bash` `zsh` | shell rc files |
+| `OpenTabletDriver` | tablet profile |
 
 ## install
 
-stow-based, same pattern as `hypr-dotfiles`:
-
 ```bash
-cd ~/quickshell-theme
-stow --dir=. --target="$HOME" .
+./install.sh                  # all packages (dry-run + conflict backup first)
+./install.sh hypr quickshell  # named packages only
 ```
 
-symlinks `~/.config/quickshell` → `~/quickshell-theme/.config/quickshell`.
+stow-based; conflicts are backed up to `~/.dotfiles-backup-<timestamp>/`. pre-existing symlinks must be removed by hand first. never `stow .` — the repo root is not a package.
 
 ## run
 
 ```bash
-qs                          # default instance
+qs                          # the shell (default instance)
 qs -p ~/.config/quickshell  # explicit path
+qs ipc call launcher toggle # launcher from a keybind
 ```
 
 ## dependencies
 
-- `quickshell` (aur: `quickshell`, or `quickshell-git` for bleeding edge)
-- `qt6-declarative`
-- matugen + awww — already part of the hypr-dotfiles setup
+- `quickshell` (aur), `qt6-declarative`
+- hyprland with lua config support, matugen + awww
+- waybar / rofi / swaync — still live until the quickshell modules replace them
+- kitty, cava, btop, fastfetch, NetworkManager, pipewire (`wpctl`), brightnessctl, playerctl
 
-## wiring into hyprland
+## notes
 
-once the bar is ready, swap `waybar` for `qs` in `hypr/.config/hypr/keybinds.lua` autostart:
-
-```lua
-hl.exec_cmd("qs")
-```
+- matugen has no quickshell template yet — `Theme/Colors.qml` keeps its catppuccin defaults until one exists.
+- rofi wallpapers (~217MB) are gitignored and live only on disk.
+- migrated from `~/hypr-dotfiles` (12 packages, imported verbatim in `e341109`); that repo is a read-only archive pending burn-in.
 
 ## status
 
-scaffold — bar renders workspaces + clock, everything else is stubbed.
+bar + launcher live; osd / notifications / session menu still stubbed.
