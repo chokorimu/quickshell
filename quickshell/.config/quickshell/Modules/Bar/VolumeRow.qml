@@ -102,13 +102,16 @@ Item {
             }
         }
 
-        // handle rides the fill's edge
+        // handle rides the fill's edge — a slim rounded rectangle rather
+        // than a dot: 5 wide against the 5px track, 16 tall so it reads as
+        // something to grab, corners rounded to 2 so it is a rectangle
+        // with rounding, not a pill
         Rectangle {
             x: parent.width * row.fraction - width / 2
             anchors.verticalCenter: parent.verticalCenter
-            width: 12
-            height: 12
-            radius: 6
+            width: 5
+            height: 16
+            radius: 2
             color: Theme.cardForeground
             visible: !row.muted
         }
