@@ -67,11 +67,29 @@ PanelWindow {
         else { popIn.stop(); popOut.start() }
     }
 
-    // the window outlives `open` by the pop-out: the card retracts over
-    // 240ms and the window hides only once the animation lands
-    visible: root.open || root.pop > 0.001
+    // The window stays mapped for the shell's whole life. Toggling
+    // `visible` instead remaps the full-screen layer surface on every
+    // open, and that remap costs the first ~56ms of the pop-in — 9
+    // dropped frames at 165Hz, measured — which read as the card
+    // hitching into motion. The bar's window is always mapped for the
+    // same reason.
+    //
+    // An always-mapped full-screen surface would eat every click on
+    // the desktop, so the input mask carries the open/closed state:
+    // full extent while the card is up (the click-outside MouseArea
+    // needs the whole surface), zero-sized once it has retracted
+    // (click-through — exactly how the bar's island card region
+    // collapses to nothing when the island is closed).
+    visible: true
     focusable: true
     exclusionMode: ExclusionMode.Ignore
+
+    mask: Region {
+        x: 0
+        y: 0
+        width: (root.open || root.pop > 0.001) ? root.width : 0
+        height: (root.open || root.pop > 0.001) ? root.height : 0
+    }
 
     anchors {
         top: true
