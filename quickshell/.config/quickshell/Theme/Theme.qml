@@ -70,6 +70,16 @@ Singleton {
     readonly property color barInk:        barUseMatugen ? barColor   : (darkMode ? fixedDarkBarInk     : fixedBarInk)
     readonly property color barOnInk:      barUseMatugen ? barText    : (darkMode ? fixedDarkBarOnInk   : fixedBarOnInk)
 
+    // ---- workspace pill ------------------------------------------------
+    // A light-gray island inside the bar pill, fixed in both palettes —
+    // it does not flip with darkMode (same call as screenCornerColor
+    // below). The active circle takes the ink role on top of it, so
+    // barInk stays owned by the transport circles and the tab column.
+    readonly property color barWorkspacePill: "#e2e2e6"
+    // inactive workspace numbers on that light surface — barDim is tuned
+    // for the dark pill and washes out against light gray
+    readonly property color barWorkspaceDim:  "#6e6e73"
+
     // typography
     readonly property string fontFamily: "monospace"
     readonly property string barFontFamily: "Montserrat Semibold"
