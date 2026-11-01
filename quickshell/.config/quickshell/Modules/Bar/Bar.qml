@@ -77,6 +77,7 @@ Item {
     property bool hovered: cardZone.containsMouse
         || mediaTab.containsMouse
         || volumeTab.containsMouse
+        || sessionTab.containsMouse
         || (islandPage === "media" && clockZone.containsMouse)
         || (islandPage === "volume" && volumeIcon.containsMouse)
 
@@ -306,22 +307,14 @@ Item {
                 // around it. The path is still current after the
                 // fill, so clipping to it hands the strip the card's
                 // own rounded left corners for free. It scales with
-                // the pop like everything else here.
+                // the pop like everything else here. (A drop shadow
+                // to the strip's right lived here once and was cut —
+                // at any opacity that still read as a shadow it read
+                // as a smudge against the card.)
                 ctx.save()
                 ctx.clip()
                 ctx.fillStyle = Theme.barBackground
                 ctx.fillRect(0, 0, root.cardColumnWidth, h)
-
-                // drop shadow to the right of the strip — a soft
-                // black gradient fading into the card body, so the
-                // column reads as raised above the darker surface.
-                // Kept narrow and faint: a wide or dark shadow reads
-                // as a smudge against the card.
-                var shadow = ctx.createLinearGradient(root.cardColumnWidth, 0, root.cardColumnWidth + 16, 0)
-                shadow.addColorStop(0, "rgba(0, 0, 0, 0.12)")
-                shadow.addColorStop(1, "rgba(0, 0, 0, 0)")
-                ctx.fillStyle = shadow
-                ctx.fillRect(root.cardColumnWidth, 0, 16, h)
                 ctx.restore()
             }
 
@@ -345,21 +338,33 @@ Item {
                     visible: root.islandPage === "volume"
                 }
 
+                // ---- session page: avatar, user@host, power grid --------
+                // Same card, same pop — reached by hovering the third
+                // tab button in the column. Gated on the page like the
+                // other two, so nothing paints underneath.
+                SessionCard {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.bottom: parent.bottom
+                    visible: root.islandPage === "session"
+                }
+
                 // ---- page switcher: vertical tab column --------------------
-                // Two buttons down the card's left edge, flush against the
-                // card's edge and each other (no margin, no gaps) and as
-                // wide as the column strip itself, so the block fills the
-                // strip edge to edge with no dead space beside it. The
-                // selected page takes the accent fill — square corners,
-                // near-black glyph, and a black block down its left edge
-                // taking the full height and the left 20% of the button —
-                // so it reads as one solid lime slab; the unselected one
-                // stays transparent. Hovering a button switches pages
-                // outright — no click needed; the bar's hover triggers
-                // (clock, volume icon) still select a page on the way
-                // in. The block fills the 56px strip; VolumeCard's
-                // content keeps an 80px left margin to clear the strip
-                // and its shadow.
+                // Three buttons down the card's left edge, flush against
+                // the card's edge and each other (no margin, no gaps) and
+                // as wide as the column strip itself, so the block fills
+                // the strip edge to edge with no dead space beside it.
+                // The selected page takes the accent fill — square
+                // corners, near-black glyph, and a black block down its
+                // left edge taking the full height and the left 10% of
+                // the button — so it reads as one solid lime slab; the
+                // unselected one stays transparent. Hovering a button
+                // switches pages outright — no click needed; the bar's
+                // hover triggers (clock, volume icon) still select a
+                // page on the way in. The block fills the 56px strip;
+                // the pages' content keeps an 80px left margin to clear
+                // it with 24px to spare.
                 Column {
                     anchors.left: parent.left
                     anchors.top: parent.top
@@ -430,6 +435,39 @@ Item {
                             anchors.fill: parent
                             hoverEnabled: true
                             onEntered: root.islandPage = "volume"
+                        }
+                    }
+
+                    Rectangle {
+                        width: root.cardColumnWidth
+                        height: 40
+                        color: root.islandPage === "session" ? Theme.cardAccent : "transparent"
+
+                        // the selected marker: a black block down the
+                        // button's left edge, taking the full height
+                        // and the left 10% of the width — no inset, so
+                        // it reads as part of the button's silhouette
+                        Rectangle {
+                            x: 0
+                            width: parent.width * 0.1
+                            height: parent.height
+                            color: "black"
+                            visible: root.islandPage === "session"
+                        }
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: "\uF011" // power
+                            color: root.islandPage === "session" ? Theme.cardAccentOn : Theme.barDim
+                            font.family: Theme.iconFont
+                            font.pixelSize: 17
+                        }
+
+                        MouseArea {
+                            id: sessionTab
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            onEntered: root.islandPage = "session"
                         }
                     }
                 }

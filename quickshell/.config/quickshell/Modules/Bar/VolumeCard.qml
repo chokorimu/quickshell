@@ -8,8 +8,8 @@
 //
 // Layout follows the reference design: a speaker glyph + "Volume" title
 // left-aligned past the menu column strip, then the rows. The strip
-// is 56px wide with a 24px drop shadow, and the content keeps an
-// 80px left margin, so nothing rides either.
+// is 56px wide, and the content keeps an 80px left margin, so nothing
+// rides it.
 import QtQml
 import QtQuick
 import Quickshell
@@ -20,8 +20,8 @@ Item {
     id: volumeCard
 
     // title row — speaker glyph + "Volume", left-aligned. The 80px
-    // margin clears the menu column strip (56 wide) plus its 24px
-    // drop shadow, so nothing rides either.
+    // margin clears the menu column strip (56 wide), so nothing rides
+    // it.
     Row {
         id: titleRow
         anchors.top: parent.top
