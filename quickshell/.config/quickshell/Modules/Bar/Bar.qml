@@ -35,9 +35,11 @@ Item {
     readonly property int cardWidth: 600
     readonly property int cardHeight: 450
     readonly property int cardRadius: 24
-    // the lime accent strip painted down the card's left edge (see the
-    // card canvas); the page content clears it with its left margins
-    readonly property int cardAccentWidth: 8
+    // the menu column's strip down the card's left edge — the tab
+    // buttons' own region (leftMargin 16 + 40 wide), painted in the
+    // bar's color against the lighter card body (see the card canvas).
+    // The page content clears it with its left margins.
+    readonly property int cardColumnWidth: 56
     readonly property int workspacePillHeight: 30
     readonly property int workspaceCircleSize: 22
     // the pop's overshoot headroom. OutBack peaks at ~1.1x, so the clip
@@ -254,10 +256,11 @@ Item {
             }
 
             // a matugen regeneration rewrites the palette underneath
-            // the painted fill — repaint when the bar color changes
+            // the painted fill — repaint when either color changes
             Connections {
                 target: Theme
                 function onBarBackgroundChanged() { card.requestPaint() }
+                function onCardBackgroundChanged() { card.requestPaint() }
             }
 
             onPaint: {
@@ -268,7 +271,7 @@ Item {
                 var rb = Math.min(root.cardRadius, Math.max(0, (h - root.cardRadius) / 2))
 
                 ctx.clearRect(0, 0, w, h)
-                ctx.fillStyle = Theme.barBackground
+                ctx.fillStyle = Theme.cardBackground
                 ctx.beginPath()
 
                 // one clockwise outline: top edge, top-right cap, right
@@ -290,15 +293,18 @@ Item {
                 ctx.closePath()
                 ctx.fill()
 
-                // lime accent strip down the left edge. The path is
-                // still current after the fill, so clipping to it hands
-                // the strip the card's own rounded left corners for
-                // free; the right edge stays square against the card.
-                // It scales with the pop like everything else here.
+                // the menu column strip down the left edge keeps the
+                // bar's color — the card body lifts a step lighter
+                // (Theme.cardBackground) so the card reads as its own
+                // surface, and the strip marks the column's region.
+                // The path is still current after the fill, so
+                // clipping to it hands the strip the card's own
+                // rounded left corners for free. It scales with the
+                // pop like everything else here.
                 ctx.save()
                 ctx.clip()
-                ctx.fillStyle = Theme.cardAccent
-                ctx.fillRect(0, 0, root.cardAccentWidth, h)
+                ctx.fillStyle = Theme.barBackground
+                ctx.fillRect(0, 0, root.cardColumnWidth, h)
                 ctx.restore()
             }
 
@@ -324,10 +330,11 @@ Item {
 
                 // ---- page switcher: vertical tab column --------------------
                 // Two buttons down the card's left edge, flush against each
-                // other (no gaps) and past the lime accent strip. The
+                // other (no gaps) inside the bar-colored column strip. The
                 // selected page takes the accent fill — square corners,
-                // near-black glyph — so it reads as one solid lime block;
-                // the unselected one stays transparent. Clicking a button
+                // near-black glyph, and a thin black line down its left
+                // edge — so it reads as one solid lime block; the
+                // unselected one stays transparent. Clicking a button
                 // switches pages outright; the bar's hover triggers (clock,
                 // volume icon) still select a page on the way in. The block
                 // ends at x=56 (leftMargin 16 + 40 wide); VolumeCard's
@@ -343,6 +350,18 @@ Item {
                         width: 40
                         height: 40
                         color: root.islandPage === "media" ? Theme.cardAccent : "transparent"
+
+                        // the selected marker: a thin black line down
+                        // the block's left edge, inset onto the lime
+                        // fill so it reads against the yellow rather
+                        // than the dark column strip behind it
+                        Rectangle {
+                            x: 5
+                            width: 3
+                            height: parent.height
+                            color: "black"
+                            visible: root.islandPage === "media"
+                        }
 
                         Text {
                             anchors.centerIn: parent
@@ -362,6 +381,18 @@ Item {
                         width: 40
                         height: 40
                         color: root.islandPage === "volume" ? Theme.cardAccent : "transparent"
+
+                        // the selected marker: a thin black line down
+                        // the block's left edge, inset onto the lime
+                        // fill so it reads against the yellow rather
+                        // than the dark column strip behind it
+                        Rectangle {
+                            x: 5
+                            width: 3
+                            height: parent.height
+                            color: "black"
+                            visible: root.islandPage === "volume"
+                        }
 
                         Text {
                             anchors.centerIn: parent

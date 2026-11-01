@@ -82,14 +82,19 @@ Singleton {
     // value washes out against light gray)
     readonly property color barWorkspaceDim:  darkMode ? fixedDarkBarMuted : "#6e6e73"
 
-    // card accent — the lime strip down the island card's left edge.
-    // Fixed in both palettes, like screenCornerColor: it is an accent,
-    // not a surface.
+    // card accent — the lime fill on the island tab column's selected
+    // button. Fixed in both palettes, like screenCornerColor: it is
+    // an accent, not a surface.
     readonly property color cardAccent: "#cdf34e"
-    // label color on the accent — the island tab column's selected
-    // button takes the lime fill, and near-black reads on it. Fixed
+    // label color on the accent — the selected button's glyph. Fixed
     // for the same reason cardAccent is: the accent never flips.
     readonly property color cardAccentOn: "#1b1b1f"
+    // card surface — a step lighter than the bar so the card reads as
+    // its own surface. White can't lift further, so the light card
+    // stays white; the matugen path keeps the card on the bar color
+    // (no lift is computable from an arbitrary palette). The menu
+    // column strip keeps barBackground — see Bar.qml's card canvas.
+    readonly property color cardBackground: barUseMatugen ? barColor : (darkMode ? "#2b2b30" : "#ffffff")
 
     // typography
     readonly property string fontFamily: "monospace"
