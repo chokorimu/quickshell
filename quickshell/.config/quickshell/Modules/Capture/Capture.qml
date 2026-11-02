@@ -17,6 +17,11 @@
 // cells do.
 import QtQuick
 import "../../Theme"
+// the header mark lives with the other cards; this is the first
+// cross-module import in the tree, and it is circular with Bar.qml's
+// own import of ../Capture — QML resolves both lazily, verified by
+// load
+import "../Bar"
 
 Item {
     id: capturePage
@@ -27,13 +32,38 @@ Item {
     // the first one to ship collapses the island under the cursor.
     property bool hovered: false
 
-    // The group sits in the card's content area, clear of the column
-    // strip: centered, then offset by half the resting strip — the
-    // same +28 the media page and the session card use.
+    // title row — header mark + "Capture", left-aligned. The 80px
+    // margin clears the menu column strip (56 wide), so nothing rides
+    // it.
+    Row {
+        id: titleRow
+        anchors.top: parent.top
+        anchors.topMargin: 28
+        anchors.left: parent.left
+        anchors.leftMargin: 80
+        spacing: 12
+
+        HeaderIcon {
+            anchors.verticalCenter: parent.verticalCenter
+        }
+
+        Text {
+            anchors.verticalCenter: parent.verticalCenter
+            text: "CAPTURE"
+            color: Theme.cardForeground
+            font.family: Theme.barFontFamily
+            font.pixelSize: 20
+            font.weight: Font.DemiBold
+        }
+    }
+
+    // the sections, stacked under the header and left-aligned on the
+    // content area's margin, the way the volume and theme pages flow
     Column {
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.horizontalCenterOffset: 28
-        anchors.verticalCenter: parent.verticalCenter
+        anchors.top: titleRow.bottom
+        anchors.topMargin: 24
+        anchors.left: parent.left
+        anchors.leftMargin: 80
         spacing: 28
 
         // ---- screenshot: output / window / region ----------------------
@@ -42,11 +72,10 @@ Item {
         // slurp takes the input grab, and with hyprshot's -z freeze the
         // card would be frozen into the shot.
         Column {
-            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.left: parent.left
             spacing: 10
 
             Text {
-                anchors.horizontalCenter: parent.horizontalCenter
                 text: "Screenshot"
                 color: Theme.cardDim
                 font.family: Theme.barFontFamily
@@ -54,7 +83,7 @@ Item {
             }
 
             Row {
-                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.left: parent.left
                 spacing: 8
 
                 Repeater {
@@ -94,11 +123,10 @@ Item {
         // so real history needs cliphist installed and running
         // (wl-paste --watch cliphist store as a hypr exec-once).
         Column {
-            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.left: parent.left
             spacing: 10
 
             Text {
-                anchors.horizontalCenter: parent.horizontalCenter
                 text: "Clipboard"
                 color: Theme.cardDim
                 font.family: Theme.barFontFamily
@@ -106,7 +134,7 @@ Item {
             }
 
             Row {
-                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.left: parent.left
                 spacing: 8
 
                 Rectangle {
@@ -137,13 +165,13 @@ Item {
         // ---- record -----------------------------------------------------
         // Step 4 wires this to wf-recorder, started and stopped from
         // the same pill, with the elapsed time beside it. wf-recorder
-        // is not installed yet.
+        // is not installed yet. OBS is the alternative backend — see
+        // the streaming note below.
         Column {
-            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.left: parent.left
             spacing: 10
 
             Text {
-                anchors.horizontalCenter: parent.horizontalCenter
                 text: "Record"
                 color: Theme.cardDim
                 font.family: Theme.barFontFamily
@@ -151,7 +179,7 @@ Item {
             }
 
             Row {
-                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.left: parent.left
                 spacing: 8
 
                 Rectangle {
