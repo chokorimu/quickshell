@@ -164,8 +164,8 @@ Item {
         GridLayout {
             anchors.horizontalCenter: parent.horizontalCenter
             columns: 4
-            columnSpacing: 12
-            rowSpacing: 12
+            columnSpacing: 8
+            rowSpacing: 8
 
             Repeater {
                 model: [
@@ -186,7 +186,7 @@ Item {
 
                     Layout.preferredWidth: 104
                     Layout.preferredHeight: 88
-                    radius: 16
+                    radius: 10
 
                     // the hover fill lightens the cell in both
                     // palettes, because the wipe is black and its
