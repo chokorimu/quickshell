@@ -74,7 +74,12 @@ Item {
         }
     }
 
-    // one-shot process for the power actions — command set per click
+    // How long a power cell must be held before it fires. Long enough
+    // that a stray click cannot power the machine off, short enough
+    // that it does not feel like work.
+    readonly property int holdDuration: 1500
+
+    // one-shot process for the power actions — command set per hold
     Process {
         id: powerProc
     }
@@ -150,11 +155,21 @@ Item {
                 ]
 
                 Rectangle {
+                    id: cell
+
+                    // 0 -> 1 across the hold. The wipe's width reads it,
+                    // and the animation's onFinished is what fires the
+                    // action, so the bar and the trigger can never
+                    // disagree about how far along the hold is.
+                    property real holdProgress: 0
+
                     Layout.preferredWidth: 104
                     Layout.preferredHeight: 88
                     radius: 16
                     color: Theme.cardHighlight
 
+                    // resting content — the near-black that reads on the
+                    // cell's own surface
                     Column {
                         anchors.centerIn: parent
                         spacing: 8
@@ -176,12 +191,76 @@ Item {
                         }
                     }
 
-                    MouseArea {
-                        anchors.fill: parent
-                        onClicked: {
+                    // the wipe — black, from the left, filling the cell
+                    // over the hold. Clipped to its own width, with the
+                    // content re-drawn inside it in the yellow that
+                    // reads on black, so the glyph and label surface
+                    // exactly where the fill has reached. The copy
+                    // underneath keeps the near-black that reads on the
+                    // cell, which is what makes the label legible across
+                    // the whole sweep instead of vanishing under it. Two
+                    // copies is the price of a centred label on a wiping
+                    // fill — one copy would need a colour that reads on
+                    // both black and the cell, and there isn't one.
+                    Rectangle {
+                        anchors.left: parent.left
+                        anchors.top: parent.top
+                        anchors.bottom: parent.bottom
+                        width: cell.width * cell.holdProgress
+                        color: "black"
+                        clip: true
+
+                        Item {
+                            width: cell.width
+                            height: cell.height
+
+                            Column {
+                                anchors.centerIn: parent
+                                spacing: 8
+
+                                Text {
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    text: modelData.glyph
+                                    color: Theme.launcherSelection
+                                    font.family: Theme.iconFont
+                                    font.pixelSize: 24
+                                }
+
+                                Text {
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    text: modelData.label
+                                    color: Theme.launcherSelection
+                                    font.family: Theme.barFontFamily
+                                    font.pixelSize: 12
+                                }
+                            }
+                        }
+                    }
+
+                    // released early, or dragged off the cell
+                    function cancelHold() {
+                        holdAnim.stop()
+                        cell.holdProgress = 0
+                    }
+
+                    NumberAnimation {
+                        id: holdAnim
+                        target: cell
+                        property: "holdProgress"
+                        from: 0
+                        to: 1
+                        duration: sessionCard.holdDuration
+                        onFinished: {
                             powerProc.command = modelData.cmd
                             powerProc.running = true
+                            cell.holdProgress = 0
                         }
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        onPressed: holdAnim.start()
+                        onReleased: cell.cancelHold()
                     }
                 }
             }
