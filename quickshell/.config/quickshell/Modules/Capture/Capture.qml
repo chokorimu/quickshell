@@ -244,6 +244,7 @@ Item {
                     spacing: 6
 
                     Text {
+                        id: offGlyph
                         text: "\uF05E" // ban
                         color: Theme.cardDim
                         font.family: Theme.iconFont
@@ -251,10 +252,26 @@ Item {
                     }
 
                     Text {
+                        id: offText
                         text: "OBS offline"
                         color: Theme.cardDim
                         font.family: Theme.barFontFamily
                         font.pixelSize: 13
+                        // A Row top-aligns its children, and the two
+                        // fonts' line boxes differ — the icon font's
+                        // runs ~19 at 14px against the UI font's ~16
+                        // at 13px — so both started at the row's top
+                        // and the glyph's ink sat ~1.6px below the
+                        // text's. Taking the glyph's line box as the
+                        // shared height and centring the text's ink
+                        // inside it puts both on one line: measured
+                        // off the font files, the ban's ink centre is
+                        // 0.360em over its baseline against the
+                        // string's 0.381em, so once the boxes match
+                        // the two centres land 0.3px apart —
+                        // sub-pixel, and the eye reads one line.
+                        height: offGlyph.height
+                        verticalAlignment: Text.AlignVCenter
                     }
                 }
 
