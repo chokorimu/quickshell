@@ -6,22 +6,22 @@
 // Theme.themeMode and written to a state file, so the choice is still
 // there after a reboot.
 //
-// The switch is one pill, not three: a single rounded container
-// spanning the content width, with the three modes tiling it edge to
-// edge. The pill's width is bound to the container, and each segment
-// takes a third of what is left after the row's spacing, so the
-// segments resize with the pill instead of sitting at a fixed width.
-// The 2px gaps let the pill's own surface through as dividers, and
-// the pill's clip rounds the end segments' outer corners, so the
-// whole thing reads as one control rather than a row of buttons.
+// The switch is the workspace pill's design, scaled up for labels: one
+// pill on barWorkspacePill, three rounded buttons inside it, the
+// inactive ones left transparent so the pill's own surface shows
+// through, and the active one raised in barBackground with a
+// barForeground label — the same surfaces, radius logic and
+// active/inactive contrast as the workspace numbers, three segments
+// wide instead of one-per-workspace. The workspace buttons are
+// circles because they hold a single digit; these hold a word, so they
+// are pill-shaped (radius = height / 2) rather than round.
 //
-// The active segment takes the knockout pair the transport circles
-// already use on this card (cardInk fill, cardOnInk label):
-// barBackground, the workspace pill's own active fill, lands between
-// the pill and cardHighlight in the dark palette, so a filled active
-// segment would read as darker than its neighbours instead of
-// selected. The inactive segments take cardHighlight, the card's
-// subtle surface, with cardDim labels.
+// The pill spans the container — from the "Mode" label out to the
+// content width's right margin — and each segment takes a third of
+// the row after its spacing, so the segments resize with the pill
+// instead of sitting at a fixed width. The 4px inset and 4px spacing
+// are the workspace pill's own padding, so the buttons sit inside it
+// exactly as the circles do.
 //
 // The label and the switch sit top-left under the title, on the same
 // 80px margin the volume page's rows use, rather than centred in the
@@ -101,8 +101,9 @@ Item {
             font.pixelSize: 14
         }
 
-        // one pill, spanning the container. clip rounds the end
-        // segments' outer corners to the pill's own radius.
+        // one pill, spanning the container — the workspace pill's
+        // surface, radius and height, three buttons wide instead of
+        // one-per-workspace
         Rectangle {
             id: modePill
             anchors.left: modeLabel.right
@@ -112,12 +113,12 @@ Item {
             height: 40
             radius: height / 2
             color: Theme.barWorkspacePill
-            clip: true
 
             Row {
                 id: modeRow
                 anchors.fill: parent
-                spacing: 2
+                anchors.margins: 4
+                spacing: 4
 
                 Repeater {
                     model: themeCard.modes
@@ -130,12 +131,20 @@ Item {
                         // the segments track the pill's width
                         width: (modeRow.width - 2 * modeRow.spacing) / 3
                         height: modeRow.height
-                        color: active ? Theme.cardInk : Theme.cardHighlight
+                        // pill-shaped, the circle's analogue for a
+                        // word: the workspace buttons are round
+                        // because they hold one digit
+                        radius: height / 2
+                        // the active button is raised in barBackground
+                        // exactly as the active workspace circle is;
+                        // the inactive ones stay transparent so the
+                        // pill's surface reads through
+                        color: active ? Theme.barBackground : "transparent"
 
                         Text {
                             anchors.centerIn: parent
                             text: modelData.charAt(0).toUpperCase() + modelData.slice(1)
-                            color: active ? Theme.cardOnInk : Theme.cardDim
+                            color: active ? Theme.barForeground : Theme.barWorkspaceDim
                             font.family: Theme.barFontFamily
                             font.pixelSize: 14
                         }
