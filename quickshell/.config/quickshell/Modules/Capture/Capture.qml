@@ -7,8 +7,10 @@
 //
 // Step 2 wired the screenshot row: three pills, one grim chain each,
 // saving to ~/Pictures/Screenshots and copying to the clipboard on
-// the way out. The clipboard and record sections are still
-// placeholders, each noting the step that wires it.
+// the way out. Step 4 wired the record row to OBS over obs-websocket:
+// one pill toggles StartRecord/StopRecord with the elapsed time
+// beside it. The clipboard section is still a placeholder, noting
+// the step that wires it.
 //
 // The pills are click-only on purpose, the same rule the session and
 // theme pages follow: a hover-enabled MouseArea in here steals
@@ -20,6 +22,7 @@ import QtQml
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import QtWebSockets
 import "../../Theme"
 // the header mark lives with the other cards; this is the first
 // cross-module import in the tree, and it is circular with Bar.qml's
@@ -167,10 +170,11 @@ Item {
         }
 
         // ---- record -----------------------------------------------------
-        // Step 4 wires this to wf-recorder, started and stopped from
-        // the same pill, with the elapsed time beside it. wf-recorder
-        // is not installed yet. OBS is the alternative backend — see
-        // the streaming note below.
+        // Wired in step 4 to OBS over obs-websocket: one pill toggles
+        // StartRecord/StopRecord, the elapsed time rides beside it,
+        // and the state arrives as events — so a recording started
+        // from OBS's own UI or a hotkey shows on the pill too.
+        // wf-recorder is the alternative backend, not installed yet.
         Column {
             anchors.left: parent.left
             spacing: 10
@@ -189,24 +193,43 @@ Item {
                 Rectangle {
                     id: recPill
                     height: 36
+                    // content-driven width like the screenshot pills —
+                    // the label is the widest thing in the row, so the
+                    // duration readout never moves the pill
                     width: recPillLabel.implicitWidth + 36
                     radius: 18
-                    color: Theme.cardHighlight
+                    // recording reads as recording: the theme's red,
+                    // the one color in the palette that means "live"
+                    // without a legend
+                    color: capturePage.recording ? Theme.barUrgent : Theme.cardHighlight
 
                     Text {
                         id: recPillLabel
                         anchors.centerIn: parent
-                        text: "Start recording"
-                        color: Theme.cardForeground
+                        text: capturePage.recording ? "Stop recording"
+                            : (capturePage.obsConnected ? "Start recording" : "OBS offline")
+                        color: capturePage.recording ? Theme.cardOnInk
+                            : (capturePage.obsConnected ? Theme.cardForeground : Theme.cardDim)
                         font.family: Theme.barFontFamily
                         font.pixelSize: 13
                     }
 
                     MouseArea {
                         anchors.fill: parent
-                        // placeholder — step 4
-                        onClicked: {}
+                        onClicked: capturePage.toggleRecord()
                     }
+                }
+
+                // the elapsed time while recording. The slot doubles
+                // as the error readout, so a rejected request never
+                // fails silently — the pill just sits there.
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: capturePage.obsError.length > 0 ? capturePage.obsError
+                        : (capturePage.recording ? capturePage.fmtDuration(capturePage.recSeconds) : "")
+                    color: capturePage.obsError.length > 0 ? Theme.barUrgent : Theme.cardDim
+                    font.family: Theme.barFontFamily
+                    font.pixelSize: 13
                 }
             }
         }
@@ -399,5 +422,192 @@ Item {
         lastStamp = stamp
         lastStampCount = 1
         return stamp
+    }
+
+    // ---- the OBS client -----------------------------------------------
+    // The record row's backend: obs-websocket 5.x over a plain
+    // WebSocket. On connect the server sends Hello (op 0), the client
+    // answers Identify (op 1) — with auth off there is no
+    // challenge-response to compute, which is the whole reason the
+    // localhost port runs unauthenticated, since 5.x auth is a SHA256
+    // handshake QML's JS cannot do — and the server replies Identified
+    // (op 2). From there it is requests (op 6) with responses (op 7),
+    // plus events (op 5) the server pushes on its own.
+    //
+    // The CLI route (obs --startrecording) was the alternative and
+    // lost on readback: it is a start button with no way to ask OBS
+    // what it is doing, so the pill could never know when to say
+    // "stop". The socket gives both directions.
+    //
+    // The socket lives for the shell's whole life — this page is a
+    // persistent instance behind a visible flag, not a Loader — so
+    // the connection is up before the capture page is ever opened,
+    // and a recording started elsewhere still shows on the pill.
+    readonly property string obsUrl: "ws://127.0.0.1:4455"
+
+    // Identified received: the handshake is done and requests will be
+    // answered
+    property bool obsConnected: false
+    property bool recording: false
+    property int recSeconds: 0
+    // a rejected request's comment, shown in the duration slot for a
+    // few seconds
+    property string obsError: ""
+    property int obsReqId: 0
+
+    WebSocket {
+        id: obsSocket
+        url: capturePage.obsUrl
+        active: true
+
+        onStatusChanged: (status) => {
+            // 0 connecting, 1 open, 2 closing, 3 closed, 4 error —
+            // the enum is not in the qmltypes, so the numbers are
+            // spelled out here rather than referenced by name. Only
+            // a dead socket arms the retry: a connecting one is
+            // already on its way, and arming on the initial
+            // Connecting would bounce a healthy connection at the
+            // five-second mark.
+            if (status === 3 || status === 4) {
+                capturePage.obsConnected = false
+                capturePage.scheduleObsRetry()
+            }
+        }
+
+        onTextMessageReceived: (text) => {
+            var msg
+            try {
+                msg = JSON.parse(text)
+            } catch (e) {
+                return
+            }
+            var d = msg.d || {}
+            if (msg.op === 0) {
+                // Hello: identify. No authentication field when the
+                // server runs with auth off, and the default
+                // subscription covers every non-high-volume category,
+                // which includes the Outputs events the record state
+                // rides on
+                obsSocket.sendTextMessage(JSON.stringify({
+                    op: 1,
+                    d: { rpcVersion: 1 }
+                }))
+            } else if (msg.op === 2) {
+                capturePage.obsConnected = true
+                obsRetry.stop()
+                capturePage.obsError = ""
+                // sync the state OBS is already in — it may have been
+                // recording since before the shell started
+                capturePage.obsRequest("GetRecordStatus")
+            } else if (msg.op === 7) {
+                capturePage.onObsResponse(d)
+            } else if (msg.op === 5) {
+                if (d.eventType === "RecordStateChanged") {
+                    var active = d.eventData && d.eventData.outputActive === true
+                    // the stop event carries the saved file's path
+                    if (!active && d.eventData && d.eventData.outputPath)
+                        capturePage.notifySaved(d.eventData.outputPath)
+                    capturePage.setRecording(active)
+                }
+            }
+        }
+    }
+
+    function obsRequest(type) {
+        if (!obsConnected)
+            return
+        obsReqId++
+        obsSocket.sendTextMessage(JSON.stringify({
+            op: 6,
+            d: { requestType: type, requestId: "" + obsReqId }
+        }))
+    }
+
+    function onObsResponse(d) {
+        if (!d.requestStatus || d.requestStatus.result !== true) {
+            capturePage.obsError = (d.requestStatus && d.requestStatus.comment)
+                || "request failed"
+            obsErrorTimer.restart()
+            return
+        }
+        if (d.requestType === "GetRecordStatus" && d.responseData)
+            capturePage.setRecording(d.responseData.outputActive === true,
+                d.responseData.outputDuration)
+    }
+
+    // The event and the status response agree on the shape; the
+    // duration only comes from the status response, so it seeds the
+    // counter and the event leaves it alone. A state change is also
+    // proof the last request landed, so it clears the error readout
+    // rather than leaving a stale comment up for the timer.
+    function setRecording(active, duration) {
+        if (active === capturePage.recording && duration === undefined)
+            return
+        capturePage.recording = active
+        capturePage.obsError = ""
+        if (active)
+            capturePage.recSeconds = (duration !== undefined && duration > 0)
+                ? Math.floor(duration) : 0
+    }
+
+    function toggleRecord() {
+        if (!obsConnected) {
+            // OBS is down (or still starting): retry now rather than
+            // making the click wait out the retry timer
+            capturePage.reconnectObs()
+            return
+        }
+        capturePage.obsRequest(capturePage.recording ? "StopRecord" : "StartRecord")
+    }
+
+    // The QML WebSocket has no open() — active is the only handle —
+    // so a retry is a bounce: off aborts the dead socket, on opens a
+    // fresh one. Five seconds matches the cadence the other pollers
+    // run at, and a refused local connect costs nothing.
+    Timer {
+        id: obsRetry
+        interval: 5000
+        onTriggered: capturePage.reconnectObs()
+    }
+
+    function scheduleObsRetry() {
+        obsRetry.restart()
+    }
+
+    function reconnectObs() {
+        obsSocket.active = false
+        obsSocket.active = true
+    }
+
+    Timer {
+        id: obsErrorTimer
+        interval: 4000
+        onTriggered: capturePage.obsError = ""
+    }
+
+    // one tick a second while the recorder runs; the binding keeps it
+    // stopped the rest of the time
+    Timer {
+        interval: 1000
+        repeat: true
+        running: capturePage.recording
+        onTriggered: capturePage.recSeconds++
+    }
+
+    function fmtDuration(s) {
+        var h = Math.floor(s / 3600)
+        var m = Math.floor((s % 3600) / 60)
+        var sec = s % 60
+        var pad = function (n) { return (n < 10 ? "0" : "") + n }
+        return (h > 0 ? h + ":" : "") + pad(m) + ":" + pad(sec)
+    }
+
+    Process {
+        id: obsNotifyProcess
+    }
+
+    function notifySaved(path) {
+        obsNotifyProcess.command = ["notify-send", "Recording saved", path]
+        obsNotifyProcess.running = true
     }
 }
