@@ -240,37 +240,100 @@ Item {
                     }
 
                     // the wipe — black, from the left, filling the cell
-                    // over the hold. Clipped to its own width, with the
-                    // content re-drawn inside it in the yellow that
-                    // reads on black, so the glyph and label surface
-                    // exactly where the fill has reached. The copy
+                    // over the hold. A Canvas clipped to the cell's own
+                    // rounded-rect path (ctx.clip(), the same clockwise
+                    // outline Bar.qml's card canvas draws), filled black
+                    // from the left edge to width * holdProgress.
+                    //
+                    // Clipping to the path instead of painting a rounded
+                    // Rectangle buys two things. The silhouette is the
+                    // cell's silhouette exactly — same path, same
+                    // radius, same geometry — so the black is never a
+                    // hair smaller than the button. And the leading edge
+                    // is the fillRect's own: hard and vertical. A
+                    // Rectangle's radius rounds all four of its corners,
+                    // so the old wipe's leading edge was a soft rounded
+                    // tip that never reached as far as the progress said
+                    // (and at low progress Qt clamped the radius to half
+                    // the width and the whole fill collapsed into a
+                    // pill) — which is exactly why the black read
+                    // smaller than the button.
+                    //
+                    // The content is re-drawn on top in the yellow that
+                    // reads on black, clipped to the same width the fill
+                    // has reached, so the glyph and label surface
+                    // exactly where the black has landed. The copy
                     // underneath keeps the near-black that reads on
                     // yellow, which is what makes the label legible
                     // across the whole sweep instead of vanishing under
                     // it. Two copies is the price of a centred label on
                     // a wiping fill — one copy would need a colour that
                     // reads on both black and yellow, and there isn't
-                    // one.
-                    //
-                    // radius: 10 is load-bearing, not decoration. The
-                    // cell's own radius rounds only the cell's paint —
-                    // it does not clip its children — so a square wipe
-                    // in here wore the cell's square corners: at full
-                    // progress the button read as a black square, and
-                    // mid-sweep the fill nubbed out into the corner
-                    // cutouts. Giving the wipe the cell's radius makes
-                    // its paint match the silhouette it sits in. (The
-                    // yellow copy is clipped to the wipe's *rectangle*
-                    // by clip below, but it is centred and nowhere near
-                    // the corners, so the rounded shape costs it
-                    // nothing.)
+                    // one. Both copies stay QML Text: drawing the glyph
+                    // in the canvas would put it on the canvas's own
+                    // font and baseline, which does not have to match
+                    // the Text's, and a mismatch at the seam is the one
+                    // thing the two-copy trick exists to avoid.
+                    Canvas {
+                        id: wipe
+                        anchors.fill: parent
+
+                        onPaint: {
+                            var w = width
+                            var h = height
+                            var r = cell.radius
+                            var ctx = getContext("2d")
+
+                            ctx.clearRect(0, 0, w, h)
+                            ctx.beginPath()
+
+                            // one clockwise outline: top edge, top-right
+                            // cap, right edge, bottom-right cap, bottom
+                            // edge, bottom-left cap, left edge, top-left
+                            // cap. Every arc starts at the point the
+                            // path is already standing on, or canvas
+                            // silently inserts a straight connector and
+                            // the curve collapses.
+                            ctx.moveTo(r, 0)
+                            ctx.lineTo(w - r, 0)
+                            ctx.arc(w - r, r, r, -Math.PI / 2, 0, false)
+                            ctx.lineTo(w, h - r)
+                            ctx.arc(w - r, h - r, r, 0, Math.PI / 2, false)
+                            ctx.lineTo(r, h)
+                            ctx.arc(r, h - r, r, Math.PI / 2, Math.PI, false)
+                            ctx.lineTo(0, r)
+                            ctx.arc(r, r, r, Math.PI, 3 * Math.PI / 2, false)
+                            ctx.closePath()
+
+                            // the fill is clipped to the cell's
+                            // silhouette; the leading edge is the
+                            // fillRect's own, hard and vertical
+                            ctx.save()
+                            ctx.clip()
+                            ctx.fillStyle = "black"
+                            ctx.fillRect(0, 0, w * cell.holdProgress, h)
+                            ctx.restore()
+                        }
+
+                        // a Canvas repaints only on request, so every
+                        // frame of the hold asks for one
+                        Connections {
+                            target: cell
+                            function onHoldProgressChanged() { wipe.requestPaint() }
+                        }
+                    }
+
+                    // the yellow copy of the content, clipped to the
+                    // width the black has reached. Transparent itself —
+                    // only the children paint — and the copy sits in a
+                    // full-cell-sized Item so it stays centred in the
+                    // cell and never reaches the corners the clip cuts.
                     Rectangle {
                         anchors.left: parent.left
                         anchors.top: parent.top
                         anchors.bottom: parent.bottom
                         width: cell.width * cell.holdProgress
-                        radius: 10
-                        color: "black"
+                        color: "transparent"
                         clip: true
 
                         Item {
