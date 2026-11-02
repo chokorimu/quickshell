@@ -194,9 +194,11 @@ Singleton {
     readonly property color cardDim:       darkMode ? "#9a9aa0" : "#6e6e73"
     // subtle surface on the card — slider track, art circle
     readonly property color cardHighlight: darkMode ? "#3a3a40" : "#d2d2d6"
-    // inverted fills on the card — the transport circles take the
-    // opposite of the card surface, labelled in the card's own
-    // color (cardOnInk) for the knockout look
+    // inverted fills on the card. The transport circles used to take
+    // these — a slab of the card's opposite color — until they moved
+    // to the workspace pill's own surface (cardPill); nothing uses
+    // them now, but the inversion is the natural pair to cardOnInk
+    // so they stay defined.
     readonly property color cardInk:       darkMode ? "#e8e8ea" : "#1b1b1f"
     readonly property color cardOnInk:     cardBackground
 

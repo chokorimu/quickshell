@@ -541,7 +541,7 @@ Item {
                             return
 
                         ctx.fillStyle = Theme.cardForeground
-                        ctx.globalAlpha = 0.5
+                        ctx.globalAlpha = 0.7
                         for (var i = 0; i < n; i++) {
                             // a 2px floor, so the row reads as part of
                             // the card's design in silence instead of
@@ -1054,11 +1054,28 @@ Item {
                     }
                 }
 
-                // transport controls — the workspace pill's language
-                // translated to the card: a cardInk pill holding three
-                // circles, the play/pause one knocked out in the card's
-                // own surface (the active-workspace treatment) and
-                // prev/next left transparent like the inactive ones.
+                // transport controls — the workspace pill's design,
+                // properly this time rather than translated away from
+                // it. The pill takes the workspace pill's own surface:
+                // cardPill is that material on the card (the same value
+                // as barWorkspacePill, one step darker than the card so
+                // the pill reads against it). The active circle takes
+                // the surface one step lighter — cardBackground, the
+                // card's own color showing through, exactly the
+                // active-workspace treatment — with a cardForeground
+                // glyph, and the inactive circles stay transparent with
+                // cardDim glyphs like the inactive workspace numbers.
+                // All three circles are the same size, as they are in
+                // the workspace pill: the fill marks the active one,
+                // not the scale.
+                //
+                // This replaces an inverted cardInk pill. A slab of the
+                // card's opposite color is far heavier than the material
+                // the workspace pill uses, and it forced the inactive
+                // glyphs to cardOnInk just to read on it. The workspace
+                // pill's own surface sits in the same family as what it
+                // stands on, and that is what these buttons should do.
+                //
                 // Glyphs, not labels — Nerd Font is set explicitly, since
                 // the bar's UI font would render them as tofu.
                 Rectangle {
@@ -1070,7 +1087,7 @@ Item {
                     visible: root.islandPage === "media"
                     height: 56
                     radius: height / 2
-                    color: Theme.cardInk
+                    color: Theme.cardPill
                     width: transportRow.implicitWidth + 16
 
                     Row {
@@ -1090,7 +1107,7 @@ Item {
                                 horizontalAlignment: Text.AlignHCenter
                                 verticalAlignment: Text.AlignVCenter
                                 text: "\uF048" // fa-step-backward
-                                color: Theme.cardOnInk
+                                color: Theme.cardDim
                                 font.family: Theme.iconFont
                                 font.pixelSize: 20
                             }
@@ -1101,10 +1118,11 @@ Item {
                             }
                         }
 
-                        // play / pause — the active circle, knocked out
+                        // play / pause — the active circle, the card's
+                        // own surface showing through the pill
                         Rectangle {
-                            width: 48
-                            height: 48
+                            width: 46
+                            height: 46
                             radius: width / 2
                             color: Theme.cardBackground
 
@@ -1136,7 +1154,7 @@ Item {
                                 horizontalAlignment: Text.AlignHCenter
                                 verticalAlignment: Text.AlignVCenter
                                 text: "\uF051" // fa-step-forward
-                                color: Theme.cardOnInk
+                                color: Theme.cardDim
                                 font.family: Theme.iconFont
                                 font.pixelSize: 20
                             }
