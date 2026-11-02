@@ -159,17 +159,21 @@ Item {
         // ---- record -----------------------------------------------------
         // Wired in step 4 to OBS over obs-websocket: the record pill
         // toggles StartRecord/StopRecord, the stream pill beside it
-        // StartStream/StopStream, the elapsed time rides to their
-        // right, and the state arrives as events — so a recording or
+        // StartStream/StopStream, the elapsed time rides under them,
+        // and the state arrives as events — so a recording or
         // stream started from OBS's own UI or a hotkey shows on the
         // pills too. wf-recorder is the alternative backend, not
         // installed yet.
         //
-        // Same control-row idiom as the screenshot section above:
-        // label in the 120px column, the pills and their readout
-        // beside it. The pills, the red-while-recording and
-        // blue-while-streaming colours and the elapsed/error Text
-        // are all unchanged from the single-pill pass.
+        // The screenshot section's control-row idiom, with the readout
+        // demoted: label in the 120px column, the pills beside it, and
+        // the elapsed/error Text anchored under the pills rather than
+        // riding in the row at their right (LO's call — beside them it
+        // read as a third control in the row, under them it reads as
+        // the running state of whichever is live). The pills, the
+        // red-while-recording and blue-while-streaming colours and the
+        // Text's own binding are all unchanged from the single-pill
+        // pass.
         //
         // OBS offline: both pills disappear entirely and a dim "OBS
         // offline" line takes their slot — LO's call. A dead backend
@@ -182,12 +186,21 @@ Item {
         // both places.
         Item {
             width: parent.width
-            height: 40
+            // 56, not 40: the elapsed time moved below the pills at
+            // LO's call, so the row carries the 36px pill stack, a 4px
+            // gap and the ~16px readout under it. The clipboard slot
+            // gives up the same 16 (167→151) to keep the gap under
+            // this row at the uniform 16.
+            height: 56
 
             Text {
                 id: recLabel
                 anchors.left: parent.left
-                anchors.verticalCenter: parent.verticalCenter
+                // centred on the pills, not the row: the readout hangs
+                // below them, and centring against the whole 56px
+                // stack would drop the label 10px under the pills' own
+                // centre line
+                anchors.verticalCenter: recPills.verticalCenter
                 width: 120
                 text: "Record"
                 color: Theme.cardForeground
@@ -196,9 +209,10 @@ Item {
             }
 
             Row {
+                id: recPills
                 anchors.left: recLabel.right
                 anchors.leftMargin: 12
-                anchors.verticalCenter: parent.verticalCenter
+                anchors.top: parent.top
                 spacing: 8
 
                 Rectangle {
@@ -308,20 +322,26 @@ Item {
                     }
                 }
 
-                // the elapsed time while recording, or the stream's
-                // while streaming — one slot, and recording wins when
-                // both are live. The slot doubles as the error readout,
-                // so a rejected request never fails silently — the
-                // pills just sit there.
-                Text {
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: capturePage.obsError.length > 0 ? capturePage.obsError
-                        : (capturePage.recording ? capturePage.fmtDuration(capturePage.recSeconds)
-                            : (capturePage.streaming ? capturePage.fmtDuration(capturePage.streamSeconds) : ""))
-                    color: capturePage.obsError.length > 0 ? Theme.barUrgent : Theme.cardDim
-                    font.family: Theme.barFontFamily
-                    font.pixelSize: 13
-                }
+            }
+
+            // the elapsed time while recording, or the stream's while
+            // streaming — one readout, and recording wins when both are
+            // live. It moved below the pills at LO's call: beside them
+            // it read as a third control in the row, under them it
+            // reads as the running state of whichever is live. The
+            // slot doubles as the error readout, so a rejected request
+            // never fails silently — the pills just sit there.
+            Text {
+                id: recElapsed
+                anchors.left: recPills.left
+                anchors.top: recPills.bottom
+                anchors.topMargin: 4
+                text: capturePage.obsError.length > 0 ? capturePage.obsError
+                    : (capturePage.recording ? capturePage.fmtDuration(capturePage.recSeconds)
+                        : (capturePage.streaming ? capturePage.fmtDuration(capturePage.streamSeconds) : ""))
+                color: capturePage.obsError.length > 0 ? Theme.barUrgent : Theme.cardDim
+                font.family: Theme.barFontFamily
+                font.pixelSize: 13
             }
         }
     }
@@ -410,7 +430,7 @@ Item {
         // renders neither the list nor the empty message.
         Item {
             width: parent.width
-            // 167, not 108. The column is bottom-anchored, so every
+            // 151, not 108. The column is bottom-anchored, so every
             // pixel added here lifts its top edge by one and eats the
             // dead card between the record row and the clipboard
             // label. Measured baseline: the sections Column spaces at
@@ -418,11 +438,13 @@ Item {
             // column is exactly children-driven (20 label row + 8 +
             // slot — the hairline that used to add 1 + 8 is gone), so
             // its top edge sits at 384 - (28 + slot) = 356 - slot.
-            // 356 - 167 = 189 lands the label at y189, a 16px gap
-            // under the record row. The list scrolls, so the taller
-            // viewport costs nothing and shows two more full rows of
-            // history.
-            height: 167
+            // 356 - 151 = 205 lands the label at y205, a 16px gap
+            // under the record row. The row grew 40→56 when the
+            // elapsed moved below the pills (LO's call), so the slot
+            // gave up the same 16 to hold the gap — the list shows
+            // exactly five rows now instead of five plus a peek, and
+            // still scrolls past that.
+            height: 151
 
             // The list's plate: the section's own surface, square-
             // cornered at LO's call. Square rather than the shell's
