@@ -1,21 +1,23 @@
-// SessionCard.qml — the island's third menu: the power menu.
+// SessionCard.qml — the island's fifth menu: the power menu.
 //
-// Same card and pop as the media and volume pages; reached by hovering
-// the third tab button in the column. A big avatar (click to change),
-// the user@host line under it, and a grid of power actions below.
+// Same card and pop as the media, volume, theme and capture pages;
+// reached by hovering the fifth tab button in the column. A big avatar
+// (click to change), the user@host line under it, and a grid of power
+// actions below.
 //
 // The avatar lives at ~/.config/quickshell/avatar.png — picked through
 // a file dialog and copied into place, so it survives restarts. The
 // user comes from $USER and the hostname from /proc/sys/kernel/hostname
 // (no env var is guaranteed to carry it).
 //
-// The power cells DO take hover — they light up yellow under the
-// cursor — and that is exactly the trap this note used to warn
-// about: a hover-enabled MouseArea inside the card steals cardZone's
-// hover in Bar.qml and collapses the island under a resting cursor.
-// The cells therefore report their hover up through `hoveredCell`,
-// and Bar.qml ORs it into its own `hovered` the same way the tab
-// buttons arrive through columnHovered. The avatar stays click-only.
+// The power cells DO take hover — they lighten under the cursor, and
+// a hold has to cancel when the cursor walks off — and that is
+// exactly the trap this note used to warn about: a hover-enabled
+// MouseArea inside the card steals cardZone's hover in Bar.qml and
+// collapses the island under a resting cursor. The cells therefore
+// report their hover up through `hoveredCell`, and Bar.qml ORs it
+// into its own `hovered` the same way the tab buttons arrive through
+// columnHovered. The avatar stays click-only.
 import QtQml
 import QtQuick
 import QtQuick.Dialogs
@@ -45,35 +47,20 @@ Item {
     // from the keyboard), and a cell can lose its hover while the
     // cursor never leaves it (the island collapsing out from under
     // it). onEntered is silent in both cases and the cell then sits
-    // on cardHighlight. `heldCell` covers the press, so a hold is
-    // lit from the moment it starts even when the hover has not
-    // caught up.
-    //
-    // Both matter because the wipe is black. On the dark palette's
-    // resting cardHighlight (#3a3a40) a black fill is within a hair
-    // of the background, so an unlit cell reads as a hold that is
-    // not filling at all — while the same hold on the light
-    // palette's #d2d2d6 fills plainly. That is the whole of the
-    // dark-mode report: the wipe only ever worked on a lit cell.
+    // unlit on cardHighlight, which matters for the affordance
+    // itself: an unlit cell under the cursor reads as un-hovered,
+    // and a stale hoveredCell lies to the island's hover handoff as
+    // well as to the fill.
     property int hoveredCell: -1
-    property int heldCell: -1
-    readonly property int litCell: heldCell >= 0 ? heldCell : hoveredCell
-    readonly property bool hovered: hoveredCell >= 0 || heldCell >= 0
-
-    // How long a power cell must be held before it fires — LO's call.
-    // Long enough that a stray click cannot power the machine off,
-    // short enough that it does not feel like work.
-    readonly property int holdDuration: 500
+    readonly property bool hovered: hoveredCell >= 0
 
     // The card goes away between visits — a page switch, or the island
     // collapsing all the way and resetting the page. Qt does not
     // reliably drop a MouseArea's hover when its item turns invisible,
     // so without this a cell could stay lit with no cursor anywhere
     // near it, and hold the island's hover true on the way back in.
-    onVisibleChanged: if (!visible) {
+    onVisibleChanged: if (!visible)
         sessionCard.hoveredCell = -1
-        sessionCard.heldCell = -1
-    }
 
     // hostname — read once; the card is short-lived enough that a
     // change mid-session is not worth a watcher
@@ -121,7 +108,17 @@ Item {
         }
     }
 
-    // one-shot process for the power actions — command set per click
+    // How long a power cell must be held before it fires. Long enough
+    // that a stray click cannot power the machine off, short enough
+    // that it does not feel like work.
+    readonly property int holdDuration: 800
+
+    // How thick the traced ring is, in logical pixels. The path the
+    // stroke follows is inset by half of this, so the ring's outer
+    // edge lands exactly on the cell's silhouette.
+    readonly property real holdRingWidth: 5
+
+    // one-shot process for the power actions — command set per hold
     Process {
         id: powerProc
     }
@@ -182,17 +179,14 @@ Item {
         }
 
         // power grid — lock / logout / reboot / shutdown. The cells
-        // light up in the launcher's selection yellow under the
-        // cursor, with the glyph and label knocked out in the
-        // near-black that goes with it (launcherSelectionOn) — the
-        // same fixed pair the launcher's selected row uses, which is
-        // why it is yellow in both themes rather than following the
-        // palette.
-        //
-        // Hold to activate: a press starts a 1.5s wipe of black in
-        // from the left, and the command fires when it lands. Letting
-        // go early — or dragging off the cell — puts the bar back and
-        // does nothing. A stray click cannot power the machine off.
+        // lighten under the cursor to Theme.cardHover — a neutral that
+        // is light in both palettes — with the glyph and label knocked
+        // out in cardHoverOn. The hold traces a yellow ring — the fixed
+        // launcherSelection, LO's call — around the cell's outline,
+        // framing a button inset by the ring's width. What the ring is
+        // judged against is therefore the card, not the fill: yellow on
+        // the dark card is ~12:1, on the light one ~1.2:1, so the light
+        // palette's ring is the weak one.
         GridLayout {
             anchors.horizontalCenter: parent.horizontalCenter
             columns: 4
@@ -207,181 +201,211 @@ Item {
                     { glyph: "\uF011", label: "Shut down", cmd: ["systemctl", "poweroff"] }
                 ]
 
+                // the slot — the cell's footprint in the grid, still
+                // 104×88 at r10, and transparent: the ring traces its
+                // outline and the button sits inside it. The hit area,
+                // the hold animation and holdProgress all live here, so
+                // the whole slot stays interactive even though the
+                // visible button is smaller than it.
                 Rectangle {
                     id: cell
+                    color: "transparent"
 
-                    // 0 -> 1 across the hold. The wipe's width reads it,
+                    // 0 -> 1 across the hold. The ring's trace reads it,
                     // and the animation's onFinished is what fires the
-                    // action, so the bar and the trigger can never
+                    // action, so the ring and the trigger can never
                     // disagree about how far along the hold is.
                     property real holdProgress: 0
 
                     Layout.preferredWidth: 104
                     Layout.preferredHeight: 88
                     radius: 10
-                    color: sessionCard.litCell === index
-                        ? Theme.launcherSelection
-                        : Theme.cardHighlight
 
-                    Behavior on color {
-                        ColorAnimation { duration: 120 }
-                    }
-
-                    // released early, or dragged off the cell
-                    function cancelHold() {
-                        holdAnim.stop()
-                        cell.holdProgress = 0
-                    }
-
-                    // resting content — the near-black that reads on
-                    // the yellow
-                    Column {
+                    // the button — the slot inset by the ring's width on
+                    // every side, so the button's edge meets the ring's
+                    // inner edge exactly: the ring's inner curve is this
+                    // rect's curve (the slot's outline inset by the
+                    // ring's width, its corner radius the slot's minus
+                    // the same), the same arc centres half a ring apart.
+                    // The radius is that derived one, not the slot's — a
+                    // bigger corner would poke past the ring's inner
+                    // edge and the ring would paint over it.
+                    Rectangle {
+                        id: button
                         anchors.centerIn: parent
-                        spacing: 8
+                        width: parent.width - 2 * sessionCard.holdRingWidth
+                        height: parent.height - 2 * sessionCard.holdRingWidth
+                        radius: parent.radius - sessionCard.holdRingWidth
 
-                        Text {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            text: modelData.glyph
-                            color: sessionCard.litCell === index
-                                ? Theme.launcherSelectionOn
-                                : Theme.cardForeground
-                            font.family: Theme.iconFont
-                            font.pixelSize: 24
+                        // the hover fill lightens the button in both
+                        // palettes, so the knocked-out content reads
+                        // against it
+                        color: sessionCard.hoveredCell === index
+                            ? Theme.cardHover
+                            : Theme.cardHighlight
+
+                        // eases the fill in rather than snapping it
+                        Behavior on color {
+                            ColorAnimation { duration: 120 }
                         }
 
-                        Text {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            text: modelData.label
-                            color: sessionCard.litCell === index
-                                ? Theme.launcherSelectionOn
-                                : Theme.cardDim
-                            font.family: Theme.barFontFamily
-                            font.pixelSize: 12
+                        // resting content — the near-black that reads on
+                        // the light hover fill, or the card's own ink on
+                        // the grey
+                        Column {
+                            anchors.centerIn: parent
+                            spacing: 8
+
+                            Text {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                text: modelData.glyph
+                                color: sessionCard.hoveredCell === index
+                                    ? Theme.cardHoverOn
+                                    : Theme.cardForeground
+                                font.family: Theme.iconFont
+                                font.pixelSize: 24
+                            }
+
+                            Text {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                text: modelData.label
+                                color: sessionCard.hoveredCell === index
+                                    ? Theme.cardHoverOn
+                                    : Theme.cardDim
+                                font.family: Theme.barFontFamily
+                                font.pixelSize: 12
+                            }
                         }
                     }
 
-                    // the wipe — black, from the left, filling the cell
-                    // over the hold. A Canvas clipped to the cell's own
-                    // rounded-rect path (ctx.clip(), the same clockwise
-                    // outline Bar.qml's card canvas draws), filled black
-                    // from the left edge to width * holdProgress.
+                    // the ring — a yellow stroke (the fixed
+                    // launcherSelection) traced around the slot's own
+                    // rounded-rect outline, filling clockwise from the
+                    // top centre as the hold runs. It frames the button
+                    // rather than sitting on it: the button's edge is
+                    // the ring's inner edge, so the whole band paints
+                    // on the card outside the button.
                     //
-                    // Clipping to the path instead of painting a rounded
-                    // Rectangle buys two things. The silhouette is the
-                    // cell's silhouette exactly — same path, same
-                    // radius, same geometry — so the black is never a
-                    // hair smaller than the button. And the leading edge
-                    // is the fillRect's own: hard and vertical. A
-                    // Rectangle's radius rounds all four of its corners,
-                    // so the old wipe's leading edge was a soft rounded
-                    // tip that never reached as far as the progress said
-                    // (and at low progress Qt clamped the radius to half
-                    // the width and the whole fill collapsed into a
-                    // pill) — which is exactly why the black read
-                    // smaller than the button.
+                    // A Canvas rather than a stroked Rectangle for the
+                    // same reason the old fill was one: the silhouette
+                    // has to be the cell's silhouette exactly, and a
+                    // Rectangle's radius rounds all four of its corners.
                     //
-                    // The content is re-drawn on top in the yellow that
-                    // reads on black, clipped to the same width the fill
-                    // has reached, so the glyph and label surface
-                    // exactly where the black has landed. The copy
-                    // underneath keeps the near-black that reads on
-                    // yellow, which is what makes the label legible
-                    // across the whole sweep instead of vanishing under
-                    // it. Two copies is the price of a centred label on
-                    // a wiping fill — one copy would need a colour that
-                    // reads on both black and yellow, and there isn't
-                    // one. Both copies stay QML Text: drawing the glyph
-                    // in the canvas would put it on the canvas's own
-                    // font and baseline, which does not have to match
-                    // the Text's, and a mismatch at the seam is the one
-                    // thing the two-copy trick exists to avoid.
+                    // The path is inset by half the ring's width so the
+                    // stroke's outer edge lands exactly on the slot's
+                    // boundary. A stroke straddles the path it follows,
+                    // so an un-inset one would paint half the ring into
+                    // the grid gap outside the slot.
+                    //
+                    // The progress is a walk along that path: the
+                    // perimeter is computed from the same inset geometry,
+                    // then the outline is traced segment by segment until
+                    // the hold's share of it is drawn and stops there.
+                    // That leading end is the readout, and it starts at
+                    // the top centre and runs clockwise.
+                    //
+                    // The interior never changes colour, so the content
+                    // needs no second copy — the glyph and label sit
+                    // near-black on the hover fill for the whole hold.
+                    // That is the other thing the ring buys over the
+                    // sweep: the old wipe needed a duplicated Text in the
+                    // fill's colour, because one copy would have had to
+                    // read on both black and the cell.
                     Canvas {
-                        id: wipe
+                        id: ring
                         anchors.fill: parent
 
                         onPaint: {
                             var w = width
                             var h = height
                             var r = cell.radius
+                            var ring = sessionCard.holdRingWidth
+                            var o = ring / 2
+
+                            // the inset outline the stroke is centred on:
+                            // the ring's outer edge lands on the cell's
+                            // boundary, its inner edge one ring in
+                            var x0 = o, y0 = o, x1 = w - o, y1 = h - o
+                            var rr = r - o
+
+                            // the outline as nine segments, clockwise from
+                            // the top centre: four straight runs and four
+                            // quarter arcs, split either side of the top
+                            // centre so the trace starts at 12 o'clock.
+                            // Straights carry a start and an end; arcs a
+                            // centre, a radius and the angles they sweep.
+                            var S = [
+                                { x0: w / 2,  y0: y0,     x1: x1 - rr, y1: y0 },
+                                { cx: x1 - rr, cy: y0 + rr, r: rr, a0: -Math.PI / 2, a1: 0 },
+                                { x0: x1,     y0: y0 + rr,  x1: x1,     y1: y1 - rr },
+                                { cx: x1 - rr, cy: y1 - rr,  r: rr, a0: 0,             a1: Math.PI / 2 },
+                                { x0: x1 - rr, y0: y1,       x1: x0 + rr, y1: y1 },
+                                { cx: x0 + rr, cy: y1 - rr,  r: rr, a0: Math.PI / 2,   a1: Math.PI },
+                                { x0: x0,     y0: y1 - rr,  x1: x0,     y1: y0 + rr },
+                                { cx: x0 + rr, cy: y0 + rr,  r: rr, a0: Math.PI,       a1: 3 * Math.PI / 2 },
+                                { x0: x0 + rr, y0: y0,       x1: w / 2,  y1: y0 }
+                            ]
+
+                            // perimeter — straights by distance, arcs by
+                            // swept angle times radius
+                            var per = 0
+                            for (var i = 0; i < S.length; i++) {
+                                var s = S[i]
+                                s.len = (s.cx !== undefined)
+                                    ? (s.a1 - s.a0) * s.r
+                                    : Math.sqrt((s.x1 - s.x0) * (s.x1 - s.x0)
+                                        + (s.y1 - s.y0) * (s.y1 - s.y0))
+                                per += s.len
+                            }
+
                             var ctx = getContext("2d")
-
                             ctx.clearRect(0, 0, w, h)
+
+                            // nothing to trace at rest
+                            if (cell.holdProgress <= 0)
+                                return
+
+                            // walk the outline until the hold's share of
+                            // it is drawn, then stop. Each segment is
+                            // drawn whole or cut at the fraction of it the
+                            // remaining length covers, and that leading
+                            // end is the progress readout. No dash is
+                            // involved: setLineDash is not honoured by
+                            // this Canvas, so a dashed stroke came back
+                            // as a full ring at every progress.
+                            var remain = per * cell.holdProgress
                             ctx.beginPath()
+                            ctx.moveTo(w / 2, y0)
+                            for (var j = 0; j < S.length && remain > 0; j++) {
+                                var g = S[j]
+                                var f = remain >= g.len ? 1 : remain / g.len
+                                remain -= g.len
+                                if (g.cx !== undefined)
+                                    ctx.arc(g.cx, g.cy, g.r, g.a0,
+                                        g.a0 + (g.a1 - g.a0) * f, false)
+                                else
+                                    ctx.lineTo(g.x0 + (g.x1 - g.x0) * f,
+                                        g.y0 + (g.y1 - g.y0) * f)
+                            }
 
-                            // one clockwise outline: top edge, top-right
-                            // cap, right edge, bottom-right cap, bottom
-                            // edge, bottom-left cap, left edge, top-left
-                            // cap. Every arc starts at the point the
-                            // path is already standing on, or canvas
-                            // silently inserts a straight connector and
-                            // the curve collapses.
-                            ctx.moveTo(r, 0)
-                            ctx.lineTo(w - r, 0)
-                            ctx.arc(w - r, r, r, -Math.PI / 2, 0, false)
-                            ctx.lineTo(w, h - r)
-                            ctx.arc(w - r, h - r, r, 0, Math.PI / 2, false)
-                            ctx.lineTo(r, h)
-                            ctx.arc(r, h - r, r, Math.PI / 2, Math.PI, false)
-                            ctx.lineTo(0, r)
-                            ctx.arc(r, r, r, Math.PI, 3 * Math.PI / 2, false)
-                            ctx.closePath()
-
-                            // the fill is clipped to the cell's
-                            // silhouette; the leading edge is the
-                            // fillRect's own, hard and vertical
-                            ctx.save()
-                            ctx.clip()
-                            ctx.fillStyle = "black"
-                            ctx.fillRect(0, 0, w * cell.holdProgress, h)
-                            ctx.restore()
+                            ctx.lineWidth = ring
+                            ctx.lineCap = "butt"
+                            ctx.strokeStyle = Theme.launcherSelection
+                            ctx.stroke()
                         }
 
                         // a Canvas repaints only on request, so every
                         // frame of the hold asks for one
                         Connections {
                             target: cell
-                            function onHoldProgressChanged() { wipe.requestPaint() }
+                            function onHoldProgressChanged() { ring.requestPaint() }
                         }
                     }
 
-                    // the yellow copy of the content, clipped to the
-                    // width the black has reached. Transparent itself —
-                    // only the children paint — and the copy sits in a
-                    // full-cell-sized Item so it stays centred in the
-                    // cell and never reaches the corners the clip cuts.
-                    Rectangle {
-                        anchors.left: parent.left
-                        anchors.top: parent.top
-                        anchors.bottom: parent.bottom
-                        width: cell.width * cell.holdProgress
-                        color: "transparent"
-                        clip: true
-
-                        Item {
-                            width: cell.width
-                            height: cell.height
-
-                            Column {
-                                anchors.centerIn: parent
-                                spacing: 8
-
-                                Text {
-                                    anchors.horizontalCenter: parent.horizontalCenter
-                                    text: modelData.glyph
-                                    color: Theme.launcherSelection
-                                    font.family: Theme.iconFont
-                                    font.pixelSize: 24
-                                }
-
-                                Text {
-                                    anchors.horizontalCenter: parent.horizontalCenter
-                                    text: modelData.label
-                                    color: Theme.launcherSelection
-                                    font.family: Theme.barFontFamily
-                                    font.pixelSize: 12
-                                }
-                            }
-                        }
+                    // released early, or dragged off the cell
+                    function cancelHold() {
+                        holdAnim.stop()
+                        cell.holdProgress = 0
                     }
 
                     NumberAnimation {
@@ -403,41 +427,31 @@ Item {
                         hoverEnabled: true
 
                         // containsMouse, not onEntered/onExited — see
-                        // litCell on the card. The signal still drives
-                        // hoveredCell (the island handoff in Bar.qml),
-                        // but it is the cursor's position that decides,
-                        // so a page opening under a resting cursor
-                        // latches the cell instead of leaving it dark.
+                        // hoveredCell on the card. The signal still
+                        // drives hoveredCell (the island handoff in
+                        // Bar.qml), but it is the cursor's position
+                        // that decides, so a page opening under a
+                        // resting cursor latches the cell instead of
+                        // leaving it dark.
                         //
                         // Last writer wins, and the guard on exit keeps
                         // a fast cross-cell move from clearing a cell
-                        // that has already taken over — unless the
-                        // button is still down, where the press owns the
-                        // cell until it is released.
+                        // that has already taken over.
                         onContainsMouseChanged: {
                             if (containsMouse)
                                 sessionCard.hoveredCell = index
                             else if (sessionCard.hoveredCell === index)
                                 sessionCard.hoveredCell = -1
 
-                            // dragging off the cell abandons the hold,
-                            // and the press with it
-                            if (!containsMouse) {
+                            // dragging off the cell abandons the hold
+                            if (!containsMouse)
                                 cell.cancelHold()
-                                if (sessionCard.heldCell === index)
-                                    sessionCard.heldCell = -1
-                            }
                         }
                         onPressed: {
                             sessionCard.hoveredCell = index
-                            sessionCard.heldCell = index
                             holdAnim.start()
                         }
-                        onReleased: {
-                            cell.cancelHold()
-                            if (sessionCard.heldCell === index)
-                                sessionCard.heldCell = -1
-                        }
+                        onReleased: cell.cancelHold()
                     }
                 }
             }
