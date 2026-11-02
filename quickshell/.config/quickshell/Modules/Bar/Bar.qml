@@ -116,11 +116,16 @@ Item {
     // own (they switch pages on enter), so they arrive here through
     // columnHovered rather than relying on hover falling through to
     // cardZone — the same OR-in that keeps a resting cursor on a
-    // button from reading as a mouse-exit.
+    // button from reading as a mouse-exit. The session page's power
+    // cells are the third case: they take hover to light up yellow,
+    // which would otherwise steal cardZone's hover and collapse the
+    // island under a resting cursor, so they report up through
+    // SessionCard.hovered.
     property bool hovered: cardZone.containsMouse
         || columnHovered
         || (islandPage === "media" && clockZone.containsMouse)
         || (islandPage === "volume" && volumeIcon.containsMouse)
+        || (islandPage === "session" && sessionPage.hovered)
 
     // ---- the keyboard-opened session menu ---------------------------------
     // SUPER+L pins the island open on the session page with the cursor
@@ -579,6 +584,7 @@ Item {
                 // tab button in the column. Gated on the page like the
                 // other three, so nothing paints underneath.
                 SessionCard {
+                    id: sessionPage
                     anchors.left: parent.left
                     anchors.right: parent.right
                     anchors.top: parent.top

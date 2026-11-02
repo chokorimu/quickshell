@@ -9,9 +9,13 @@
 // user comes from $USER and the hostname from /proc/sys/kernel/hostname
 // (no env var is guaranteed to carry it).
 //
-// No MouseArea in here takes hover: a hover-enabled area would steal
-// cardZone's hover in Bar.qml and collapse the island under a resting
-// cursor. The avatar and the power cells are click-only.
+// The power cells DO take hover — they light up yellow under the
+// cursor — and that is exactly the trap this note used to warn
+// about: a hover-enabled MouseArea inside the card steals cardZone's
+// hover in Bar.qml and collapses the island under a resting cursor.
+// The cells therefore report their hover up through `hoveredCell`,
+// and Bar.qml ORs it into its own `hovered` the same way the tab
+// buttons arrive through columnHovered. The avatar stays click-only.
 import QtQml
 import QtQuick
 import QtQuick.Dialogs
@@ -27,6 +31,15 @@ Item {
     property string hostname: ""
 
     readonly property string avatarPath: Quickshell.env("HOME") + "/.config/quickshell/avatar.png"
+
+    // Which power cell the cursor is on, -1 for none. Exists so the
+    // cells can take hover without collapsing the island: a
+    // hover-enabled MouseArea in here steals cardZone's hover in
+    // Bar.qml, so the cells report up through this and Bar.qml ORs
+    // `hovered` into its own — the same handoff columnHovered does
+    // for the tab buttons.
+    property int hoveredCell: -1
+    readonly property bool hovered: hoveredCell >= 0
 
     // hostname — read once; the card is short-lived enough that a
     // change mid-session is not worth a watcher
@@ -134,12 +147,18 @@ Item {
             font.pixelSize: 18
         }
 
-        // power grid — lock / logout / reboot / shutdown
+        // power grid — lock / logout / reboot / shutdown. The cells
+        // light up in the launcher's selection yellow under the
+        // cursor, with the glyph and label knocked out in the
+        // near-black that goes with it (launcherSelectionOn) — the
+        // same fixed pair the launcher's selected row uses, which is
+        // why it is yellow in both themes rather than following the
+        // palette.
         GridLayout {
             anchors.horizontalCenter: parent.horizontalCenter
             columns: 4
-            columnSpacing: 12
-            rowSpacing: 12
+            columnSpacing: 8
+            rowSpacing: 8
 
             Repeater {
                 model: [
@@ -152,8 +171,14 @@ Item {
                 Rectangle {
                     Layout.preferredWidth: 104
                     Layout.preferredHeight: 88
-                    radius: 16
-                    color: Theme.cardHighlight
+                    radius: 10
+                    color: sessionCard.hoveredCell === index
+                        ? Theme.launcherSelection
+                        : Theme.cardHighlight
+
+                    Behavior on color {
+                        ColorAnimation { duration: 120 }
+                    }
 
                     Column {
                         anchors.centerIn: parent
@@ -162,7 +187,9 @@ Item {
                         Text {
                             anchors.horizontalCenter: parent.horizontalCenter
                             text: modelData.glyph
-                            color: Theme.cardForeground
+                            color: sessionCard.hoveredCell === index
+                                ? Theme.launcherSelectionOn
+                                : Theme.cardForeground
                             font.family: Theme.iconFont
                             font.pixelSize: 24
                         }
@@ -170,7 +197,9 @@ Item {
                         Text {
                             anchors.horizontalCenter: parent.horizontalCenter
                             text: modelData.label
-                            color: Theme.cardDim
+                            color: sessionCard.hoveredCell === index
+                                ? Theme.launcherSelectionOn
+                                : Theme.cardDim
                             font.family: Theme.barFontFamily
                             font.pixelSize: 12
                         }
@@ -178,6 +207,13 @@ Item {
 
                     MouseArea {
                         anchors.fill: parent
+                        hoverEnabled: true
+                        // last writer wins, and the guard on exit
+                        // keeps a fast cross-cell move from clearing
+                        // a cell that has already taken over
+                        onEntered: sessionCard.hoveredCell = index
+                        onExited: if (sessionCard.hoveredCell === index)
+                            sessionCard.hoveredCell = -1
                         onClicked: {
                             powerProc.command = modelData.cmd
                             powerProc.running = true
