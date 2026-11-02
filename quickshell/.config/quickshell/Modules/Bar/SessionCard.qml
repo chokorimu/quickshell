@@ -9,9 +9,14 @@
 // user comes from $USER and the hostname from /proc/sys/kernel/hostname
 // (no env var is guaranteed to carry it).
 //
-// No MouseArea in here takes hover: a hover-enabled area would steal
-// cardZone's hover in Bar.qml and collapse the island under a resting
-// cursor. The avatar and the power cells are click-only.
+// The power cells DO take hover — a hold has to cancel when the cursor
+// walks off the cell — and that is exactly the trap this note used to
+// warn about: a hover-enabled MouseArea inside the card steals
+// cardZone's hover in Bar.qml and collapses the island under a resting
+// cursor. The cells therefore report their hover up through
+// `hoveredCell`, and Bar.qml ORs it into its own `hovered` the same
+// way the tab buttons arrive through columnHovered. The avatar stays
+// click-only.
 import QtQml
 import QtQuick
 import QtQuick.Dialogs
@@ -27,6 +32,16 @@ Item {
     property string hostname: ""
 
     readonly property string avatarPath: Quickshell.env("HOME") + "/.config/quickshell/avatar.png"
+
+    // Which power cell the cursor is on, -1 for none. Exists so the
+    // cells can take hover without collapsing the island: a
+    // hover-enabled MouseArea in here steals cardZone's hover in
+    // Bar.qml, so the cells report up through this and Bar.qml ORs
+    // `hovered` into its own — the same handoff columnHovered does
+    // for the tab buttons. It is plumbing, not styling: the cells are
+    // still grey at rest.
+    property int hoveredCell: -1
+    readonly property bool hovered: hoveredCell >= 0
 
     // hostname — read once; the card is short-lived enough that a
     // change mid-session is not worth a watcher
@@ -202,11 +217,23 @@ Item {
                     // copies is the price of a centred label on a wiping
                     // fill — one copy would need a colour that reads on
                     // both black and the cell, and there isn't one.
+                    //
+                    // radius: cell.radius is load-bearing, not decoration.
+                    // The cell's own radius rounds only the cell's paint
+                    // — it does not clip its children — so a square wipe
+                    // in here wore the cell's square corners: at full
+                    // progress the button read as a black square, and
+                    // mid-sweep the fill nubbed out into the corner
+                    // cutouts. (The yellow copy is clipped to the wipe's
+                    // rectangle by clip below, but it is centred and
+                    // nowhere near the corners, so the rounding costs it
+                    // nothing.)
                     Rectangle {
                         anchors.left: parent.left
                         anchors.top: parent.top
                         anchors.bottom: parent.bottom
                         width: cell.width * cell.holdProgress
+                        radius: cell.radius
                         color: "black"
                         clip: true
 
@@ -259,6 +286,15 @@ Item {
 
                     MouseArea {
                         anchors.fill: parent
+                        hoverEnabled: true
+                        // keeps a fast cross-cell move from clearing
+                        // a cell that has already taken over
+                        onEntered: sessionCard.hoveredCell = index
+                        onExited: {
+                            if (sessionCard.hoveredCell === index)
+                                sessionCard.hoveredCell = -1
+                            cell.cancelHold()
+                        }
                         onPressed: holdAnim.start()
                         onReleased: cell.cancelHold()
                     }
