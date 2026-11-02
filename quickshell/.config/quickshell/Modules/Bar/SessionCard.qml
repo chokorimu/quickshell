@@ -41,6 +41,11 @@ Item {
     property int hoveredCell: -1
     readonly property bool hovered: hoveredCell >= 0
 
+    // How long a power cell must be held before it fires — LO's call.
+    // Long enough that a stray click cannot power the machine off,
+    // short enough that it does not feel like work.
+    readonly property int holdDuration: 1500
+
     // The card goes away between visits — a page switch, or the island
     // collapsing all the way and resetting the page. Qt does not
     // reliably fire a MouseArea's onExited when its item turns
@@ -162,6 +167,11 @@ Item {
         // same fixed pair the launcher's selected row uses, which is
         // why it is yellow in both themes rather than following the
         // palette.
+        //
+        // Hold to activate: a press starts a 1.5s wipe of black in
+        // from the left, and the command fires when it lands. Letting
+        // go early — or dragging off the cell — puts the bar back and
+        // does nothing. A stray click cannot power the machine off.
         GridLayout {
             anchors.horizontalCenter: parent.horizontalCenter
             columns: 4
@@ -177,6 +187,14 @@ Item {
                 ]
 
                 Rectangle {
+                    id: cell
+
+                    // 0 -> 1 across the hold. The wipe's width reads it,
+                    // and the animation's onFinished is what fires the
+                    // action, so the bar and the trigger can never
+                    // disagree about how far along the hold is.
+                    property real holdProgress: 0
+
                     Layout.preferredWidth: 104
                     Layout.preferredHeight: 88
                     radius: 10
@@ -188,6 +206,14 @@ Item {
                         ColorAnimation { duration: 120 }
                     }
 
+                    // released early, or dragged off the cell
+                    function cancelHold() {
+                        holdAnim.stop()
+                        cell.holdProgress = 0
+                    }
+
+                    // resting content — the near-black that reads on
+                    // the yellow
                     Column {
                         anchors.centerIn: parent
                         spacing: 8
@@ -213,6 +239,67 @@ Item {
                         }
                     }
 
+                    // the wipe — black, from the left, filling the cell
+                    // over the hold. Clipped to its own width, with the
+                    // content re-drawn inside it in the yellow that
+                    // reads on black, so the glyph and label surface
+                    // exactly where the fill has reached. The copy
+                    // underneath keeps the near-black that reads on
+                    // yellow, which is what makes the label legible
+                    // across the whole sweep instead of vanishing under
+                    // it. Two copies is the price of a centred label on
+                    // a wiping fill — one copy would need a colour that
+                    // reads on both black and yellow, and there isn't
+                    // one.
+                    Rectangle {
+                        anchors.left: parent.left
+                        anchors.top: parent.top
+                        anchors.bottom: parent.bottom
+                        width: cell.width * cell.holdProgress
+                        color: "black"
+                        clip: true
+
+                        Item {
+                            width: cell.width
+                            height: cell.height
+
+                            Column {
+                                anchors.centerIn: parent
+                                spacing: 8
+
+                                Text {
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    text: modelData.glyph
+                                    color: Theme.launcherSelection
+                                    font.family: Theme.iconFont
+                                    font.pixelSize: 24
+                                }
+
+                                Text {
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    text: modelData.label
+                                    color: Theme.launcherSelection
+                                    font.family: Theme.barFontFamily
+                                    font.pixelSize: 12
+                                }
+                            }
+                        }
+                    }
+
+                    NumberAnimation {
+                        id: holdAnim
+                        target: cell
+                        property: "holdProgress"
+                        from: 0
+                        to: 1
+                        duration: sessionCard.holdDuration
+                        onFinished: {
+                            powerProc.command = modelData.cmd
+                            powerProc.running = true
+                            cell.holdProgress = 0
+                        }
+                    }
+
                     MouseArea {
                         anchors.fill: parent
                         hoverEnabled: true
@@ -220,12 +307,13 @@ Item {
                         // keeps a fast cross-cell move from clearing
                         // a cell that has already taken over
                         onEntered: sessionCard.hoveredCell = index
-                        onExited: if (sessionCard.hoveredCell === index)
-                            sessionCard.hoveredCell = -1
-                        onClicked: {
-                            powerProc.command = modelData.cmd
-                            powerProc.running = true
+                        onExited: {
+                            if (sessionCard.hoveredCell === index)
+                                sessionCard.hoveredCell = -1
+                            cell.cancelHold()
                         }
+                        onPressed: holdAnim.start()
+                        onReleased: cell.cancelHold()
                     }
                 }
             }
