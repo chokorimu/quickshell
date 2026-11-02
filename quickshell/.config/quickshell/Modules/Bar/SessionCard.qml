@@ -44,7 +44,7 @@ Item {
     // How long a power cell must be held before it fires — LO's call.
     // Long enough that a stray click cannot power the machine off,
     // short enough that it does not feel like work.
-    readonly property int holdDuration: 1500
+    readonly property int holdDuration: 500
 
     // The card goes away between visits — a page switch, or the island
     // collapsing all the way and resetting the page. Qt does not
@@ -251,11 +251,25 @@ Item {
                     // a wiping fill — one copy would need a colour that
                     // reads on both black and yellow, and there isn't
                     // one.
+                    //
+                    // radius: 10 is load-bearing, not decoration. The
+                    // cell's own radius rounds only the cell's paint —
+                    // it does not clip its children — so a square wipe
+                    // in here wore the cell's square corners: at full
+                    // progress the button read as a black square, and
+                    // mid-sweep the fill nubbed out into the corner
+                    // cutouts. Giving the wipe the cell's radius makes
+                    // its paint match the silhouette it sits in. (The
+                    // yellow copy is clipped to the wipe's *rectangle*
+                    // by clip below, but it is centred and nowhere near
+                    // the corners, so the rounded shape costs it
+                    // nothing.)
                     Rectangle {
                         anchors.left: parent.left
                         anchors.top: parent.top
                         anchors.bottom: parent.bottom
                         width: cell.width * cell.holdProgress
+                        radius: 10
                         color: "black"
                         clip: true
 
