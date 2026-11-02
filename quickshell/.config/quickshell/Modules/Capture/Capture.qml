@@ -10,7 +10,8 @@
 // the way out. Step 4 wired the record row to OBS over obs-websocket:
 // one pill toggles StartRecord/StopRecord with the elapsed time
 // beside it — and while OBS is down the pill steps aside for a dim
-// "OBS offline" line, since a dead backend has nothing to toggle.
+// "OBS offline" line with the bar's ban glyph beside it, since a
+// dead backend has nothing to toggle.
 // Step 3 wired the clipboard row last and below the
 // record button, at LO's request: a scrollable history read out of
 // cliphist's db, one click copying an entry back, one Reset pill
@@ -172,7 +173,10 @@ Item {
         // has nothing to toggle, and the 5s retry timer already
         // reconnects, so the pill's old click-to-retry job was
         // covered anyway; the slot reads as status instead of
-        // wearing a dead button.
+        // wearing a dead button. The ban glyph beside the text is
+        // the bar's own disconnected mark — the network readout
+        // wears the same one — so the state reads identically in
+        // both places.
         Item {
             width: parent.width
             height: 40
@@ -231,13 +235,27 @@ Item {
 
                 // the offline stand-in, sitting exactly where the pill
                 // was — the Row collapses the hidden pill, so this
-                // lands on the left with nothing to do
-                Text {
+                // lands on the left with nothing to do. The ban glyph
+                // is the bar's own disconnected mark (the network
+                // readout wears the same one), so the offline state
+                // reads the same way here as it does out there.
+                Row {
                     visible: !capturePage.obsConnected && !capturePage.recording
-                    text: "OBS offline"
-                    color: Theme.cardDim
-                    font.family: Theme.barFontFamily
-                    font.pixelSize: 13
+                    spacing: 6
+
+                    Text {
+                        text: "\uF05E" // ban
+                        color: Theme.cardDim
+                        font.family: Theme.iconFont
+                        font.pixelSize: 14
+                    }
+
+                    Text {
+                        text: "OBS offline"
+                        color: Theme.cardDim
+                        font.family: Theme.barFontFamily
+                        font.pixelSize: 13
+                    }
                 }
 
                 // the elapsed time while recording. The slot doubles
