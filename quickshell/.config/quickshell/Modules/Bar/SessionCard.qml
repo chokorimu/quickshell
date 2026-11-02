@@ -38,8 +38,27 @@ Item {
     // Bar.qml, so the cells report up through this and Bar.qml ORs
     // `hovered` into its own — the same handoff columnHovered does
     // for the tab buttons.
+    //
+    // It is written from each cell's MouseArea containsMouse, never
+    // from onEntered. A page can appear under a cursor that never
+    // moved onto a cell (SUPER+L opens the session page straight
+    // from the keyboard), and a cell can lose its hover while the
+    // cursor never leaves it (the island collapsing out from under
+    // it). onEntered is silent in both cases and the cell then sits
+    // on cardHighlight. `heldCell` covers the press, so a hold is
+    // lit from the moment it starts even when the hover has not
+    // caught up.
+    //
+    // Both matter because the wipe is black. On the dark palette's
+    // resting cardHighlight (#3a3a40) a black fill is within a hair
+    // of the background, so an unlit cell reads as a hold that is
+    // not filling at all — while the same hold on the light
+    // palette's #d2d2d6 fills plainly. That is the whole of the
+    // dark-mode report: the wipe only ever worked on a lit cell.
     property int hoveredCell: -1
-    readonly property bool hovered: hoveredCell >= 0
+    property int heldCell: -1
+    readonly property int litCell: heldCell >= 0 ? heldCell : hoveredCell
+    readonly property bool hovered: hoveredCell >= 0 || heldCell >= 0
 
     // How long a power cell must be held before it fires — LO's call.
     // Long enough that a stray click cannot power the machine off,
@@ -48,11 +67,13 @@ Item {
 
     // The card goes away between visits — a page switch, or the island
     // collapsing all the way and resetting the page. Qt does not
-    // reliably fire a MouseArea's onExited when its item turns
-    // invisible, so without this a cell could stay lit with no cursor
-    // anywhere near it, and hold the island's hover true on the way
-    // back in.
-    onVisibleChanged: if (!visible) sessionCard.hoveredCell = -1
+    // reliably drop a MouseArea's hover when its item turns invisible,
+    // so without this a cell could stay lit with no cursor anywhere
+    // near it, and hold the island's hover true on the way back in.
+    onVisibleChanged: if (!visible) {
+        sessionCard.hoveredCell = -1
+        sessionCard.heldCell = -1
+    }
 
     // hostname — read once; the card is short-lived enough that a
     // change mid-session is not worth a watcher
@@ -198,7 +219,7 @@ Item {
                     Layout.preferredWidth: 104
                     Layout.preferredHeight: 88
                     radius: 10
-                    color: sessionCard.hoveredCell === index
+                    color: sessionCard.litCell === index
                         ? Theme.launcherSelection
                         : Theme.cardHighlight
 
@@ -221,7 +242,7 @@ Item {
                         Text {
                             anchors.horizontalCenter: parent.horizontalCenter
                             text: modelData.glyph
-                            color: sessionCard.hoveredCell === index
+                            color: sessionCard.litCell === index
                                 ? Theme.launcherSelectionOn
                                 : Theme.cardForeground
                             font.family: Theme.iconFont
@@ -231,7 +252,7 @@ Item {
                         Text {
                             anchors.horizontalCenter: parent.horizontalCenter
                             text: modelData.label
-                            color: sessionCard.hoveredCell === index
+                            color: sessionCard.litCell === index
                                 ? Theme.launcherSelectionOn
                                 : Theme.cardDim
                             font.family: Theme.barFontFamily
@@ -380,17 +401,43 @@ Item {
                     MouseArea {
                         anchors.fill: parent
                         hoverEnabled: true
-                        // last writer wins, and the guard on exit
-                        // keeps a fast cross-cell move from clearing
-                        // a cell that has already taken over
-                        onEntered: sessionCard.hoveredCell = index
-                        onExited: {
-                            if (sessionCard.hoveredCell === index)
+
+                        // containsMouse, not onEntered/onExited — see
+                        // litCell on the card. The signal still drives
+                        // hoveredCell (the island handoff in Bar.qml),
+                        // but it is the cursor's position that decides,
+                        // so a page opening under a resting cursor
+                        // latches the cell instead of leaving it dark.
+                        //
+                        // Last writer wins, and the guard on exit keeps
+                        // a fast cross-cell move from clearing a cell
+                        // that has already taken over — unless the
+                        // button is still down, where the press owns the
+                        // cell until it is released.
+                        onContainsMouseChanged: {
+                            if (containsMouse)
+                                sessionCard.hoveredCell = index
+                            else if (sessionCard.hoveredCell === index)
                                 sessionCard.hoveredCell = -1
-                            cell.cancelHold()
+
+                            // dragging off the cell abandons the hold,
+                            // and the press with it
+                            if (!containsMouse) {
+                                cell.cancelHold()
+                                if (sessionCard.heldCell === index)
+                                    sessionCard.heldCell = -1
+                            }
                         }
-                        onPressed: holdAnim.start()
-                        onReleased: cell.cancelHold()
+                        onPressed: {
+                            sessionCard.hoveredCell = index
+                            sessionCard.heldCell = index
+                            holdAnim.start()
+                        }
+                        onReleased: {
+                            cell.cancelHold()
+                            if (sessionCard.heldCell === index)
+                                sessionCard.heldCell = -1
+                        }
                     }
                 }
             }
