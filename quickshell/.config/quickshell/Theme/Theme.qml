@@ -56,14 +56,18 @@ Singleton {
     readonly property color fixedDarkBarInk:     "#16161a"
     readonly property color fixedDarkBarOnInk:   "#e8e8ea"
 
-    // Island surfaces — the workspace pill and the island card share
-    // one surface per palette, so the island reads as a single
-    // material family: deep charcoal in the dark palette, light gray
-    // in the light one. The card still sits darker than the pill in
-    // both palettes (light gray under the white light pill, deep
-    // charcoal under the dark pill).
-    readonly property color fixedCardBgDark:  "#1c1c20"
-    readonly property color fixedCardBgLight: "#e2e2e6"
+    // Island surfaces. The card is lightened a step above the pill
+    // surface so a control sitting on the card — the theme-mode
+    // switch's track — can carry its own background and read against
+    // it; at the old value the track was the same color as the card
+    // and invisible. The pill surface keeps the older, darker value:
+    // the workspace pill sits on the bar, where the inverted language
+    // wants it darker than the bar, and the theme-mode track sits on
+    // the card, where it now reads as one step down from the card.
+    readonly property color fixedCardBgDark:  "#2a2a30"
+    readonly property color fixedCardBgLight: "#f0f0f3"
+    readonly property color fixedPillDark:  "#1c1c20"
+    readonly property color fixedPillLight: "#e2e2e6"
 
     // ---- theme mode -----------------------------------------------------
     // auto / light / dark, picked from the island's Theme page. The
@@ -155,13 +159,12 @@ Singleton {
     readonly property color barOnInk:      barUseMatugen ? barText    : (darkMode ? fixedDarkBarOnInk   : fixedBarOnInk)
 
     // ---- workspace pill ------------------------------------------------
-    // Shares the island card's surface (fixedCardBg*): deep charcoal
-    // in dark mode, light gray in light mode — the pill and the card
-    // read as one material family. The active circle takes
+    // Shares the pill surface (fixedPill*): deep charcoal in dark
+    // mode, light gray in light mode. The active circle takes
     // barBackground — lighter than the surface in dark mode, white in
     // light mode — with a barForeground number, the one label color
     // that reads on both fills.
-    readonly property color barWorkspacePill: darkMode ? fixedCardBgDark : fixedCardBgLight
+    readonly property color barWorkspacePill: darkMode ? fixedPillDark : fixedPillLight
     // inactive numbers on the pill — the dark palette's muted gray, or a
     // deeper gray that survives on the light surface (barDim's light
     // value washes out against light gray)
@@ -174,13 +177,16 @@ Singleton {
     // label color on the accent — the selected button's glyph. Fixed
     // for the same reason cardAccent is: the accent never flips.
     readonly property color cardAccentOn: "#1b1b1f"
-    // card surface — the island surface, shared with the workspace
-    // pill (fixedCardBg*): the card still sits darker than the pill
-    // in both palettes (light gray under the white light pill, deep
-    // charcoal under the dark pill), so card and pill read as one
-    // material family. The matugen path keeps the card on the bar
-    // color (no inversion is computable from an arbitrary palette).
+    // card surface — the island surface, lightened a step above the
+    // pill surface so a control on the card can carry its own
+    // background (see fixedCardBg* above). The matugen path keeps the
+    // card on the bar color (no inversion is computable from an
+    // arbitrary palette).
     readonly property color cardBackground: barUseMatugen ? barColor : (darkMode ? fixedCardBgDark : fixedCardBgLight)
+    // the theme-mode switch's track on the card — the workspace
+    // pill's own surface, one step darker than the card so the track
+    // reads. Same material, same value, different home.
+    readonly property color cardPill: darkMode ? fixedPillDark : fixedPillLight
     // card content palette — flips with the card surface:
     // light-on-dark in the dark palette, dark-on-light in the
     // light one.

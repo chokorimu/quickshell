@@ -7,25 +7,25 @@
 // there after a reboot.
 //
 // The switch is the workspace pill's design, scaled up for labels: one
-// pill on barWorkspacePill, three rounded buttons inside it, the
-// inactive ones left transparent so the pill's own surface shows
-// through, and the active one raised in barBackground with a
-// barForeground label — the same surfaces, radius logic and
-// active/inactive contrast as the workspace numbers, three segments
-// wide instead of one-per-workspace. The workspace buttons are
-// circles because they hold a single digit; these hold a word, so they
-// are pill-shaped (radius = height / 2) rather than round.
+// pill on the pill surface, three rounded buttons inside it, the
+// inactive ones left transparent so the track shows through, and the
+// active one raised to the card's own surface with a cardForeground
+// label — the same surfaces, radius logic and active/inactive contrast
+// as the workspace numbers, three segments wide instead of
+// one-per-workspace. The workspace buttons are circles because they
+// hold a single digit; these hold a word, so they are pill-shaped
+// (radius = height / 2) rather than round.
 //
-// The pill spans the container — from the "Mode" label out to the
-// content width's right margin — and each segment takes a third of
-// the row after its spacing, so the segments resize with the pill
-// instead of sitting at a fixed width. The 4px inset and 4px spacing
-// are the workspace pill's own padding, so the buttons sit inside it
-// exactly as the circles do.
+// The pill spans the full content width, and each segment takes a
+// third of the row after its spacing, so the segments resize with the
+// pill instead of sitting at a fixed width. The 4px inset and 4px
+// spacing are the workspace pill's own padding, so the buttons sit
+// inside it exactly as the circles do.
 //
-// The label and the switch sit top-left under the title, on the same
-// 80px margin the volume page's rows use, rather than centred in the
-// card — the page has one control, and a centred group floats.
+// The "Mode" label sits above the switch rather than beside it, so the
+// pill can take the whole content width; both ride the content area's
+// margins (80 left, 28 right — the volume page's rows) instead of
+// being centred in the card, because a centred group floats.
 //
 // No MouseArea in here takes hover: a hover-enabled area would steal
 // cardZone's hover in Bar.qml and collapse the island under a resting
@@ -77,42 +77,37 @@ Item {
         }
     }
 
-    // the control row — "Mode" label on the left, the switch filling
-    // the rest of the container out to the right margin. Both ride
-    // the title's 80px margin, so the page reads as a column rather
-    // than a floating group.
-    Item {
-        id: controlRow
+    // the control — "Mode" label above, the switch under it, both on
+    // the content area's margins (80 left, 28 right — the volume
+    // page's rows). The label sits above rather than beside the pill
+    // so the pill can span the full content width.
+    Column {
+        id: controlColumn
         anchors.top: titleRow.bottom
         anchors.topMargin: 24
         anchors.left: parent.left
         anchors.leftMargin: 80
         anchors.right: parent.right
-        anchors.rightMargin: 80
-        height: 40
+        anchors.rightMargin: 28
+        spacing: 12
 
         Text {
             id: modeLabel
-            anchors.left: parent.left
-            anchors.verticalCenter: parent.verticalCenter
             text: "Mode"
             color: Theme.cardForeground
             font.family: Theme.barFontFamily
             font.pixelSize: 14
         }
 
-        // one pill, spanning the container — the workspace pill's
+        // one pill, spanning the content width — the workspace pill's
         // surface, radius and height, three buttons wide instead of
         // one-per-workspace
         Rectangle {
             id: modePill
-            anchors.left: modeLabel.right
-            anchors.leftMargin: 20
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
+            width: parent.width
             height: 40
             radius: height / 2
-            color: Theme.barWorkspacePill
+            color: Theme.cardPill
 
             Row {
                 id: modeRow
@@ -135,16 +130,17 @@ Item {
                         // word: the workspace buttons are round
                         // because they hold one digit
                         radius: height / 2
-                        // the active button is raised in barBackground
-                        // exactly as the active workspace circle is;
-                        // the inactive ones stay transparent so the
-                        // pill's surface reads through
-                        color: active ? Theme.barBackground : "transparent"
+                        // the active button is raised to the card's
+                        // own surface, exactly as the workspace pill's
+                        // active circle is raised to the bar it sits
+                        // on; the inactive ones stay transparent so
+                        // the track reads through
+                        color: active ? Theme.cardBackground : "transparent"
 
                         Text {
                             anchors.centerIn: parent
                             text: modelData.charAt(0).toUpperCase() + modelData.slice(1)
-                            color: active ? Theme.barForeground : Theme.barWorkspaceDim
+                            color: active ? Theme.cardForeground : Theme.cardDim
                             font.family: Theme.barFontFamily
                             font.pixelSize: 14
                         }
@@ -161,7 +157,7 @@ Item {
 
     // what the active mode resolves to, under the switch
     Text {
-        anchors.top: controlRow.bottom
+        anchors.top: controlColumn.bottom
         anchors.topMargin: 16
         anchors.left: parent.left
         anchors.leftMargin: 80
