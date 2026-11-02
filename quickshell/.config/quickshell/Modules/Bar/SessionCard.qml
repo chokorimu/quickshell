@@ -94,6 +94,11 @@ Item {
     // that it does not feel like work.
     readonly property int holdDuration: 1500
 
+    // How thick the traced ring is, in logical pixels. The path the
+    // stroke follows is inset by half of this, so the ring's outer
+    // edge lands exactly on the cell's silhouette.
+    readonly property real holdRingWidth: 5
+
     // one-shot process for the power actions — command set per hold
     Process {
         id: powerProc
@@ -157,10 +162,11 @@ Item {
         // power grid — lock / logout / reboot / shutdown. The cells
         // lighten under the cursor to Theme.cardHover — a neutral that
         // is light in both palettes — with the glyph and label knocked
-        // out in cardHoverOn. The black wipe paints straight over it,
-        // so what the fill's edge is judged against is that light fill
-        // rather than the card: black-on-light is 14-17:1 where
-        // black-on-cardHighlight is 1.7:1 in the dark palette.
+        // out in cardHoverOn. The hold traces a black ring around the
+        // cell's own outline, so what that ring is judged against is
+        // the light fill rather than the card: black-on-light is
+        // 14-17:1 where black-on-cardHighlight is 1.7:1 in the dark
+        // palette.
         GridLayout {
             anchors.horizontalCenter: parent.horizontalCenter
             columns: 4
@@ -229,40 +235,35 @@ Item {
                         }
                     }
 
-                    // the wipe — black, from the left, filling the cell
-                    // over the hold. A Canvas clipped to the cell's own
-                    // rounded-rect path (ctx.clip(), the same clockwise
-                    // outline Bar.qml's card canvas draws), filled black
-                    // from the left edge to width * holdProgress.
+                    // the wipe — a ring of black traced around the
+                    // cell's own rounded-rect outline, filling clockwise
+                    // from the top centre as the hold runs.
                     //
-                    // Clipping to the path instead of painting a rounded
-                    // Rectangle buys two things. The silhouette is the
-                    // cell's silhouette exactly — same path, same
-                    // radius, same geometry — so the black is never a
-                    // hair smaller than the button. And the leading edge
-                    // is the fillRect's own: hard and vertical. A
-                    // Rectangle's radius rounds all four of its corners,
-                    // so a rounded Rectangle wipe wore a soft rounded tip
-                    // that never reached as far as the progress said —
-                    // and at low progress Qt clamped the radius to half
-                    // the width and the whole fill collapsed into a pill.
-                    // That is why the black read smaller than the button.
+                    // A Canvas rather than a stroked Rectangle for the
+                    // same reason the old fill was one: the silhouette
+                    // has to be the cell's silhouette exactly, and a
+                    // Rectangle's radius rounds all four of its corners.
                     //
-                    // The content is re-drawn on top in the hover
-                    // fill's own light, clipped to the same width the
-                    // fill has reached, so the glyph and label surface
-                    // exactly where the black has landed. The copy
-                    // underneath keeps the near-black that reads on the
-                    // cell, which is what makes the label legible across
-                    // the whole sweep instead of vanishing under it. Two
-                    // copies is the price of a centred label on a wiping
-                    // fill — one copy would need a colour that reads on
-                    // both black and the cell, and there isn't one. Both
-                    // copies stay QML Text: drawing the glyph in the
-                    // canvas would put it on the canvas's own font and
-                    // baseline, which does not have to match the Text's,
-                    // and a mismatch at the seam is the one thing the
-                    // two-copy trick exists to avoid.
+                    // The path is inset by half the ring's width so the
+                    // stroke's outer edge lands exactly on the cell's
+                    // boundary. A stroke straddles the path it follows,
+                    // so an un-inset one would paint half the ring onto
+                    // the card outside the button.
+                    //
+                    // The progress is a walk along that path: the
+                    // perimeter is computed from the same inset geometry,
+                    // then the outline is traced segment by segment until
+                    // the hold's share of it is drawn and stops there.
+                    // That leading end is the readout, and it starts at
+                    // the top centre and runs clockwise.
+                    //
+                    // The interior never changes colour, so the content
+                    // needs no second copy — the glyph and label sit
+                    // near-black on the hover fill for the whole hold.
+                    // That is the other thing the ring buys over the
+                    // sweep: the old wipe needed a duplicated Text in the
+                    // fill's colour, because one copy would have had to
+                    // read on both black and the cell.
                     Canvas {
                         id: wipe
                         anchors.fill: parent
@@ -271,37 +272,79 @@ Item {
                             var w = width
                             var h = height
                             var r = cell.radius
+                            var ring = sessionCard.holdRingWidth
+                            var o = ring / 2
+
+                            // the inset outline the stroke is centred on:
+                            // the ring's outer edge lands on the cell's
+                            // boundary, its inner edge one ring in
+                            var x0 = o, y0 = o, x1 = w - o, y1 = h - o
+                            var rr = r - o
+
+                            // the outline as nine segments, clockwise from
+                            // the top centre: four straight runs and four
+                            // quarter arcs, split either side of the top
+                            // centre so the trace starts at 12 o'clock.
+                            // Straights carry a start and an end; arcs a
+                            // centre, a radius and the angles they sweep.
+                            var S = [
+                                { x0: w / 2,  y0: y0,     x1: x1 - rr, y1: y0 },
+                                { cx: x1 - rr, cy: y0 + rr, r: rr, a0: -Math.PI / 2, a1: 0 },
+                                { x0: x1,     y0: y0 + rr,  x1: x1,     y1: y1 - rr },
+                                { cx: x1 - rr, cy: y1 - rr,  r: rr, a0: 0,             a1: Math.PI / 2 },
+                                { x0: x1 - rr, y0: y1,       x1: x0 + rr, y1: y1 },
+                                { cx: x0 + rr, cy: y1 - rr,  r: rr, a0: Math.PI / 2,   a1: Math.PI },
+                                { x0: x0,     y0: y1 - rr,  x1: x0,     y1: y0 + rr },
+                                { cx: x0 + rr, cy: y0 + rr,  r: rr, a0: Math.PI,       a1: 3 * Math.PI / 2 },
+                                { x0: x0 + rr, y0: y0,       x1: w / 2,  y1: y0 }
+                            ]
+
+                            // perimeter — straights by distance, arcs by
+                            // swept angle times radius
+                            var per = 0
+                            for (var i = 0; i < S.length; i++) {
+                                var s = S[i]
+                                s.len = (s.cx !== undefined)
+                                    ? (s.a1 - s.a0) * s.r
+                                    : Math.sqrt((s.x1 - s.x0) * (s.x1 - s.x0)
+                                        + (s.y1 - s.y0) * (s.y1 - s.y0))
+                                per += s.len
+                            }
+
                             var ctx = getContext("2d")
-
                             ctx.clearRect(0, 0, w, h)
+
+                            // nothing to trace at rest
+                            if (cell.holdProgress <= 0)
+                                return
+
+                            // walk the outline until the hold's share of
+                            // it is drawn, then stop. Each segment is
+                            // drawn whole or cut at the fraction of it the
+                            // remaining length covers, and that leading
+                            // end is the progress readout. No dash is
+                            // involved: setLineDash is not honoured by
+                            // this Canvas, so a dashed stroke came back
+                            // as a full ring at every progress.
+                            var remain = per * cell.holdProgress
                             ctx.beginPath()
+                            ctx.moveTo(w / 2, y0)
+                            for (var j = 0; j < S.length && remain > 0; j++) {
+                                var g = S[j]
+                                var f = remain >= g.len ? 1 : remain / g.len
+                                remain -= g.len
+                                if (g.cx !== undefined)
+                                    ctx.arc(g.cx, g.cy, g.r, g.a0,
+                                        g.a0 + (g.a1 - g.a0) * f, false)
+                                else
+                                    ctx.lineTo(g.x0 + (g.x1 - g.x0) * f,
+                                        g.y0 + (g.y1 - g.y0) * f)
+                            }
 
-                            // one clockwise outline: top edge, top-right
-                            // cap, right edge, bottom-right cap, bottom
-                            // edge, bottom-left cap, left edge, top-left
-                            // cap. Every arc starts at the point the
-                            // path is already standing on, or canvas
-                            // silently inserts a straight connector and
-                            // the curve collapses.
-                            ctx.moveTo(r, 0)
-                            ctx.lineTo(w - r, 0)
-                            ctx.arc(w - r, r, r, -Math.PI / 2, 0, false)
-                            ctx.lineTo(w, h - r)
-                            ctx.arc(w - r, h - r, r, 0, Math.PI / 2, false)
-                            ctx.lineTo(r, h)
-                            ctx.arc(r, h - r, r, Math.PI / 2, Math.PI, false)
-                            ctx.lineTo(0, r)
-                            ctx.arc(r, r, r, Math.PI, 3 * Math.PI / 2, false)
-                            ctx.closePath()
-
-                            // the fill is clipped to the cell's
-                            // silhouette; the leading edge is the
-                            // fillRect's own, hard and vertical
-                            ctx.save()
-                            ctx.clip()
-                            ctx.fillStyle = "black"
-                            ctx.fillRect(0, 0, w * cell.holdProgress, h)
-                            ctx.restore()
+                            ctx.lineWidth = ring
+                            ctx.lineCap = "butt"
+                            ctx.strokeStyle = "black"
+                            ctx.stroke()
                         }
 
                         // a Canvas repaints only on request, so every
@@ -309,46 +352,6 @@ Item {
                         Connections {
                             target: cell
                             function onHoldProgressChanged() { wipe.requestPaint() }
-                        }
-                    }
-
-                    // the light copy of the content, clipped to the
-                    // width the black has reached. Transparent itself —
-                    // only the children paint — and the copy sits in a
-                    // full-cell-sized Item so it stays centred in the
-                    // cell and never reaches the corners the clip cuts.
-                    Rectangle {
-                        anchors.left: parent.left
-                        anchors.top: parent.top
-                        anchors.bottom: parent.bottom
-                        width: cell.width * cell.holdProgress
-                        color: "transparent"
-                        clip: true
-
-                        Item {
-                            width: cell.width
-                            height: cell.height
-
-                            Column {
-                                anchors.centerIn: parent
-                                spacing: 8
-
-                                Text {
-                                    anchors.horizontalCenter: parent.horizontalCenter
-                                    text: modelData.glyph
-                                    color: Theme.cardHover
-                                    font.family: Theme.iconFont
-                                    font.pixelSize: 24
-                                }
-
-                                Text {
-                                    anchors.horizontalCenter: parent.horizontalCenter
-                                    text: modelData.label
-                                    color: Theme.cardHover
-                                    font.family: Theme.barFontFamily
-                                    font.pixelSize: 12
-                                }
-                            }
                         }
                     }
 
