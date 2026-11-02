@@ -499,12 +499,135 @@ Item {
                 height: root.cardHeight
                 enabled: root.expanded
 
+                // ---- "full": the art as the card's background -------------
+                // The third stop on the size switch: the album art fills the
+                // card behind everything — the disc is hidden, the title and
+                // the transport pill stay on top, and the cava lines still
+                // paint over it. A Canvas rather than an Image for the same
+                // reason the disc is one: nothing in the content item is
+                // clipped to the card's silhouette, so an image running to
+                // the card's right edge would paint square corners over the
+                // rounded ones and onto the wallpaper. The path here is the
+                // card's own outline with its left corners squared off — the
+                // left edge sits past the column strip, where the card is
+                // straight.
+                //
+                // It starts past the strip and tracks its expansion, the
+                // visualizer's idiom: the strip is painted by the card
+                // canvas *below* this item, so anything reaching under it
+                // would paint over the bar's own material. The top reaches
+                // up under the tucked strip (topMargin is negative by the
+                // card's radius) so the image runs to the card's top edge
+                // with no band of card surface above it — the part behind
+                // the bar is hidden anyway.
+                //
+                // Cover-crop, not stretch: the disc gets away with
+                // drawImage's 5-arg form because it is square, but this
+                // canvas is 544x424 and a square art stretched into it
+                // would be visibly squashed. The natural size comes off
+                // artSize below — an unanchored Image takes its implicit
+                // size straight from the file — and the crop re-centers
+                // when a fresh art arrives.
+                Canvas {
+                    id: fullBleed
+                    anchors.left: parent.left
+                    anchors.leftMargin: root.cardColumnWidth
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.topMargin: -root.cardRadius
+                    anchors.bottom: parent.bottom
+                    visible: root.islandPage === "media" && mediaSizeSwitch.size === "full"
+
+                    property url artSource: Media.artUrl
+                    onArtSourceChanged: {
+                        if (artSource.toString().length > 0) {
+                            fullBleed.loadImage(artSource)
+                            // repaint on the URL change itself, not only
+                            // on imageLoaded — loadImage does NOT re-emit
+                            // imageLoaded for an already-seen URL, so going
+                            // back to art this canvas has already loaded
+                            // would never repaint. (The disc's canvas
+                            // carries the same wiring for the same reason.)
+                            fullBleed.requestPaint()
+                        } else {
+                            requestPaint()
+                        }
+                    }
+                    Component.onCompleted: if (artSource.toString().length > 0) loadImage(artSource)
+                    onImageLoaded: requestPaint()
+
+                    onPaint: {
+                        var ctx = getContext("2d")
+                        var w = width
+                        var h = height
+                        ctx.clearRect(0, 0, w, h)
+                        if (artSource.toString().length === 0)
+                            return
+                        var rt = root.cardRadius
+                        var rb = Math.min(root.cardRadius, Math.max(0, (h - root.cardRadius) / 2))
+                        ctx.save()
+                        ctx.beginPath()
+                        // the card's outline, left corners squared: the
+                        // left edge sits inside the card, past the strip
+                        ctx.moveTo(0, 0)
+                        ctx.lineTo(w - rt, 0)
+                        ctx.arc(w - rt, rt, rt, -Math.PI / 2, 0, false)          // top-right
+                        ctx.lineTo(w, h - rb)
+                        if (rb > 0.5)
+                            ctx.arc(w - rb, h - rb, rb, 0, Math.PI / 2, false)   // bottom-right
+                        ctx.lineTo(0, h)
+                        ctx.closePath()
+                        ctx.clip()
+                        var iw = artSize.implicitWidth
+                        var ih = artSize.implicitHeight
+                        if (iw > 0 && ih > 0) {
+                            // cover: scale to the larger ratio so the
+                            // canvas fills, then center the crop
+                            var s = Math.max(w / iw, h / ih)
+                            var dw = iw * s
+                            var dh = ih * s
+                            ctx.drawImage(artSource, (w - dw) / 2, (h - dh) / 2, dw, dh)
+                        }
+                        ctx.restore()
+                    }
+
+                    // the disc's own handlers, moved to the background:
+                    // with the disc hidden there is nothing else to click,
+                    // and a dead card in "full" mode reads as broken. The
+                    // title has no MouseArea of its own, so a click on it
+                    // lands here too — the same toggle the disc answers to.
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: Media.toggle()
+                        onWheel: function (wheel) {
+                            if (wheel.angleDelta.y > 0)
+                                Media.next()
+                            else
+                                Media.previous()
+                        }
+                    }
+                }
+
+                // never shown — the full-bleed canvas's cover-crop needs
+                // the art's natural size, and an unanchored Image takes
+                // its implicit size straight from the file. Repaint on
+                // load so the crop re-centers on a fresh art.
+                Image {
+                    id: artSize
+                    visible: false
+                    asynchronous: true
+                    source: Media.artUrl
+                    onStatusChanged: if (status === Image.Ready) fullBleed.requestPaint()
+                }
+
                 // ---- media page background: the cava visualizer ----------
-                // The bottom-most child of the content item, so the lines
-                // paint behind the art, the title and the transport pill.
-                // It starts past the column strip: that strip is painted
-                // by the card canvas *below* this item, so lines reaching
-                // under it would paint over the bar's own material.
+                // The bottom-most child of the content item once the
+                // full-bleed art (if any) is in place below it, so the
+                // lines paint behind the art, the title and the transport
+                // pill — and over the art in "full" mode. It starts past
+                // the column strip: that strip is painted by the card
+                // canvas *below* this item, so lines reaching under it
+                // would paint over the bar's own material.
                 //
                 // One Canvas rather than a Repeater of Rectangles — a
                 // single paint call per frame instead of 32 binding
@@ -1055,11 +1178,33 @@ Item {
                     // center in the content area, not the full card —
                     // the column strip owns the left edge
                     anchors.horizontalCenterOffset: root.cardColumnWidth / 2
-                    anchors.top: parent.top
-                    anchors.topMargin: 28
-                    visible: root.islandPage === "media"
-                    width: 200
-                    height: 200
+                    // hung from its bottom edge rather than its top: the
+                    // size switch's "big" grows the disc upward from here,
+                    // so the title and the transport pill below it never
+                    // move and the top is the end the card's clip cuts off
+                    anchors.bottom: parent.bottom
+                    anchors.bottomMargin: parent.height - bottomEdge
+                    // "full" replaces the disc with the art as the card's
+                    // background — fullBleed, under the visualizer
+                    visible: root.islandPage === "media" && mediaSizeSwitch.size !== "full"
+
+                    // the disc's resting geometry: 28 from the top of the
+                    // content area and 200 tall, so its bottom edge sits
+                    // at content y228
+                    readonly property real restingSize: 200
+                    readonly property real bottomEdge: 28 + restingSize
+                    // "big" grows the disc until a third of it sits above
+                    // the bar's bottom edge (content y0), where the bar
+                    // itself and the card's clip hide it: the visible band
+                    // runs from there down to bottomEdge — 228px — and 228
+                    // is two thirds of 342. The centre rises with the
+                    // growth, which is what puts the disc's top-right arc
+                    // under the size switch.
+                    readonly property real discSize: mediaSizeSwitch.size === "big"
+                                                   ? bottomEdge * 3 / 2
+                                                   : restingSize
+                    width: discSize
+                    height: discSize
 
                     // one revolution per 10s, clockwise (rotation
                     // increases — Qt's positive direction is clockwise).
@@ -1137,6 +1282,86 @@ Item {
                                 Media.next()
                             else
                                 Media.previous()
+                        }
+                    }
+                }
+
+                // media size switch — the theme page's mode switch, scaled
+                // down and parked in the media page's top right corner.
+                // Same design: one pill on cardPill, three rounded segments
+                // at a third each, the active one raised to the card's own
+                // surface with a cardForeground label, the inactive ones
+                // transparent with cardDim labels. The theme pill runs 40
+                // tall with a 14px label because it sits under a 120px
+                // label column; this is a standalone corner control, so it
+                // drops to 26 tall with an 11px label and fixed 40px
+                // segments — equal thirds, like the theme switch's, rather
+                // than a fraction of a row that has to span the card.
+                //
+                // small — the disc as it has always been. big — the disc
+                // grows upward from its bottom edge until a third of it is
+                // behind the bar. full — the art becomes the card's
+                // background and the disc goes away. No label: the three
+                // words say what it is, and the corner has no room for a
+                // label column anyway.
+                //
+                // Declared after the disc, not before it: "big" grows the
+                // disc's top-right arc into this corner, and the switch is
+                // chrome — it has to paint over the art, not under it.
+                //
+                // Click-only, like every other MouseArea on the card: a
+                // hover-enabled one here would steal cardZone's hover and
+                // collapse the island under a resting cursor.
+                Rectangle {
+                    id: mediaSizeSwitch
+                    anchors.top: parent.top
+                    anchors.topMargin: 28
+                    anchors.right: parent.right
+                    anchors.rightMargin: 28
+                    visible: root.islandPage === "media"
+                    height: 26
+                    radius: height / 2
+                    color: Theme.cardPill
+                    // the row's implicit width plus both margins — the
+                    // transport pill's idiom, and loop-free here because
+                    // the segments are a fixed width rather than a
+                    // fraction of the row's
+                    width: mediaSizeRow.implicitWidth + 6
+
+                    readonly property var sizes: ["small", "big", "full"]
+                    property string size: "small"
+
+                    Row {
+                        id: mediaSizeRow
+                        anchors.fill: parent
+                        anchors.margins: 3
+                        spacing: 3
+
+                        Repeater {
+                            model: mediaSizeSwitch.sizes
+
+                            Rectangle {
+                                required property var modelData
+                                readonly property bool active: mediaSizeSwitch.size === modelData
+
+                                width: 40
+                                height: mediaSizeRow.height
+                                radius: height / 2
+                                color: active ? Theme.cardBackground : "transparent"
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: modelData.charAt(0).toUpperCase() + modelData.slice(1)
+                                    color: active ? Theme.cardForeground : Theme.cardDim
+                                    font.family: Theme.barFontFamily
+                                    font.pixelSize: 11
+                                }
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    onClicked: mediaSizeSwitch.size = modelData
+                                }
+                            }
                         }
                     }
                 }
