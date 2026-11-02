@@ -102,9 +102,10 @@ Item {
     }
 
     // hovering anywhere on the column — the strip itself or any of the
-    // three buttons — holds the island open and the column expanded
+    // four buttons — holds the island open and the column expanded
     property bool columnHovered: columnZone.containsMouse
         || mediaTab.containsMouse
+        || themeTab.containsMouse
         || volumeTab.containsMouse
         || sessionTab.containsMouse
 
@@ -463,10 +464,22 @@ Item {
                     visible: root.islandPage === "volume"
                 }
 
-                // ---- session page: avatar, user@host, power grid --------
-                // Same card, same pop — reached by hovering the third
+                // ---- theme page: the auto/light/dark switch ---------------
+                // Same card, same pop — reached by hovering the second
                 // tab button in the column. Gated on the page like the
-                // other two, so nothing paints underneath.
+                // others, so nothing paints underneath.
+                ThemeCard {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.bottom: parent.bottom
+                    visible: root.islandPage === "theme"
+                }
+
+                // ---- session page: avatar, user@host, power grid --------
+                // Same card, same pop — reached by hovering the fourth
+                // tab button in the column. Gated on the page like the
+                // other three, so nothing paints underneath.
                 SessionCard {
                     anchors.left: parent.left
                     anchors.right: parent.right
@@ -476,11 +489,12 @@ Item {
                 }
 
                 // ---- page switcher: vertical tab column --------------------
-                // Three buttons down the card's left edge, flush against
+                // Four buttons down the card's left edge, flush against
                 // the card's edge and each other (no margin, no gaps) and
                 // as wide as the column strip itself, so the block fills
                 // the strip edge to edge with no dead space beside it.
-                // The selected page takes the accent fill — square
+                // Order is media, theme, volume, session. The selected
+                // page takes the accent fill — square
                 // corners, near-black glyph, and a black block down its
                 // left edge taking the full height and the left 10% of
                 // the button — so it reads as one solid lime slab; the
@@ -606,6 +620,70 @@ Item {
                             anchors.fill: parent
                             hoverEnabled: true
                             onEntered: root.islandPage = "media"
+                        }
+                    }
+
+                    // ---- theme: the auto/light/dark switch -------------------
+                    // Second in the column, between media and volume.
+                    Rectangle {
+                        width: root.columnWidth
+                        height: 40
+                        color: root.islandPage === "theme" ? Theme.cardAccent : "transparent"
+
+                        // the selected marker: a black block down the
+                        // button's left edge, taking the full height
+                        // and the left 10% of the resting strip — no
+                        // inset, so it reads as part of the silhouette
+                        Rectangle {
+                            x: 0
+                            width: root.cardColumnWidth * 0.1
+                            height: parent.height
+                            color: "black"
+                            visible: root.islandPage === "theme"
+                        }
+
+                        // the glyph holds the resting 56px icon zone —
+                        // it does not drift right as the column opens
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            anchors.horizontalCenterOffset: -(parent.width - root.cardColumnWidth) / 2
+                            text: "\uF185" // sun
+                            color: root.islandPage === "theme" ? Theme.cardAccentOn : Theme.barDim
+                            font.family: Theme.iconFont
+                            font.pixelSize: 17
+                        }
+
+                        // the menu's name, revealed by the expansion —
+                        // clipped to the button so it can't spill onto
+                        // the card mid-animation
+                        Item {
+                            anchors.left: parent.left
+                            anchors.leftMargin: root.cardColumnWidth
+                            anchors.right: parent.right
+                            anchors.top: parent.top
+                            anchors.bottom: parent.bottom
+                            clip: true
+                            visible: root.columnExpand > 0.01
+
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                x: 10
+                                width: Math.max(0, parent.width - 20)
+                                text: "Theme"
+                                color: root.islandPage === "theme" ? Theme.cardAccentOn : Theme.barDim
+                                font.family: Theme.barFontFamily
+                                font.pixelSize: 13
+                                elide: Text.ElideRight
+                                opacity: root.columnExpand
+                            }
+                        }
+
+                        MouseArea {
+                            id: themeTab
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            onEntered: root.islandPage = "theme"
                         }
                     }
 
@@ -1118,29 +1196,13 @@ Item {
             anchors.right: parent.right
             height: root.barHeight
 
-            // ---- left: // + now playing + workspaces ------------------------
+            // ---- left: now playing + workspaces ----------------------------
             Row {
                 id: leftRow
                 anchors.left: parent.left
                 anchors.leftMargin: 14
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 12
-
-                // decorative prefix — TEMPORARY dark-mode toggle (moves to
-                // a menu later): click flips the bar between the fixed
-                // light and fixed dark palettes
-                Text {
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: "//"
-                    color: Theme.barForeground
-                    font.family: Theme.barFontFamily
-                    font.pixelSize: Theme.barFontSize
-
-                    MouseArea {
-                        anchors.fill: parent
-                        onClicked: Theme.darkMode = !Theme.darkMode
-                    }
-                }
 
                 // ---- now playing: circular art + scrolling "Artist - Song" ---
                 // Always visible — shows a dim "Not playing" when no player has a

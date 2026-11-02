@@ -1,6 +1,7 @@
 // Theme.qml — singleton. import with `import "Theme"` (declared in Theme/qmldir).
 import QtQuick
 import Quickshell
+import Quickshell.Io
 
 pragma Singleton
 
@@ -64,11 +65,77 @@ Singleton {
     readonly property color fixedCardBgDark:  "#1c1c20"
     readonly property color fixedCardBgLight: "#e2e2e6"
 
-    // TEMPORARY dark-mode toggle — flips the fixed palette between the
-    // light and dark pills. Click the "//" prefix in the bar to flip it.
-    // Moves to a proper menu later; the matugen path below is untouched
-    // and still wins when barUseMatugen is on.
-    property bool darkMode: true
+    // ---- theme mode -----------------------------------------------------
+    // auto / light / dark, picked from the island's Theme page. The
+    // choice is written to a state file so it survives a reboot.
+    //
+    // PersistentProperties is NOT an option here: in 0.3.2 it only
+    // spans hot reloads. Probed — it never writes a state file at all
+    // (no ~/.local/state/quickshell entry appears, and a fresh process
+    // comes back with the default), so a reboot would lose the mode.
+    // FileView does persist, and it is what the avatar and the config
+    // readers already use.
+    //
+    // The state file lives in ~/.local/state rather than
+    // ~/.config/quickshell, which is this repo through stow — a file
+    // written there would land in git as an untracked artifact.
+    readonly property string modePath: Quickshell.env("HOME")
+        + "/.local/state/quickshell/theme-mode"
+
+    FileView {
+        id: modeFile
+        path: root.modePath
+        // A five-byte local file, and the singleton is constructed
+        // while the shell loads, so the blocking read costs
+        // microseconds and the first frame paints on the persisted
+        // theme instead of flashing the default.
+        blockLoading: true
+        // A missing file is the normal first boot — the mode is only
+        // written once the switch is used. Errors stay quiet so the
+        // log is not carrying a load failure on every fresh start.
+        printErrors: false
+    }
+
+    // Read once, at construction: text() blocks until the load has
+    // resolved, so the first frame paints on the persisted theme
+    // rather than flashing the default. A missing, empty or
+    // unrecognised value leaves the mode on auto. This is a plain
+    // assignment rather than a binding on purpose — a binding
+    // re-evaluates when the load settles and emits a change signal
+    // even when the value is unchanged, which would rewrite the file
+    // on every boot.
+    property string themeMode: "auto"
+
+    Component.onCompleted: {
+        var t = modeFile.text().trim()
+        if (t === "light" || t === "dark")
+            root.themeMode = t
+    }
+
+    // Every change after that is written straight back. The content
+    // check keeps the boot-time assignment from rewriting the file
+    // with the value it already holds, and a missing file is never
+    // created until the switch is actually used.
+    onThemeModeChanged: if (modeFile.text().trim() !== root.themeMode)
+        modeFile.setText(root.themeMode)
+
+    // auto's source: matugen's generated palette. _colors.base is a
+    // hex string (Colors.qml is matugen's output), so it goes through
+    // a color property to get at the channels; the perceived
+    // brightness split at 0.5 picks the pill that matches the
+    // generated palette's weight.
+    readonly property color matugenBase: _colors.base
+    readonly property bool matugenIsDark: (0.299 * matugenBase.r
+        + 0.587 * matugenBase.g + 0.114 * matugenBase.b) < 0.5
+
+    // The fixed palette's side. light and dark pin it outright; auto
+    // follows matugen's palette when the matugen switch is on and
+    // falls back to the dark pill otherwise (LO's call). matugen
+    // still wins over all three when barUseMatugen is on — the
+    // derived bar* properties below read it first.
+    readonly property bool darkMode: themeMode === "light" ? false
+        : themeMode === "dark" ? true
+        : (barUseMatugen ? matugenIsDark : true)
 
     // Flip to true once the matugen toggle UI exists. Bar.qml only ever
     // references the derived properties below, so switching is a
