@@ -274,7 +274,17 @@ Item {
         // renders neither the list nor the empty message.
         Item {
             width: parent.width
-            height: 108
+            // 153, not 108. The column is bottom-anchored, so every
+            // pixel added here lifts its top edge by one and eats the
+            // dead card between the record row and the clipboard
+            // label. Measured baseline: record row's bottom at y177,
+            // label's top at y244 — a 67px gap — and the column is
+            // exactly children-driven (15 label + 8 + 1 hairline + 8
+            // + slot), so gap = 175 - slot. 108 + (67 - 22) = 153
+            // lands the label at y199, a 22px gap. The list scrolls,
+            // so the taller viewport costs nothing and shows two more
+            // full rows of history.
+            height: 153
 
             ListView {
                 id: clipList

@@ -75,6 +75,7 @@ One stow package per top-level directory; each package contains `.config/<app>/`
 
 - **Never drive the user's input.** No synthetic keyboard/mouse via `/dev/uinput`, no screenshots to verify interactive behaviour. Inputs and clicks are the user's to test.
 - **Verification is a separate phase.** When something needs checking, do it in a clearly separated troubleshooting step — not interleaved with implementation edits. Inline load checks (`qs -p ~/.config/quickshell` starts clean) are fine.
+- **Parallelize with subagents when the work splits.** Independent workstreams — a layout pass on one page while a doc edit lands, two modules that don't touch each other — go to subagents in parallel instead of queueing behind each other. Brief each one with the full context (AGENTS.md first, the verified traps, the verification protocol, and the do-not-commit rule), then verify its work before it lands; sequential work where each step needs the last one's result stays in the main session.
 - **All config lives here.** Hyprland, matugen, rofi — everything is a package in this repo now. The old `~/hypr-dotfiles` repo is a read-only archive until burn-in passes; never edit it.
 
 ## In-repo coupling — the edits that span packages
