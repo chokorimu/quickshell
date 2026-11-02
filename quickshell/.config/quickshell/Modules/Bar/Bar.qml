@@ -490,12 +490,15 @@ Item {
                 // The color is the card's own ink, not the fixed accent:
                 // near-black lines on the light card, near-white on the
                 // dark one, so the visualizer follows the theme switch
-                // instead of sitting on top of the palette. The margins
-                // keep the stems clear of the card's rounded bottom-right
-                // corner — nothing in here is clipped to the card's
-                // silhouette (a Canvas clips only its own paint), so a
-                // line flush to the edge would paint onto the wallpaper
-                // in the corner.
+                // instead of sitting on top of the palette. The right
+                // margin keeps the stems clear of the card's rounded
+                // bottom-right corner — nothing in here is clipped to
+                // the card's silhouette (a Canvas clips only its own
+                // paint), so a line running to the card's right edge
+                // would paint onto the wallpaper in the corner. At 24
+                // the last stem's corner lands exactly on the arc's
+                // bottom point, tangent to it, which is why the lines
+                // can sit flush to the bottom edge without spilling.
                 Canvas {
                     id: visualizer
                     anchors.left: parent.left
@@ -503,7 +506,6 @@ Item {
                     anchors.right: parent.right
                     anchors.rightMargin: 24
                     anchors.bottom: parent.bottom
-                    anchors.bottomMargin: 20
                     height: 300
                     visible: root.islandPage === "media"
 
@@ -539,7 +541,7 @@ Item {
                             return
 
                         ctx.fillStyle = Theme.cardForeground
-                        ctx.globalAlpha = 0.3
+                        ctx.globalAlpha = 0.5
                         for (var i = 0; i < n; i++) {
                             // a 2px floor, so the row reads as part of
                             // the card's design in silence instead of
