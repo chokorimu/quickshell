@@ -244,7 +244,19 @@ Item {
         onStopped: if (!root.expanded) root.islandPage = "media"
     }
 
-    onExpandedChanged: root.expanded ? popIn.start() : popOut.start()
+    onExpandedChanged: {
+        root.expanded ? popIn.start() : popOut.start()
+        // the visualizer's cava only runs while the media page is on
+        // screen. Assigned imperatively rather than with a Binding:
+        // with several monitors each Bar would bind the same singleton
+        // property and the bindings would fight. This way each monitor
+        // only writes when its own state changes, and since at most one
+        // island can be expanded at a time there is no conflict.
+        Cava.active = root.expanded && root.islandPage === "media"
+    }
+
+    // switching pages away from media stops the visualizer too
+    onIslandPageChanged: Cava.active = root.expanded && root.islandPage === "media"
 
     SystemClock {
         id: clock
@@ -451,6 +463,93 @@ Item {
                 width: parent.width
                 height: root.cardHeight
                 enabled: root.expanded
+
+                // ---- media page background: the cava visualizer ----------
+                // The bottom-most child of the content item, so the lines
+                // paint behind the art, the title and the transport pill.
+                // It starts past the column strip: that strip is painted
+                // by the card canvas *below* this item, so lines reaching
+                // under it would paint over the bar's own material.
+                //
+                // One Canvas rather than a Repeater of Rectangles — a
+                // single paint call per frame instead of 32 binding
+                // updates, and it matches how the pill, the card and the
+                // art disc are drawn. The levels come from
+                // Services/Cava.qml, which runs a headless cava in raw
+                // mode; see that file's header for why SplitParser and
+                // not StdioCollector.
+                //
+                // Thin lines, not bars: a fixed 2px stem with the gap
+                // absorbing whatever width is left, so the row fills the
+                // card at any width. They run the full height of the page
+                // — behind the disc, the title and the transport pill —
+                // which is what makes them read as a backdrop rather than
+                // a widget sitting on the card. In silence the whole row
+                // is one unbroken 2px line.
+                //
+                // The color is the card's own ink, not the fixed accent:
+                // near-black lines on the light card, near-white on the
+                // dark one, so the visualizer follows the theme switch
+                // instead of sitting on top of the palette. The margins
+                // keep the stems clear of the card's rounded bottom-right
+                // corner — nothing in here is clipped to the card's
+                // silhouette (a Canvas clips only its own paint), so a
+                // line flush to the edge would paint onto the wallpaper
+                // in the corner.
+                Canvas {
+                    id: visualizer
+                    anchors.left: parent.left
+                    anchors.leftMargin: root.cardColumnWidth + 20
+                    anchors.right: parent.right
+                    anchors.rightMargin: 24
+                    anchors.bottom: parent.bottom
+                    anchors.bottomMargin: 20
+                    height: 300
+                    visible: root.islandPage === "media"
+
+                    Connections {
+                        target: Cava
+                        function onFrame() { visualizer.requestPaint() }
+                    }
+
+                    // the lines take the card's ink, which flips with the
+                    // palette — repaint when it moves (theme switch or
+                    // matugen regeneration)
+                    Connections {
+                        target: Theme
+                        function onCardForegroundChanged() { visualizer.requestPaint() }
+                    }
+
+                    onPaint: {
+                        var ctx = getContext("2d")
+                        var w = width
+                        var h = height
+                        ctx.clearRect(0, 0, w, h)
+
+                        var levels = Cava.levels
+                        if (!levels || levels.length === 0)
+                            return
+
+                        // fixed 2px stem, gap absorbs the rest — the row
+                        // fills whatever width the card has
+                        var bw = 2
+                        var n = levels.length
+                        var gap = (w - bw * n) / (n - 1)
+                        if (gap < 1)
+                            return
+
+                        ctx.fillStyle = Theme.cardForeground
+                        ctx.globalAlpha = 0.3
+                        for (var i = 0; i < n; i++) {
+                            // a 2px floor, so the row reads as part of
+                            // the card's design in silence instead of
+                            // vanishing and looking broken
+                            var bh = Math.max(2, levels[i] * h)
+                            ctx.fillRect(i * (bw + gap), h - bh, bw, bh)
+                        }
+                        ctx.globalAlpha = 1
+                    }
+                }
 
                 // ---- volume page: per-app sliders, pavucontrol style -------
                 // Same card, same pop — the volume icon in the bar's right
