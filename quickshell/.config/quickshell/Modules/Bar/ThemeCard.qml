@@ -6,14 +6,20 @@
 // Theme.themeMode and written to a state file, so the choice is still
 // there after a reboot.
 //
-// The switch keeps the workspace pill's structure — one rounded pill
-// holding three segments, the active one filled and the inactive ones
-// recessive — with a background pill on every segment rather than only
-// the selected one. The active segment takes the knockout pair the
-// transport circles already use on this card (cardInk fill, cardOnInk
-// label): barBackground, the workspace pill's own active fill, lands
-// between the pill and cardHighlight in the dark palette, so a filled
-// active segment would read as darker than its neighbours instead of
+// The switch is one pill, not three: a single rounded container
+// spanning the content width, with the three modes tiling it edge to
+// edge. The pill's width is bound to the container, and each segment
+// takes a third of what is left after the row's spacing, so the
+// segments resize with the pill instead of sitting at a fixed width.
+// The 2px gaps let the pill's own surface through as dividers, and
+// the pill's clip rounds the end segments' outer corners, so the
+// whole thing reads as one control rather than a row of buttons.
+//
+// The active segment takes the knockout pair the transport circles
+// already use on this card (cardInk fill, cardOnInk label):
+// barBackground, the workspace pill's own active fill, lands between
+// the pill and cardHighlight in the dark palette, so a filled active
+// segment would read as darker than its neighbours instead of
 // selected. The inactive segments take cardHighlight, the card's
 // subtle surface, with cardDim labels.
 //
@@ -71,18 +77,23 @@ Item {
         }
     }
 
-    // the control row — "Mode" label on the left, the switch beside
-    // it. Both ride the title's 80px margin, so the page reads as a
-    // column rather than a floating group.
-    Row {
+    // the control row — "Mode" label on the left, the switch filling
+    // the rest of the container out to the right margin. Both ride
+    // the title's 80px margin, so the page reads as a column rather
+    // than a floating group.
+    Item {
         id: controlRow
         anchors.top: titleRow.bottom
         anchors.topMargin: 24
         anchors.left: parent.left
         anchors.leftMargin: 80
-        spacing: 20
+        anchors.right: parent.right
+        anchors.rightMargin: 80
+        height: 40
 
         Text {
+            id: modeLabel
+            anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
             text: "Mode"
             color: Theme.cardForeground
@@ -90,18 +101,23 @@ Item {
             font.pixelSize: 14
         }
 
+        // one pill, spanning the container. clip rounds the end
+        // segments' outer corners to the pill's own radius.
         Rectangle {
             id: modePill
+            anchors.left: modeLabel.right
+            anchors.leftMargin: 20
+            anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
             height: 40
             radius: height / 2
             color: Theme.barWorkspacePill
-            width: modeRow.implicitWidth + 8
+            clip: true
 
             Row {
                 id: modeRow
-                anchors.centerIn: parent
-                spacing: 4
+                anchors.fill: parent
+                spacing: 2
 
                 Repeater {
                     model: themeCard.modes
@@ -109,9 +125,11 @@ Item {
                     Rectangle {
                         required property var modelData
                         readonly property bool active: Theme.themeMode === modelData
-                        implicitWidth: 80
-                        implicitHeight: 32
-                        radius: implicitHeight / 2
+
+                        // a third of the row, minus the two gaps — so
+                        // the segments track the pill's width
+                        width: (modeRow.width - 2 * modeRow.spacing) / 3
+                        height: modeRow.height
                         color: active ? Theme.cardInk : Theme.cardHighlight
 
                         Text {
