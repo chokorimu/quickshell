@@ -244,19 +244,7 @@ Item {
         onStopped: if (!root.expanded) root.islandPage = "media"
     }
 
-    onExpandedChanged: {
-        root.expanded ? popIn.start() : popOut.start()
-        // the visualizer's cava only runs while the media page is on
-        // screen. Assigned imperatively rather than with a Binding:
-        // with several monitors each Bar would bind the same singleton
-        // property and the bindings would fight. This way each monitor
-        // only writes when its own state changes, and since at most one
-        // island can be expanded at a time there is no conflict.
-        Cava.active = root.expanded && root.islandPage === "media"
-    }
-
-    // switching pages away from media stops the visualizer too
-    onIslandPageChanged: Cava.active = root.expanded && root.islandPage === "media"
+    onExpandedChanged: root.expanded ? popIn.start() : popOut.start()
 
     SystemClock {
         id: clock
@@ -511,7 +499,16 @@ Item {
 
                     Connections {
                         target: Cava
-                        function onFrame() { visualizer.requestPaint() }
+                        // cava runs for the shell's whole life now, so
+                        // frames arrive while this card is closed too.
+                        // Guard on visibility: an invisible canvas does
+                        // not need repainting, and a collapsed island
+                        // should stay idle rather than wake 60 times a
+                        // second for a backdrop nobody is looking at.
+                        function onFrame() {
+                            if (visualizer.visible)
+                                visualizer.requestPaint()
+                        }
                     }
 
                     // the lines take the card's ink, which flips with the
