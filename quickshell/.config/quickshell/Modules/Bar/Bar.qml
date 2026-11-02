@@ -22,6 +22,11 @@ import Quickshell.Io
 import Quickshell.Services.SystemTray
 import "../../Theme"
 import "../../Services"
+// Capture lives in its own directory (Modules/Capture), so it needs an
+// import of its own — QML imports do not propagate between files, and
+// a sibling type like SessionCard resolves only because it sits in
+// this same directory.
+import "../Capture"
 
 Item {
     id: root
@@ -102,11 +107,12 @@ Item {
     }
 
     // hovering anywhere on the column — the strip itself or any of the
-    // four buttons — holds the island open and the column expanded
+    // five buttons — holds the island open and the column expanded
     property bool columnHovered: columnZone.containsMouse
         || mediaTab.containsMouse
         || themeTab.containsMouse
         || volumeTab.containsMouse
+        || captureTab.containsMouse
         || sessionTab.containsMouse
 
     onColumnHoveredChanged: columnExpand = columnHovered ? 1 : 0
@@ -126,6 +132,7 @@ Item {
         || (islandPage === "media" && clockZone.containsMouse)
         || (islandPage === "volume" && volumeIcon.containsMouse)
         || (islandPage === "session" && sessionPage.hovered)
+        || (islandPage === "capture" && capturePage.hovered)
 
     // ---- the keyboard-opened session menu ---------------------------------
     // SUPER+L pins the island open on the session page with the cursor
@@ -579,10 +586,24 @@ Item {
                     visible: root.islandPage === "theme"
                 }
 
-                // ---- session page: avatar, user@host, power grid --------
+                // ---- capture page: screenshot / clipboard / record -------
                 // Same card, same pop — reached by hovering the fourth
                 // tab button in the column. Gated on the page like the
-                // other three, so nothing paints underneath.
+                // others, so nothing paints underneath. Skeleton for
+                // now: the buttons are placeholders until steps 2-4.
+                Capture {
+                    id: capturePage
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.bottom: parent.bottom
+                    visible: root.islandPage === "capture"
+                }
+
+                // ---- session page: avatar, user@host, power grid --------
+                // Same card, same pop — reached by hovering the fifth
+                // tab button in the column. Gated on the page like the
+                // other four, so nothing paints underneath.
                 SessionCard {
                     id: sessionPage
                     anchors.left: parent.left
@@ -593,12 +614,12 @@ Item {
                 }
 
                 // ---- page switcher: vertical tab column --------------------
-                // Four buttons down the card's left edge, flush against
+                // Five buttons down the card's left edge, flush against
                 // the card's edge and each other (no margin, no gaps) and
                 // as wide as the column strip itself, so the block fills
                 // the strip edge to edge with no dead space beside it.
-                // Order is media, theme, volume, session. The selected
-                // page takes the accent fill — square
+                // Order is media, theme, volume, capture, session. The
+                // selected page takes the accent fill — square
                 // corners, near-black glyph, and a black block down its
                 // left edge taking the full height and the left 10% of
                 // the button — so it reads as one solid lime slab; the
@@ -850,6 +871,70 @@ Item {
                             anchors.fill: parent
                             hoverEnabled: true
                             onEntered: root.islandPage = "volume"
+                        }
+                    }
+
+                    // ---- capture: screenshot / clipboard / record ---------
+                    // Fourth in the column, between volume and session.
+                    Rectangle {
+                        width: root.columnWidth
+                        height: 40
+                        color: root.islandPage === "capture" ? Theme.cardAccent : "transparent"
+
+                        // the selected marker: a black block down the
+                        // button's left edge, taking the full height
+                        // and the left 10% of the resting strip — no
+                        // inset, so it reads as part of the silhouette
+                        Rectangle {
+                            x: 0
+                            width: root.cardColumnWidth * 0.1
+                            height: parent.height
+                            color: "black"
+                            visible: root.islandPage === "capture"
+                        }
+
+                        // the glyph holds the resting 56px icon zone —
+                        // it does not drift right as the column opens
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            anchors.horizontalCenterOffset: -(parent.width - root.cardColumnWidth) / 2
+                            text: "\uF030" // camera (body + lens)
+                            color: root.islandPage === "capture" ? Theme.cardAccentOn : Theme.barDim
+                            font.family: Theme.iconFont
+                            font.pixelSize: 17
+                        }
+
+                        // the menu's name, revealed by the expansion —
+                        // clipped to the button so it can't spill onto
+                        // the card mid-animation
+                        Item {
+                            anchors.left: parent.left
+                            anchors.leftMargin: root.cardColumnWidth
+                            anchors.right: parent.right
+                            anchors.top: parent.top
+                            anchors.bottom: parent.bottom
+                            clip: true
+                            visible: root.columnExpand > 0.01
+
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                x: 10
+                                width: Math.max(0, parent.width - 20)
+                                text: "Capture"
+                                color: root.islandPage === "capture" ? Theme.cardAccentOn : Theme.barDim
+                                font.family: Theme.barFontFamily
+                                font.pixelSize: 13
+                                elide: Text.ElideRight
+                                opacity: root.columnExpand
+                            }
+                        }
+
+                        MouseArea {
+                            id: captureTab
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            onEntered: root.islandPage = "capture"
                         }
                     }
 
