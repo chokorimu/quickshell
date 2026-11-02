@@ -59,8 +59,22 @@ Item {
     // reliably drop a MouseArea's hover when its item turns invisible,
     // so without this a cell could stay lit with no cursor anywhere
     // near it, and hold the island's hover true on the way back in.
-    onVisibleChanged: if (!visible)
+    //
+    // The same invisibility does not stop a hold that is already
+    // running: a NumberAnimation keeps running while its item is
+    // hidden, so a hold that outlives the card still reaches
+    // onFinished and fires its command — on the shut-down cell that
+    // is the machine powering off with nobody asking. Every cell's
+    // hold is stopped here, so the card leaving is the end of the
+    // story for any hold in flight.
+    onVisibleChanged: if (!visible) {
         sessionCard.hoveredCell = -1
+        for (var i = 0; i < powerCells.count; i++) {
+            var c = powerCells.itemAt(i)
+            if (c)
+                c.cancelHold()
+        }
+    }
 
     // hostname — read once; the card is short-lived enough that a
     // change mid-session is not worth a watcher
@@ -193,7 +207,12 @@ Item {
             columnSpacing: 8
             rowSpacing: 8
 
+            // permanent id: the card's onVisibleChanged reaches
+            // through it to stop every cell's hold, and it is declared
+            // once here rather than on a Loader because the cells are
+            // not reloaded between visits
             Repeater {
+                id: powerCells
                 model: [
                     { glyph: "\uF023", label: "Lock",     cmd: ["hyprlock"] },
                     { glyph: "\uF08B", label: "Log out",  cmd: ["hyprctl", "dispatch", "exit"] },
