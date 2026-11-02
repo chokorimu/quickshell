@@ -624,8 +624,7 @@ Item {
                 // ---- capture page: screenshot / clipboard / record -------
                 // Same card, same pop — reached by hovering the fourth
                 // tab button in the column. Gated on the page like the
-                // others, so nothing paints underneath. Skeleton for
-                // now: the buttons are placeholders until steps 2-4.
+                // others, so nothing paints underneath.
                 Capture {
                     id: capturePage
                     anchors.left: parent.left

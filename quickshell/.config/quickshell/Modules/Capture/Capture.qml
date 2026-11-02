@@ -9,15 +9,20 @@
 // saving to ~/Pictures/Screenshots and copying to the clipboard on
 // the way out. Step 4 wired the record row to OBS over obs-websocket:
 // one pill toggles StartRecord/StopRecord with the elapsed time
-// beside it. Step 3 wired the clipboard row last and below the
+// beside it — and while OBS is down the pill steps aside for a dim
+// "OBS offline" line, since a dead backend has nothing to toggle.
+// Step 3 wired the clipboard row last and below the
 // record button, at LO's request: a scrollable history read out of
-// cliphist's db, one click copying an entry back.
+// cliphist's db, one click copying an entry back, one Reset pill
+// wiping it.
 //
 // A later pass moved the layout onto the theme page's idiom without
 // touching any behaviour: the screenshot and record sections became
 // control rows — label in a fixed 120px column, the pills beside it —
 // riding the content margins at 16 spacing, and the clipboard section
-// reads label, hairline, list top to bottom. The theme page's own
+// reads label, list top to bottom — the label in the other sections'
+// style with a Reset pill on its right, and the 1px hairline that
+// used to sit under the label removed. The theme page's own
 // controls (the mode switch, the brightness slider) stayed there;
 // only the layout language crossed over.
 //
@@ -161,6 +166,13 @@ Item {
         // label in the 120px column, the pill and its readout beside
         // it. The pill, the red-while-recording colour and the
         // elapsed/error Text are all unchanged.
+        //
+        // OBS offline: the pill disappears entirely and a dim "OBS
+        // offline" line takes its slot — LO's call. A dead backend
+        // has nothing to toggle, and the 5s retry timer already
+        // reconnects, so the pill's old click-to-retry job was
+        // covered anyway; the slot reads as status instead of
+        // wearing a dead button.
         Item {
             width: parent.width
             height: 40
@@ -184,6 +196,11 @@ Item {
 
                 Rectangle {
                     id: recPill
+                    // gone while OBS is down — the dim line below takes
+                    // the slot. `|| recording` keeps it up if the socket
+                    // drops mid-recording, so a stale live state can
+                    // still be stopped
+                    visible: capturePage.obsConnected || capturePage.recording
                     height: 36
                     // content-driven width like the screenshot pills —
                     // the label is the widest thing in the row, so the
@@ -198,10 +215,10 @@ Item {
                     Text {
                         id: recPillLabel
                         anchors.centerIn: parent
-                        text: capturePage.recording ? "Stop recording"
-                            : (capturePage.obsConnected ? "Start recording" : "OBS offline")
-                        color: capturePage.recording ? Theme.cardOnInk
-                            : (capturePage.obsConnected ? Theme.cardForeground : Theme.cardDim)
+                        // no offline branch any more: the pill is only
+                        // ever up when there is a backend to talk to
+                        text: capturePage.recording ? "Stop recording" : "Start recording"
+                        color: capturePage.recording ? Theme.cardOnInk : Theme.cardForeground
                         font.family: Theme.barFontFamily
                         font.pixelSize: 13
                     }
@@ -210,6 +227,17 @@ Item {
                         anchors.fill: parent
                         onClicked: capturePage.toggleRecord()
                     }
+                }
+
+                // the offline stand-in, sitting exactly where the pill
+                // was — the Row collapses the hidden pill, so this
+                // lands on the left with nothing to do
+                Text {
+                    visible: !capturePage.obsConnected && !capturePage.recording
+                    text: "OBS offline"
+                    color: Theme.cardDim
+                    font.family: Theme.barFontFamily
+                    font.pixelSize: 13
                 }
 
                 // the elapsed time while recording. The slot doubles
@@ -238,11 +266,13 @@ Item {
     // store` from hyprland's autostart. This section lists it and
     // copies an entry back; cliphist owns the storing.
     //
-    // Top to bottom it reads label, hairline, list — the hairline a
-    // 1px Rectangle in cardHighlight across the content width, with
-    // the Column's 8px spacing as the gap above and below it. A
-    // Rectangle rather than a Canvas: a hairline is exactly what a
-    // rect draws, and there is nothing here for a canvas to earn.
+    // Top to bottom it reads label, list. The label takes the other
+    // sections' styling — cardForeground at 14, not the dim 12 this
+    // section started with — and carries a Reset pill on its right
+    // that wipes the db through cliphist's own wipe and re-reads the
+    // list. The 1px hairline that sat under the label is gone: once
+    // the label matched the others, the ruler was the one thing left
+    // styling this section differently.
     Column {
         anchors.bottom: parent.bottom
         anchors.bottomMargin: 16
@@ -252,17 +282,52 @@ Item {
         anchors.rightMargin: 28
         spacing: 8
 
-        Text {
-            text: "Clipboard"
-            color: Theme.cardDim
-            font.family: Theme.barFontFamily
-            font.pixelSize: 12
-        }
-
-        Rectangle {
+        // the label row: title on the left in the other sections'
+        // style, Reset on the right. An Item with an explicit height
+        // because a Column leaves its children's height alone, and
+        // anchors are illegal directly inside one — the same reason
+        // the list's slot below is an Item.
+        Item {
             width: parent.width
-            height: 1
-            color: Theme.cardHighlight
+            height: 20
+
+            Text {
+                anchors.left: parent.left
+                anchors.verticalCenter: parent.verticalCenter
+                text: "Clipboard"
+                color: Theme.cardForeground
+                font.family: Theme.barFontFamily
+                font.pixelSize: 14
+            }
+
+            // Reset is destructive — it wipes every entry — so it is
+            // deliberately the smallest pill on the page, sat out of
+            // the way on the label's right rather than in the control
+            // column where the other sections' pills live. Click-only
+            // like every MouseArea in here.
+            Rectangle {
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                height: 20
+                width: clipResetLabel.implicitWidth + 24
+                radius: 10
+                color: Theme.cardHighlight
+
+                Text {
+                    id: clipResetLabel
+                    anchors.centerIn: parent
+                    text: "Reset"
+                    color: Theme.cardForeground
+                    font.family: Theme.barFontFamily
+                    font.pixelSize: 12
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: capturePage.resetClipboard()
+                }
+            }
         }
 
         // the list's slot: a plain Item rather than the Column's own
@@ -274,18 +339,19 @@ Item {
         // renders neither the list nor the empty message.
         Item {
             width: parent.width
-            // 163, not 108. The column is bottom-anchored, so every
+            // 167, not 108. The column is bottom-anchored, so every
             // pixel added here lifts its top edge by one and eats the
             // dead card between the record row and the clipboard
             // label. Measured baseline: the sections Column spaces at
             // 16, which puts the record row's bottom at y173, and the
-            // column is exactly children-driven (15 label + 8 + 1
-            // hairline + 8 + slot), so its top edge sits at
-            // 384 - (32 + slot) = 352 - slot. 352 - 163 = 189 lands
-            // the label at y189, a 16px gap under the record row. The
-            // list scrolls, so the taller viewport costs nothing and
-            // shows two more full rows of history.
-            height: 163
+            // column is exactly children-driven (20 label row + 8 +
+            // slot — the hairline that used to add 1 + 8 is gone), so
+            // its top edge sits at 384 - (28 + slot) = 356 - slot.
+            // 356 - 167 = 189 lands the label at y189, a 16px gap
+            // under the record row. The list scrolls, so the taller
+            // viewport costs nothing and shows two more full rows of
+            // history.
+            height: 167
 
             ListView {
                 id: clipList
@@ -772,6 +838,16 @@ Item {
         clipDecodeProcess.running = true
     }
 
+    // Reset wipes the whole db. cliphist owns it, so the wipe is
+    // cliphist's own subcommand — no shell, no db-path guessing —
+    // and the list re-reads off the process's exit, the same
+    // StdioCollector path the open-refresh uses. A second click
+    // mid-wipe is a silent no-op on an already-running Process,
+    // which is the right behaviour here anyway.
+    function resetClipboard() {
+        clipWipeProcess.running = true
+    }
+
     Process {
         id: clipListProcess
         command: ["cliphist", "list"]
@@ -782,5 +858,11 @@ Item {
 
     Process {
         id: clipDecodeProcess
+    }
+
+    Process {
+        id: clipWipeProcess
+        command: ["cliphist", "wipe"]
+        onExited: clipListProcess.running = true
     }
 }
