@@ -388,6 +388,22 @@ Item {
             // history.
             height: 167
 
+            // The list's plate: the section's own surface, square-
+            // cornered at LO's call. Square rather than the shell's
+            // usual pill for two reasons — the dividers run edge to
+            // edge, and a rounded plate would put their ends on the
+            // curve — and a list panel reads as a panel, not as one
+            // more control. cardHighlight is the token every other
+            // control on the card already wears, so the plate reads
+            // as one more surface rather than a new idea; the
+            // dividers cut back to cardBackground, which reads as a
+            // groove (darker than the plate in the dark palette,
+            // lighter in the light one) instead of a drawn line.
+            Rectangle {
+                anchors.fill: parent
+                color: Theme.cardHighlight
+            }
+
             ListView {
                 id: clipList
                 anchors.fill: parent
@@ -404,6 +420,11 @@ Item {
                 delegate: Rectangle {
                     id: clipRow
                     required property var modelData
+                    // the row's own index, so the divider knows which
+                    // row is the last — a trailing hairline under the
+                    // final entry would read as a border the list
+                    // does not have
+                    required property int index
 
                     // clipList.width, never ListView.width: with no id
                     // on the view, ListView resolves to the TYPE
@@ -434,6 +455,22 @@ Item {
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
                         onClicked: capturePage.pickClip(clipRow.modelData.id)
+                    }
+
+                    // the divider, edge to edge at the row's foot —
+                    // the settings-list idiom, and the reason the
+                    // plate is square. cardBackground rather than
+                    // cardHighlight: on a cardHighlight plate a
+                    // cardHighlight line would be invisible, and the
+                    // card's own surface cutting through reads as a
+                    // groove in both palettes
+                    Rectangle {
+                        anchors.bottom: parent.bottom
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        height: 1
+                        color: Theme.cardBackground
+                        visible: index < clipList.count - 1
                     }
                 }
             }
