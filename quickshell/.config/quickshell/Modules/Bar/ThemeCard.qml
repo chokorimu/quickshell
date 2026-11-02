@@ -107,7 +107,7 @@ Item {
         anchors.leftMargin: 80
         anchors.right: parent.right
         anchors.rightMargin: 28
-        spacing: 20
+        spacing: 4
 
         // ---- mode: label + the three-way switch ----------------------
         Item {
@@ -313,7 +313,7 @@ Item {
     GridView {
         id: wallGrid
         anchors.top: controlColumn.bottom
-        anchors.topMargin: 16
+        anchors.topMargin: 4
         anchors.left: parent.left
         anchors.leftMargin: 80
         anchors.right: parent.right

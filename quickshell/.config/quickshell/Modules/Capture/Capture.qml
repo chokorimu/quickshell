@@ -16,7 +16,7 @@
 // A later pass moved the layout onto the theme page's idiom without
 // touching any behaviour: the screenshot and record sections became
 // control rows — label in a fixed 120px column, the pills beside it —
-// riding the content margins at 20 spacing, and the clipboard section
+// riding the content margins at 4 spacing, and the clipboard section
 // reads label, hairline, list top to bottom. The theme page's own
 // controls (the mode switch, the brightness slider) stayed there;
 // only the layout language crossed over.
@@ -74,8 +74,8 @@ Item {
     }
 
     // the sections, stacked under the header. Rides the content
-    // area's margins both ways (80 left, 28 right) and spaces at 20 —
-    // the theme page's controlColumn values, so the two pages read as
+    // area's margins both ways (80 left, 28 right) and spaces at 4 —
+    // the theme page's controlColumn value, so the two pages read as
     // one system instead of two.
     Column {
         anchors.top: titleRow.bottom
@@ -84,7 +84,7 @@ Item {
         anchors.leftMargin: 80
         anchors.right: parent.right
         anchors.rightMargin: 28
-        spacing: 20
+        spacing: 4
 
         // ---- screenshot: label + output / window / region -------------
         // Wired in step 2 to grim, which takes all three geometries:
@@ -274,17 +274,18 @@ Item {
         // renders neither the list nor the empty message.
         Item {
             width: parent.width
-            // 153, not 108. The column is bottom-anchored, so every
+            // 187, not 108. The column is bottom-anchored, so every
             // pixel added here lifts its top edge by one and eats the
             // dead card between the record row and the clipboard
-            // label. Measured baseline: record row's bottom at y177,
-            // label's top at y244 — a 67px gap — and the column is
-            // exactly children-driven (15 label + 8 + 1 hairline + 8
-            // + slot), so gap = 175 - slot. 108 + (67 - 22) = 153
-            // lands the label at y199, a 22px gap. The list scrolls,
-            // so the taller viewport costs nothing and shows two more
-            // full rows of history.
-            height: 153
+            // label. Measured baseline: the sections Column spaces at
+            // 4, which puts the record row's bottom at y161, and the
+            // column is exactly children-driven (15 label + 8 + 1
+            // hairline + 8 + slot), so its top edge sits at
+            // 384 - (32 + slot) = 352 - slot. 352 - 187 = 165 lands
+            // the label at y165, a 4px gap under the record row. The
+            // list scrolls, so the taller viewport costs nothing and
+            // shows two more full rows of history.
+            height: 187
 
             ListView {
                 id: clipList

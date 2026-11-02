@@ -64,7 +64,7 @@ Item {
     ListView {
         id: appList
         anchors.top: masterRow.bottom
-        anchors.topMargin: 8
+        anchors.topMargin: 4
         anchors.bottom: parent.bottom
         anchors.bottomMargin: 16
         anchors.left: parent.left
