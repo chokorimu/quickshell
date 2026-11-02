@@ -107,7 +107,7 @@ Item {
         anchors.leftMargin: 80
         anchors.right: parent.right
         anchors.rightMargin: 28
-        spacing: 20
+        spacing: 16
 
         // ---- mode: label + the three-way switch ----------------------
         Item {

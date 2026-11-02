@@ -8,6 +8,14 @@ hl.on("hyprland.start", function()
     hl.exec_cmd("awww-daemon")
     hl.exec_cmd("NetworkManager")
     hl.exec_cmd("qs")
+    -- clipboard history for the island's capture page: cliphist's db
+    -- is fed by this watcher. The stdout redirect is load-bearing,
+    -- not tidiness — wl-paste infers which MIME type to request from
+    -- the path of its own stdout, and hyprland's stdout is
+    -- ly-session.log, a text/plain inference that makes wl-paste
+    -- silently drop every non-text copy in watch mode. /dev/null
+    -- infers nothing, so images land in the db too.
+    hl.exec_cmd("wl-paste --watch cliphist store > /dev/null")
     hl.exec_cmd("hyprctl setcursor capitaine-cursors-light 48")
     hl.exec_cmd("systemctl --user start hyprpolkitagent")
 end)

@@ -177,6 +177,15 @@ Singleton {
     // label color on the accent — the selected button's glyph. Fixed
     // for the same reason cardAccent is: the accent never flips.
     readonly property color cardAccentOn: "#1b1b1f"
+    // streaming live — the second live state on the capture page's
+    // record row. Fixed in both palettes for the same reason
+    // cardAccent is: it is a state color, not palette content, and
+    // one blue reads on both card surfaces. #2563eb against white is
+    // 4.9:1, so the label passes AA on the fill in either theme.
+    readonly property color cardStream: "#2563eb"
+    // label on the streaming fill — white in both palettes, since the
+    // fill is dark enough to carry it everywhere.
+    readonly property color cardStreamOn: "#ffffff"
     // card surface — the island surface, lightened a step above the
     // pill surface so a control on the card can carry its own
     // background (see fixedCardBg* above). The matugen path keeps the
@@ -201,6 +210,20 @@ Singleton {
     // so they stay defined.
     readonly property color cardInk:       darkMode ? "#e8e8ea" : "#1b1b1f"
     readonly property color cardOnInk:     cardBackground
+
+    // power-cell hover — a neutral fill that lightens the cell in both
+    // palettes. The hold wipe is black, so its leading edge has to read
+    // against whatever it lands on: on the resting cardHighlight that
+    // edge is 1.7:1 in the dark palette, which is what made the fill
+    // look like it was leaking out of the button, and on this fill it
+    // is 14-17:1 in both. Light in both themes is the whole point — a
+    // symmetric invert would put a dark cell under a black fill and the
+    // progress would vanish for the length of the hold.
+    readonly property color cardHover:   darkMode ? "#e8e8ea" : "#ffffff"
+    // content on the hover fill. Near-black in both palettes, and it
+    // deliberately does not flip, because the fill it sits on is light
+    // in both — the same reason cardAccentOn is fixed.
+    readonly property color cardHoverOn: "#1b1b1f"
 
     // launcher selection — the active row's fill. Fixed in both
     // palettes like cardAccent: LO asked for yellow across all

@@ -6,6 +6,7 @@ import Quickshell
 import Quickshell.Hyprland
 import "Theme"
 import "Modules/Bar"
+import "Modules/Capture"
 import "Modules/Launcher"
 import "Modules/Notifications"
 import "Modules/Corners"
