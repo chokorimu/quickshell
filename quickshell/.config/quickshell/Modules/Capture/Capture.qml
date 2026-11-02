@@ -13,6 +13,14 @@
 // record button, at LO's request: a scrollable history read out of
 // cliphist's db, one click copying an entry back.
 //
+// A later pass moved the layout onto the theme page's idiom without
+// touching any behaviour: the screenshot and record sections became
+// control rows — label in a fixed 120px column, the pills beside it —
+// riding the content margins at 20 spacing, and the clipboard section
+// reads label, hairline, list top to bottom. The theme page's own
+// controls (the mode switch, the brightness slider) stayed there;
+// only the layout language crossed over.
+//
 // The pills are click-only on purpose, the same rule the session and
 // theme pages follow: a hover-enabled MouseArea in here steals
 // cardZone's hover in Bar.qml and collapses the island under a
@@ -65,34 +73,50 @@ Item {
         }
     }
 
-    // the sections, stacked under the header and left-aligned on the
-    // content area's margin, the way the volume and theme pages flow
+    // the sections, stacked under the header. Rides the content
+    // area's margins both ways (80 left, 28 right) and spaces at 20 —
+    // the theme page's controlColumn values, so the two pages read as
+    // one system instead of two.
     Column {
         anchors.top: titleRow.bottom
         anchors.topMargin: 24
         anchors.left: parent.left
         anchors.leftMargin: 80
-        spacing: 28
+        anchors.right: parent.right
+        anchors.rightMargin: 28
+        spacing: 20
 
-        // ---- screenshot: output / window / region ----------------------
+        // ---- screenshot: label + output / window / region -------------
         // Wired in step 2 to grim, which takes all three geometries:
         // the whole output, the active window's rectangle out of
         // hyprctl, or a slurp selection. The island dismisses itself
         // first — slurp takes the input grab, and a card caught
         // mid-pop would be in the frame.
-        Column {
-            anchors.left: parent.left
-            spacing: 10
+        //
+        // The row is the theme page's control-row idiom: a 40px Item
+        // carrying the label in a fixed 120px column with the pills
+        // beside it, so the label reads as a row header instead of a
+        // caption floating over the controls. The pills themselves are
+        // untouched — same surfaces, radii, glyphs and grim chains.
+        Item {
+            width: parent.width
+            height: 40
 
             Text {
+                id: shotLabel
+                anchors.left: parent.left
+                anchors.verticalCenter: parent.verticalCenter
+                width: 120
                 text: "Screenshot"
-                color: Theme.cardDim
+                color: Theme.cardForeground
                 font.family: Theme.barFontFamily
-                font.pixelSize: 12
+                font.pixelSize: 14
             }
 
             Row {
-                anchors.left: parent.left
+                anchors.left: shotLabel.right
+                anchors.leftMargin: 12
+                anchors.verticalCenter: parent.verticalCenter
                 spacing: 8
 
                 Repeater {
@@ -132,19 +156,30 @@ Item {
         // and the state arrives as events — so a recording started
         // from OBS's own UI or a hotkey shows on the pill too.
         // wf-recorder is the alternative backend, not installed yet.
-        Column {
-            anchors.left: parent.left
-            spacing: 10
+        //
+        // Same control-row idiom as the screenshot section above:
+        // label in the 120px column, the pill and its readout beside
+        // it. The pill, the red-while-recording colour and the
+        // elapsed/error Text are all unchanged.
+        Item {
+            width: parent.width
+            height: 40
 
             Text {
+                id: recLabel
+                anchors.left: parent.left
+                anchors.verticalCenter: parent.verticalCenter
+                width: 120
                 text: "Record"
-                color: Theme.cardDim
+                color: Theme.cardForeground
                 font.family: Theme.barFontFamily
-                font.pixelSize: 12
+                font.pixelSize: 14
             }
 
             Row {
-                anchors.left: parent.left
+                anchors.left: recLabel.right
+                anchors.leftMargin: 12
+                anchors.verticalCenter: parent.verticalCenter
                 spacing: 8
 
                 Rectangle {
@@ -202,6 +237,12 @@ Item {
     // lives in cliphist's db, fed by `wl-paste --watch cliphist
     // store` from hyprland's autostart. This section lists it and
     // copies an entry back; cliphist owns the storing.
+    //
+    // Top to bottom it reads label, hairline, list — the hairline a
+    // 1px Rectangle in cardHighlight across the content width, with
+    // the Column's 8px spacing as the gap above and below it. A
+    // Rectangle rather than a Canvas: a hairline is exactly what a
+    // rect draws, and there is nothing here for a canvas to earn.
     Column {
         anchors.bottom: parent.bottom
         anchors.bottomMargin: 16
@@ -209,13 +250,19 @@ Item {
         anchors.leftMargin: 80
         anchors.right: parent.right
         anchors.rightMargin: 28
-        spacing: 10
+        spacing: 8
 
         Text {
             text: "Clipboard"
             color: Theme.cardDim
             font.family: Theme.barFontFamily
             font.pixelSize: 12
+        }
+
+        Rectangle {
+            width: parent.width
+            height: 1
+            color: Theme.cardHighlight
         }
 
         // the list's slot: a plain Item rather than the Column's own
