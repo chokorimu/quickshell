@@ -177,6 +177,15 @@ Singleton {
     // label color on the accent — the selected button's glyph. Fixed
     // for the same reason cardAccent is: the accent never flips.
     readonly property color cardAccentOn: "#1b1b1f"
+    // streaming live — the second live state on the capture page's
+    // record row. Fixed in both palettes for the same reason
+    // cardAccent is: it is a state color, not palette content, and
+    // one blue reads on both card surfaces. #2563eb against white is
+    // 4.9:1, so the label passes AA on the fill in either theme.
+    readonly property color cardStream: "#2563eb"
+    // label on the streaming fill — white in both palettes, since the
+    // fill is dark enough to carry it everywhere.
+    readonly property color cardStreamOn: "#ffffff"
     // card surface — the island surface, lightened a step above the
     // pill surface so a control on the card can carry its own
     // background (see fixedCardBg* above). The matugen path keeps the

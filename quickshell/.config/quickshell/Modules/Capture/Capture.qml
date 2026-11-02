@@ -157,21 +157,24 @@ Item {
         }
 
         // ---- record -----------------------------------------------------
-        // Wired in step 4 to OBS over obs-websocket: one pill toggles
-        // StartRecord/StopRecord, the elapsed time rides beside it,
-        // and the state arrives as events — so a recording started
-        // from OBS's own UI or a hotkey shows on the pill too.
-        // wf-recorder is the alternative backend, not installed yet.
+        // Wired in step 4 to OBS over obs-websocket: the record pill
+        // toggles StartRecord/StopRecord, the stream pill beside it
+        // StartStream/StopStream, the elapsed time rides to their
+        // right, and the state arrives as events — so a recording or
+        // stream started from OBS's own UI or a hotkey shows on the
+        // pills too. wf-recorder is the alternative backend, not
+        // installed yet.
         //
         // Same control-row idiom as the screenshot section above:
-        // label in the 120px column, the pill and its readout beside
-        // it. The pill, the red-while-recording colour and the
-        // elapsed/error Text are all unchanged.
+        // label in the 120px column, the pills and their readout
+        // beside it. The pills, the red-while-recording and
+        // blue-while-streaming colours and the elapsed/error Text
+        // are all unchanged from the single-pill pass.
         //
-        // OBS offline: the pill disappears entirely and a dim "OBS
-        // offline" line takes its slot — LO's call. A dead backend
+        // OBS offline: both pills disappear entirely and a dim "OBS
+        // offline" line takes their slot — LO's call. A dead backend
         // has nothing to toggle, and the 5s retry timer already
-        // reconnects, so the pill's old click-to-retry job was
+        // reconnects, so the pills' old click-to-retry job was
         // covered anyway; the slot reads as status instead of
         // wearing a dead button. The ban glyph beside the text is
         // the bar's own disconnected mark — the network readout
@@ -233,14 +236,44 @@ Item {
                     }
                 }
 
-                // the offline stand-in, sitting exactly where the pill
-                // was — the Row collapses the hidden pill, so this
+                // the stream pill — the record pill's twin, one state
+                // over. Same shape, same visibility rule (`|| streaming`
+                // so a socket drop mid-stream stays stoppable), and the
+                // same content-driven width. Blue while live, the one
+                // other color that reads as "live" without a legend;
+                // recording took the palette's red, so streaming gets a
+                // fixed blue that reads on both card surfaces.
+                Rectangle {
+                    id: streamPill
+                    visible: capturePage.obsConnected || capturePage.streaming
+                    height: 36
+                    width: streamPillLabel.implicitWidth + 36
+                    radius: 18
+                    color: capturePage.streaming ? Theme.cardStream : Theme.cardHighlight
+
+                    Text {
+                        id: streamPillLabel
+                        anchors.centerIn: parent
+                        text: capturePage.streaming ? "Stop streaming" : "Start streaming"
+                        color: capturePage.streaming ? Theme.cardStreamOn : Theme.cardForeground
+                        font.family: Theme.barFontFamily
+                        font.pixelSize: 13
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: capturePage.toggleStream()
+                    }
+                }
+
+                // the offline stand-in, sitting exactly where the pills
+                // were — the Row collapses the hidden pills, so this
                 // lands on the left with nothing to do. The ban glyph
                 // is the bar's own disconnected mark (the network
                 // readout wears the same one), so the offline state
                 // reads the same way here as it does out there.
                 Row {
-                    visible: !capturePage.obsConnected && !capturePage.recording
+                    visible: !capturePage.obsConnected && !capturePage.recording && !capturePage.streaming
                     spacing: 6
 
                     Text {
@@ -275,13 +308,16 @@ Item {
                     }
                 }
 
-                // the elapsed time while recording. The slot doubles
-                // as the error readout, so a rejected request never
-                // fails silently — the pill just sits there.
+                // the elapsed time while recording, or the stream's
+                // while streaming — one slot, and recording wins when
+                // both are live. The slot doubles as the error readout,
+                // so a rejected request never fails silently — the
+                // pills just sit there.
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     text: capturePage.obsError.length > 0 ? capturePage.obsError
-                        : (capturePage.recording ? capturePage.fmtDuration(capturePage.recSeconds) : "")
+                        : (capturePage.recording ? capturePage.fmtDuration(capturePage.recSeconds)
+                            : (capturePage.streaming ? capturePage.fmtDuration(capturePage.streamSeconds) : ""))
                     color: capturePage.obsError.length > 0 ? Theme.barUrgent : Theme.cardDim
                     font.family: Theme.barFontFamily
                     font.pixelSize: 13
@@ -708,6 +744,10 @@ Item {
     property bool obsConnected: false
     property bool recording: false
     property int recSeconds: 0
+    // the stream's mirror of the two above — same event/status shape,
+    // different output
+    property bool streaming: false
+    property int streamSeconds: 0
     // a rejected request's comment, shown in the duration slot for a
     // few seconds
     property string obsError: ""
@@ -755,8 +795,9 @@ Item {
                 obsRetry.stop()
                 capturePage.obsError = ""
                 // sync the state OBS is already in — it may have been
-                // recording since before the shell started
+                // recording or streaming since before the shell started
                 capturePage.obsRequest("GetRecordStatus")
+                capturePage.obsRequest("GetStreamStatus")
             } else if (msg.op === 7) {
                 capturePage.onObsResponse(d)
             } else if (msg.op === 5) {
@@ -766,6 +807,11 @@ Item {
                     if (!active && d.eventData && d.eventData.outputPath)
                         capturePage.notifySaved(d.eventData.outputPath)
                     capturePage.setRecording(active)
+                } else if (d.eventType === "StreamStateChanged") {
+                    // no outputPath here — a stream has no saved file,
+                    // so the stop event carries nothing to notify with
+                    capturePage.setStreaming(
+                        d.eventData && d.eventData.outputActive === true)
                 }
             }
         }
@@ -791,6 +837,9 @@ Item {
         if (d.requestType === "GetRecordStatus" && d.responseData)
             capturePage.setRecording(d.responseData.outputActive === true,
                 d.responseData.outputDuration)
+        if (d.requestType === "GetStreamStatus" && d.responseData)
+            capturePage.setStreaming(d.responseData.outputActive === true,
+                d.responseData.outputDuration)
     }
 
     // The event and the status response agree on the shape; the
@@ -808,6 +857,20 @@ Item {
                 ? Math.floor(duration) : 0
     }
 
+    // the stream's twin — same contract, its own counter. The two
+    // outputs are independent in OBS (record and stream can run
+    // alone, together, or neither), so the state is tracked
+    // separately rather than folded into one "live" flag.
+    function setStreaming(active, duration) {
+        if (active === capturePage.streaming && duration === undefined)
+            return
+        capturePage.streaming = active
+        capturePage.obsError = ""
+        if (active)
+            capturePage.streamSeconds = (duration !== undefined && duration > 0)
+                ? Math.floor(duration) : 0
+    }
+
     function toggleRecord() {
         if (!obsConnected) {
             // OBS is down (or still starting): retry now rather than
@@ -816,6 +879,14 @@ Item {
             return
         }
         capturePage.obsRequest(capturePage.recording ? "StopRecord" : "StartRecord")
+    }
+
+    function toggleStream() {
+        if (!obsConnected) {
+            capturePage.reconnectObs()
+            return
+        }
+        capturePage.obsRequest(capturePage.streaming ? "StopStream" : "StartStream")
     }
 
     // The QML WebSocket has no open() — active is the only handle —
@@ -850,6 +921,15 @@ Item {
         repeat: true
         running: capturePage.recording
         onTriggered: capturePage.recSeconds++
+    }
+
+    // the stream's counter — independent, since the two outputs run
+    // independently
+    Timer {
+        interval: 1000
+        repeat: true
+        running: capturePage.streaming
+        onTriggered: capturePage.streamSeconds++
     }
 
     function fmtDuration(s) {
