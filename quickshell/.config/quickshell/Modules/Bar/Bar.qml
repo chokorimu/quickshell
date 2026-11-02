@@ -159,8 +159,15 @@ Item {
             root.sessionPinned = false
             collapseGrace.stop()
         } else {
-            root.keyboardDismissed = false
-            collapseGrace.restart()
+            // a capture in flight must not restart the grace timer:
+            // the cursor leaves the collapsing card, and the reopen
+            // that follows would put the island back under the
+            // cursor — and into the shot — before slurp has grabbed
+            // it. See captureDismissing below.
+            if (!root.captureDismissing) {
+                root.keyboardDismissed = false
+                collapseGrace.restart()
+            }
         }
     }
 
@@ -177,6 +184,34 @@ Item {
         // collapse and resets once the card is fully gone (popOut below),
         // so the shrink animates the menu the user was last looking at
         // instead of flashing the default mid-animation.
+    }
+
+    // ---- the capture dismissal ------------------------------------------
+    // The capture page dismisses the island before firing its shot:
+    // slurp takes the input grab, and the card would be in the
+    // frame. The dismissal latches the island shut under the resting
+    // cursor the way dismissSession does, but it runs into the grace
+    // timer on the way out — the cursor leaves the shrinking card,
+    // hovered goes false, and collapseGrace holds `expanded` long
+    // enough for the card to pop back open under a stationary
+    // cursor. captureDismissing is Capture.qml's `dismissing`, held
+    // from the pill click until the shot is on its way, and it gates
+    // that reopen (see the guard in onHoveredChanged above).
+    property bool captureDismissing: capturePage.dismissing
+
+    onCaptureDismissingChanged: {
+        if (captureDismissing) {
+            // the click: latch the island shut under the resting
+            // cursor
+            root.keyboardDismissed = root.hovered
+        } else if (!root.hovered) {
+            // the shot is on its way and the cursor is off the card:
+            // release the latch so the next hover opens normally. If
+            // the cursor somehow made it back onto the card, the
+            // latch holds until it leaves again — the same sticky
+            // behaviour the keyboard toggle has.
+            root.keyboardDismissed = false
+        }
     }
 
     // ---- the session menu over IPC ----------------------------------------
