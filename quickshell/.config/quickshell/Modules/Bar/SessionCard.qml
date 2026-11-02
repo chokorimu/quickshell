@@ -41,6 +41,14 @@ Item {
     property int hoveredCell: -1
     readonly property bool hovered: hoveredCell >= 0
 
+    // The card goes away between visits — a page switch, or the island
+    // collapsing all the way and resetting the page. Qt does not
+    // reliably fire a MouseArea's onExited when its item turns
+    // invisible, so without this a cell could stay lit with no cursor
+    // anywhere near it, and hold the island's hover true on the way
+    // back in.
+    onVisibleChanged: if (!visible) sessionCard.hoveredCell = -1
+
     // hostname — read once; the card is short-lived enough that a
     // change mid-session is not worth a watcher
     Process {
