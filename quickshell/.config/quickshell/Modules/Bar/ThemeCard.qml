@@ -1,10 +1,10 @@
 // ThemeCard.qml — the island's second menu: the theme switch.
 //
 // Same card and pop as the media, volume and session pages; reached by
-// hovering the second tab button in the column. Two controls: a
+// hovering the second tab button in the column. Three controls: a
 // three-way switch for the theme mode — auto / light / dark — held in
 // Theme.themeMode and written to a state file, so the choice is still
-// there after a reboot, and a brightness slider.
+// there after a reboot; a brightness slider; and a wallpaper grid.
 //
 // The switch is the workspace pill's design, scaled up for labels: one
 // pill on the pill surface, three rounded buttons inside it, the
@@ -24,14 +24,26 @@
 // VolumeRow uses: the service polls every 2s, and a read-back landing
 // mid-drag would snap the handle back to the old value.
 //
+// The grid is three columns of thumbnails from the Wallpapers service,
+// scrolling when the directory holds more than the card can show — a
+// third of a row peeks past the bottom edge, which is what says
+// "scrollable" without a scrollbar. Each thumbnail is a plate in
+// cardHighlight with the image cropped to fill it, and the current
+// wallpaper — the one awww reports as displayed — carries a cardAccent
+// frame. Clicking one applies it exactly the way the rofi wallpaper
+// menu (SUPER+G) does: awww for the grow transition, then matugen to
+// regenerate the palette from the new image.
+//
 // Both controls sit on the content area's margins (80 left, 28 right —
 // the volume page's rows), with a 120px label column so the pill and
-// the slider share a left edge, rather than centred in the card.
+// the slider share a left edge, rather than centred in the card. The
+// grid rides the same margins under them.
 //
 // No MouseArea in here takes hover: a hover-enabled area would steal
 // cardZone's hover in Bar.qml and collapse the island under a resting
-// cursor. The segments are click-only and the slider is drag-only,
-// like the session page's cells and the volume page's rows.
+// cursor. The segments are click-only, the slider is drag-only and the
+// thumbnails are click-only, like the session page's cells and the
+// volume page's rows.
 import QtQml
 import QtQuick
 import Quickshell
@@ -44,26 +56,19 @@ Item {
     // the three modes, in switch order
     readonly property var modes: ["auto", "light", "dark"]
 
-    // what the active mode resolves to — auto is the only one whose
-    // outcome is not obvious from its label
-    readonly property string caption: {
-        if (Theme.themeMode === "light")
-            return "Light pill"
-        if (Theme.themeMode === "dark")
-            return "Dark pill"
-        return Theme.barUseMatugen
-            ? "Following matugen's palette"
-            : "Matugen is off — dark pill"
-    }
-
     // The brightness service polls only while this page is on screen
     // — it is the service's only consumer, and the page is usually
     // closed. refresh() on the way in so the slider is live the
-    // moment the card opens rather than one poll behind.
+    // moment the card opens rather than one poll behind. The wallpaper
+    // listing is a one-shot find plus an awww query, driven the same
+    // way: nothing here polls, so the grid costs nothing while the
+    // page is closed.
     onVisibleChanged: {
         Brightness.active = visible
-        if (visible)
+        if (visible) {
             Brightness.refresh()
+            Wallpapers.refresh()
+        }
     }
 
     // title row — header mark + "Theme", left-aligned. The 80px
@@ -299,15 +304,80 @@ Item {
         }
     }
 
-    // what the active mode resolves to, under the controls
-    Text {
+    // wallpaper grid — three columns, scrolling when the directory
+    // holds more than the card can show. Anchored between the controls
+    // and the card's bottom edge so it takes whatever height is left:
+    // a GridView whose height binds to its own contentHeight never
+    // renders anything (it starts at zero, instantiates no delegates,
+    // and can never grow), so the height has to come from the card.
+    GridView {
+        id: wallGrid
         anchors.top: controlColumn.bottom
         anchors.topMargin: 16
         anchors.left: parent.left
         anchors.leftMargin: 80
-        text: themeCard.caption
-        color: Theme.cardDim
-        font.family: Theme.barFontFamily
-        font.pixelSize: 13
+        anchors.right: parent.right
+        anchors.rightMargin: 28
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: 16
+        clip: true
+        // three columns across the content width
+        cellWidth: width / 3
+        // a third of the next row peeks past the bottom edge — the
+        // scroll affordance, since there is no scrollbar
+        cellHeight: 96
+        cacheBuffer: 200
+        boundsBehavior: Flickable.StopAtBounds
+        model: Wallpapers.paths
+
+        delegate: Item {
+            id: thumb
+            required property var modelData
+            readonly property bool selected: modelData === Wallpapers.current
+
+            // wallGrid.cellWidth, never GridView.width: with no id on
+            // the view, `GridView` resolves to the TYPE object (typeof
+            // "object"), whose .width is undefined — the delegate's
+            // width silently becomes 0 and the thumbnail collapses.
+            // No error is logged, which is how it shipped in the
+            // volume card once.
+            width: wallGrid.cellWidth
+            height: wallGrid.cellHeight
+
+            // the current wallpaper's frame — the accent, rounded,
+            // and only drawn for the selected thumb
+            Rectangle {
+                anchors.fill: parent
+                anchors.margins: 2
+                radius: 7
+                color: "transparent"
+                border.width: 2
+                border.color: Theme.cardAccent
+                visible: thumb.selected
+            }
+
+            Rectangle {
+                anchors.fill: parent
+                anchors.margins: 4
+                color: Theme.cardHighlight
+
+                Image {
+                    anchors.fill: parent
+                    source: thumb.modelData
+                    fillMode: Image.PreserveAspectCrop
+                    // a thumbnail never needs the full-size file — the
+                    // cell is ~160px wide, so this keeps a 4K wallpaper
+                    // from being decoded at full size, and 52 of them
+                    // from being held at once
+                    sourceSize: Qt.size(180, 120)
+                    asynchronous: true
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    onClicked: Wallpapers.set(thumb.modelData)
+                }
+            }
+        }
     }
 }
