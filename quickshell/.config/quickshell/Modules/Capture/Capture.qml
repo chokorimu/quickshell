@@ -366,8 +366,8 @@ Item {
         }
 
         // the list's slot: a plain Item rather than the Column's own
-        // child, because the empty message needs to fill the same
-        // box and anchors are not allowed directly inside a Column.
+        // child, because the empty message shares the box and
+        // anchors are not allowed directly inside a Column.
         // The width is a binding, not an anchor, for the same reason:
         // a Column positions its children vertically and leaves the
         // width alone, so an unset width is 0 — and a 0-wide slot
@@ -439,13 +439,16 @@ Item {
             }
 
             // an empty db and a dead watcher read the same way, so
-            // one message covers both
+            // one message covers both. Top centre, not filling the
+            // slot: a line floating in the middle of a 167px empty
+            // box reads as lost, while one at the top reads as
+            // "nothing here yet" at the head of the list, where the
+            // first entry would land.
             Text {
-                anchors.fill: parent
-                anchors.leftMargin: 10
+                anchors.top: parent.top
+                anchors.horizontalCenter: parent.horizontalCenter
                 visible: capturePage.clipEntries.length === 0
                 text: "No history yet"
-                verticalAlignment: Text.AlignVCenter
                 color: Theme.cardDim
                 font.family: Theme.barFontFamily
                 font.pixelSize: 13
