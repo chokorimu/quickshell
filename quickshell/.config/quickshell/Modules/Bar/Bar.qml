@@ -1082,52 +1082,6 @@ Item {
                     width: discSize
                     height: discSize
 
-                    // The disc leans 12 degrees, top edge away from the
-                    // viewer — a record on a turntable seen from slightly
-                    // above. It is a transform, not a geometry change, and
-                    // that is what keeps it cheap: the size switch's whole
-                    // arithmetic (discSize, bottomEdge, the bottomMargin
-                    // that hangs the disc off content y228) reads width and
-                    // height, and a Rotation changes neither. A flat plane
-                    // tilted around an in-plane axis only foreshortens —
-                    // 342 at 12 degrees stays 342 wide and projects 334.5
-                    // tall — so the AABB shrinks rather than grows, the
-                    // bottom edge stays pinned, the title and transport
-                    // below never move, and the top-right arc drifts away
-                    // from the size switch instead of into it.
-                    //
-                    // The origin is the centre. Without it the Rotation
-                    // pivots on the item's top-left corner and the disc
-                    // swings clean out of the card.
-                    //
-                    // It composes after `rotation`, not instead of it: Qt
-                    // applies the convenience properties (x/y, scale,
-                    // rotation) first and the transform list last, so the
-                    // 10s spin stays disc-local and the lean is
-                    // screen-space. That is the right order — a record
-                    // spins about its own centre and the whole thing leans.
-                    //
-                    // Two caveats. It is orthographic: QtQuick projects
-                    // item transforms with no vanishing point, so the art
-                    // does not perspective-stretch. For a disc that is
-                    // geometrically right — an orthographic tilt of a
-                    // circle is exactly an ellipse — and at this angle the
-                    // difference is invisible. And the disc's MouseArea
-                    // still covers the item's square bounds rather than the
-                    // tilted ellipse, so the corner clicks stay dead. That
-                    // one is pre-existing (the disc was always a circle in
-                    // a square); the lean only makes the dead corners
-                    // slightly bigger.
-                    //
-                    // Flip the axis to (0, 1, 0) to lean side-to-side
-                    // instead; both are equally safe, for the reason above.
-                    transform: Rotation {
-                        origin.x: bigArt.width / 2
-                        origin.y: bigArt.height / 2
-                        axis: Qt.vector3d(1, 0, 0)
-                        angle: 12
-                    }
-
                     // one revolution per 10s, clockwise (rotation
                     // increases — Qt's positive direction is clockwise).
                     // The 0 → 360 loop snap is invisible: 360 ≡ 0.
