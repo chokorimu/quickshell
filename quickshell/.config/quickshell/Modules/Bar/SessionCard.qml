@@ -9,14 +9,14 @@
 // user comes from $USER and the hostname from /proc/sys/kernel/hostname
 // (no env var is guaranteed to carry it).
 //
-// The power cells DO take hover — a hold has to cancel when the cursor
-// walks off the cell — and that is exactly the trap this note used to
-// warn about: a hover-enabled MouseArea inside the card steals
-// cardZone's hover in Bar.qml and collapses the island under a resting
-// cursor. The cells therefore report their hover up through
-// `hoveredCell`, and Bar.qml ORs it into its own `hovered` the same
-// way the tab buttons arrive through columnHovered. The avatar stays
-// click-only.
+// The power cells DO take hover — they light up yellow under the
+// cursor, and a hold has to cancel when the cursor walks off — and
+// that is exactly the trap this note used to warn about: a
+// hover-enabled MouseArea inside the card steals cardZone's hover in
+// Bar.qml and collapses the island under a resting cursor. The cells
+// therefore report their hover up through `hoveredCell`, and Bar.qml
+// ORs it into its own `hovered` the same way the tab buttons arrive
+// through columnHovered. The avatar stays click-only.
 import QtQml
 import QtQuick
 import QtQuick.Dialogs
@@ -154,7 +154,16 @@ Item {
             font.pixelSize: 18
         }
 
-        // power grid — lock / logout / reboot / shutdown
+        // power grid — lock / logout / reboot / shutdown. The cells
+        // light up in the launcher's selection yellow under the
+        // cursor, with the glyph and label knocked out in the
+        // near-black that goes with it (launcherSelectionOn) — the
+        // same fixed pair the launcher's selected row uses, which is
+        // why it is yellow in both themes rather than following the
+        // palette. The black wipe paints straight over the yellow, so
+        // what the fill's edge is judged against is yellow, not the
+        // card: black-on-yellow is 14.67:1 where black-on-card is
+        // 1.47:1.
         GridLayout {
             anchors.horizontalCenter: parent.horizontalCenter
             columns: 4
@@ -181,10 +190,19 @@ Item {
                     Layout.preferredWidth: 104
                     Layout.preferredHeight: 88
                     radius: 16
-                    color: Theme.cardHighlight
 
-                    // resting content — the near-black that reads on the
-                    // cell's own surface
+                    // the launcher's selection yellow under the cursor
+                    color: sessionCard.hoveredCell === index
+                        ? Theme.launcherSelection
+                        : Theme.cardHighlight
+
+                    // eases the fill in rather than snapping it
+                    Behavior on color {
+                        ColorAnimation { duration: 120 }
+                    }
+
+                    // resting content — the near-black that reads on
+                    // yellow, or the card's own ink on the grey
                     Column {
                         anchors.centerIn: parent
                         spacing: 8
@@ -192,7 +210,9 @@ Item {
                         Text {
                             anchors.horizontalCenter: parent.horizontalCenter
                             text: modelData.glyph
-                            color: Theme.cardForeground
+                            color: sessionCard.hoveredCell === index
+                                ? Theme.launcherSelectionOn
+                                : Theme.cardForeground
                             font.family: Theme.iconFont
                             font.pixelSize: 24
                         }
@@ -200,7 +220,9 @@ Item {
                         Text {
                             anchors.horizontalCenter: parent.horizontalCenter
                             text: modelData.label
-                            color: Theme.cardDim
+                            color: sessionCard.hoveredCell === index
+                                ? Theme.launcherSelectionOn
+                                : Theme.cardDim
                             font.family: Theme.barFontFamily
                             font.pixelSize: 12
                         }
