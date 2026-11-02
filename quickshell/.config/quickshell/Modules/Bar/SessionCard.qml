@@ -155,15 +155,12 @@ Item {
         }
 
         // power grid — lock / logout / reboot / shutdown. The cells
-        // light up in the launcher's selection yellow under the
-        // cursor, with the glyph and label knocked out in the
-        // near-black that goes with it (launcherSelectionOn) — the
-        // same fixed pair the launcher's selected row uses, which is
-        // why it is yellow in both themes rather than following the
-        // palette. The black wipe paints straight over the yellow, so
-        // what the fill's edge is judged against is yellow, not the
-        // card: black-on-yellow is 14.67:1 where black-on-card is
-        // 1.47:1.
+        // lighten under the cursor to Theme.cardHover — a neutral that
+        // is light in both palettes — with the glyph and label knocked
+        // out in cardHoverOn. The black wipe paints straight over it,
+        // so what the fill's edge is judged against is that light fill
+        // rather than the card: black-on-light is 14-17:1 where
+        // black-on-cardHighlight is 1.7:1 in the dark palette.
         GridLayout {
             anchors.horizontalCenter: parent.horizontalCenter
             columns: 4
@@ -191,9 +188,12 @@ Item {
                     Layout.preferredHeight: 88
                     radius: 16
 
-                    // the launcher's selection yellow under the cursor
+                    // the hover fill lightens the cell in both
+                    // palettes, because the wipe is black and its
+                    // leading edge has to read against whatever it
+                    // lands on
                     color: sessionCard.hoveredCell === index
-                        ? Theme.launcherSelection
+                        ? Theme.cardHover
                         : Theme.cardHighlight
 
                     // eases the fill in rather than snapping it
@@ -202,7 +202,8 @@ Item {
                     }
 
                     // resting content — the near-black that reads on
-                    // yellow, or the card's own ink on the grey
+                    // the light hover fill, or the card's own ink on
+                    // the grey
                     Column {
                         anchors.centerIn: parent
                         spacing: 8
@@ -211,7 +212,7 @@ Item {
                             anchors.horizontalCenter: parent.horizontalCenter
                             text: modelData.glyph
                             color: sessionCard.hoveredCell === index
-                                ? Theme.launcherSelectionOn
+                                ? Theme.cardHoverOn
                                 : Theme.cardForeground
                             font.family: Theme.iconFont
                             font.pixelSize: 24
@@ -221,7 +222,7 @@ Item {
                             anchors.horizontalCenter: parent.horizontalCenter
                             text: modelData.label
                             color: sessionCard.hoveredCell === index
-                                ? Theme.launcherSelectionOn
+                                ? Theme.cardHoverOn
                                 : Theme.cardDim
                             font.family: Theme.barFontFamily
                             font.pixelSize: 12
@@ -247,9 +248,9 @@ Item {
                     // the width and the whole fill collapsed into a pill.
                     // That is why the black read smaller than the button.
                     //
-                    // The content is re-drawn on top in the yellow that
-                    // reads on black, clipped to the same width the fill
-                    // has reached, so the glyph and label surface
+                    // The content is re-drawn on top in the hover
+                    // fill's own light, clipped to the same width the
+                    // fill has reached, so the glyph and label surface
                     // exactly where the black has landed. The copy
                     // underneath keeps the near-black that reads on the
                     // cell, which is what makes the label legible across
@@ -311,7 +312,7 @@ Item {
                         }
                     }
 
-                    // the yellow copy of the content, clipped to the
+                    // the light copy of the content, clipped to the
                     // width the black has reached. Transparent itself —
                     // only the children paint — and the copy sits in a
                     // full-cell-sized Item so it stays centred in the
@@ -335,7 +336,7 @@ Item {
                                 Text {
                                     anchors.horizontalCenter: parent.horizontalCenter
                                     text: modelData.glyph
-                                    color: Theme.launcherSelection
+                                    color: Theme.cardHover
                                     font.family: Theme.iconFont
                                     font.pixelSize: 24
                                 }
@@ -343,7 +344,7 @@ Item {
                                 Text {
                                     anchors.horizontalCenter: parent.horizontalCenter
                                     text: modelData.label
-                                    color: Theme.launcherSelection
+                                    color: Theme.cardHover
                                     font.family: Theme.barFontFamily
                                     font.pixelSize: 12
                                 }

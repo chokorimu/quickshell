@@ -202,6 +202,20 @@ Singleton {
     readonly property color cardInk:       darkMode ? "#e8e8ea" : "#1b1b1f"
     readonly property color cardOnInk:     cardBackground
 
+    // power-cell hover — a neutral fill that lightens the cell in both
+    // palettes. The hold wipe is black, so its leading edge has to read
+    // against whatever it lands on: on the resting cardHighlight that
+    // edge is 1.7:1 in the dark palette, which is what made the fill
+    // look like it was leaking out of the button, and on this fill it
+    // is 14-17:1 in both. Light in both themes is the whole point — a
+    // symmetric invert would put a dark cell under a black fill and the
+    // progress would vanish for the length of the hold.
+    readonly property color cardHover:   darkMode ? "#e8e8ea" : "#ffffff"
+    // content on the hover fill. Near-black in both palettes, and it
+    // deliberately does not flip, because the fill it sits on is light
+    // in both — the same reason cardAccentOn is fixed.
+    readonly property color cardHoverOn: "#1b1b1f"
+
     // launcher selection — the active row's fill. Fixed in both
     // palettes like cardAccent: LO asked for yellow across all
     // themes, so this deliberately does not flip with darkMode or
