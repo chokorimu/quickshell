@@ -9,8 +9,9 @@
 // saving to ~/Pictures/Screenshots and copying to the clipboard on
 // the way out. Step 4 wired the record row to OBS over obs-websocket:
 // one pill toggles StartRecord/StopRecord with the elapsed time
-// beside it. The clipboard section is still a placeholder, noting
-// the step that wires it.
+// beside it. Step 3 wired the clipboard row last and below the
+// record button, at LO's request: a scrollable history read out of
+// cliphist's db, one click copying an entry back.
 //
 // The pills are click-only on purpose, the same rule the session and
 // theme pages follow: a hover-enabled MouseArea in here steals
@@ -125,50 +126,6 @@ Item {
             }
         }
 
-        // ---- clipboard --------------------------------------------------
-        // Step 3 wires this. wl-paste reads the current selection only,
-        // so real history needs cliphist installed and running
-        // (wl-paste --watch cliphist store as a hypr exec-once).
-        Column {
-            anchors.left: parent.left
-            spacing: 10
-
-            Text {
-                text: "Clipboard"
-                color: Theme.cardDim
-                font.family: Theme.barFontFamily
-                font.pixelSize: 12
-            }
-
-            Row {
-                anchors.left: parent.left
-                spacing: 8
-
-                Rectangle {
-                    id: clipPill
-                    height: 36
-                    width: clipPillLabel.implicitWidth + 36
-                    radius: 18
-                    color: Theme.cardHighlight
-
-                    Text {
-                        id: clipPillLabel
-                        anchors.centerIn: parent
-                        text: "View history"
-                        color: Theme.cardForeground
-                        font.family: Theme.barFontFamily
-                        font.pixelSize: 13
-                    }
-
-                    MouseArea {
-                        anchors.fill: parent
-                        // placeholder — step 3
-                        onClicked: {}
-                    }
-                }
-            }
-        }
-
         // ---- record -----------------------------------------------------
         // Wired in step 4 to OBS over obs-websocket: one pill toggles
         // StartRecord/StopRecord, the elapsed time rides beside it,
@@ -231,6 +188,108 @@ Item {
                     font.family: Theme.barFontFamily
                     font.pixelSize: 13
                 }
+            }
+        }
+    }
+
+    // ---- clipboard: history -------------------------------------------
+    // Below the record button, at LO's request, and anchored to the
+    // card's bottom edge rather than flowed in the column above —
+    // the theme page's wallpaper grid sits the same way, and it buys
+    // the list every pixel the sections above leave it.
+    //
+    // wl-paste reads the current selection only, so the history
+    // lives in cliphist's db, fed by `wl-paste --watch cliphist
+    // store` from hyprland's autostart. This section lists it and
+    // copies an entry back; cliphist owns the storing.
+    Column {
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: 16
+        anchors.left: parent.left
+        anchors.leftMargin: 80
+        anchors.right: parent.right
+        anchors.rightMargin: 28
+        spacing: 10
+
+        Text {
+            text: "Clipboard"
+            color: Theme.cardDim
+            font.family: Theme.barFontFamily
+            font.pixelSize: 12
+        }
+
+        // the list's slot: a plain Item rather than the Column's own
+        // child, because the empty message needs to fill the same
+        // box and anchors are not allowed directly inside a Column.
+        // The width is a binding, not an anchor, for the same reason:
+        // a Column positions its children vertically and leaves the
+        // width alone, so an unset width is 0 — and a 0-wide slot
+        // renders neither the list nor the empty message.
+        Item {
+            width: parent.width
+            height: 108
+
+            ListView {
+                id: clipList
+                anchors.fill: parent
+                // a fixed height off the card, never contentHeight: a
+                // view whose height binds to its own content starts at
+                // zero, instantiates no delegates, and can never grow
+                clip: true
+                cacheBuffer: 200
+                boundsBehavior: Flickable.StopAtBounds
+                // no scrollbar — the partial fourth row is the
+                // affordance, same as the wallpaper grid
+                model: capturePage.clipEntries
+
+                delegate: Rectangle {
+                    id: clipRow
+                    required property var modelData
+
+                    // clipList.width, never ListView.width: with no id
+                    // on the view, ListView resolves to the TYPE
+                    // object, whose .width is undefined — the delegate
+                    // silently collapses to 0 wide, with no error
+                    // logged
+                    width: clipList.width
+                    height: 30
+                    color: "transparent"
+
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.left: parent.left
+                        anchors.leftMargin: 10
+                        anchors.right: parent.right
+                        anchors.rightMargin: 4
+                        text: clipRow.modelData.preview
+                        elide: Text.ElideRight
+                        // an image has no text to show, so cliphist's
+                        // own marker stands in for the content and
+                        // reads dim
+                        color: clipRow.modelData.image ? Theme.cardDim : Theme.cardForeground
+                        font.family: Theme.barFontFamily
+                        font.pixelSize: 13
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: capturePage.pickClip(clipRow.modelData.id)
+                    }
+                }
+            }
+
+            // an empty db and a dead watcher read the same way, so
+            // one message covers both
+            Text {
+                anchors.fill: parent
+                anchors.leftMargin: 10
+                visible: capturePage.clipEntries.length === 0
+                text: "No history yet"
+                verticalAlignment: Text.AlignVCenter
+                color: Theme.cardDim
+                font.family: Theme.barFontFamily
+                font.pixelSize: 13
             }
         }
     }
@@ -609,5 +668,61 @@ Item {
     function notifySaved(path) {
         obsNotifyProcess.command = ["notify-send", "Recording saved", path]
         obsNotifyProcess.running = true
+    }
+
+    // ---- the clipboard history ----------------------------------------
+    // cliphist owns the db; this reads it. `cliphist list` prints one
+    // entry per line as `<id>\t<preview>`, newest first, with images
+    // standing in as `[[ binary data 86 B png 23x23 ]]` and long
+    // lines cut at cliphist's preview width. Decoding pipes the raw
+    // entry back through wl-copy, which sniffs the type — a PNG
+    // lands back on the clipboard as image/png, so the screenshot
+    // row's copies round-trip too.
+    property var clipEntries: []
+
+    function onClipList(text) {
+        var out = []
+        var lines = text.split("\n")
+        for (var i = 0; i < lines.length; i++) {
+            // the id is everything before the first tab; a preview
+            // may itself contain tabs, and a line without one is
+            // cliphist's "please store something first" notice
+            var tab = lines[i].indexOf("\t")
+            if (tab < 0)
+                continue
+            var preview = lines[i].substring(tab + 1)
+            out.push({
+                id: lines[i].substring(0, tab),
+                preview: preview,
+                image: preview.indexOf("[[ binary data") === 0
+            })
+        }
+        capturePage.clipEntries = out
+    }
+
+    // The page is a persistent instance behind a visible flag, so
+    // the refresh rides the visibility Bar.qml toggles: the list is
+    // read fresh every time the capture page opens.
+    onVisibleChanged: if (visible) clipListProcess.running = true
+
+    function pickClip(id) {
+        // the id comes out of cliphist's own output, but it lands in
+        // a shell command, so it is checked rather than trusted
+        if (!/^\d+$/.test(id))
+            return
+        clipDecodeProcess.command = ["sh", "-c", "cliphist decode " + id + " | wl-copy"]
+        clipDecodeProcess.running = true
+    }
+
+    Process {
+        id: clipListProcess
+        command: ["cliphist", "list"]
+        stdout: StdioCollector {
+            onStreamFinished: capturePage.onClipList(this.text)
+        }
+    }
+
+    Process {
+        id: clipDecodeProcess
     }
 }
