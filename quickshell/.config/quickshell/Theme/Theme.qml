@@ -90,10 +90,13 @@ Singleton {
         // microseconds and the first frame paints on the persisted
         // theme instead of flashing the default.
         blockLoading: true
-        // A missing file is the normal first boot — the mode is only
-        // written once the switch is used. Errors stay quiet so the
-        // log is not carrying a load failure on every fresh start.
+        // A missing file is the normal first boot. Errors stay quiet
+        // so the log is not carrying a load failure on every fresh
+        // start, and the file is created on the spot holding the
+        // current mode — the state is explicit from then on rather
+        // than only appearing once the switch is first used.
         printErrors: false
+        onLoadFailed: modeFile.setText(root.themeMode)
     }
 
     // Read once, at construction: text() blocks until the load has
@@ -114,8 +117,9 @@ Singleton {
 
     // Every change after that is written straight back. The content
     // check keeps the boot-time assignment from rewriting the file
-    // with the value it already holds, and a missing file is never
-    // created until the switch is actually used.
+    // with the value it already holds. A first boot with no file
+    // creates one from onLoadFailed above, so this only ever fires
+    // for a real change.
     onThemeModeChanged: if (modeFile.text().trim() !== root.themeMode)
         modeFile.setText(root.themeMode)
 

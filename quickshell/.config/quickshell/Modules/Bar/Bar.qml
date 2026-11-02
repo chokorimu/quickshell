@@ -1196,13 +1196,27 @@ Item {
             anchors.right: parent.right
             height: root.barHeight
 
-            // ---- left: now playing + workspaces ----------------------------
+            // ---- left: // + now playing + workspaces ------------------------
             Row {
                 id: leftRow
                 anchors.left: parent.left
                 anchors.leftMargin: 14
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 12
+
+                // decorative prefix — visual only. This used to be the
+                // TEMPORARY dark-mode toggle: a click flipped the fixed
+                // palette. The island's Theme page owns that now and
+                // Theme.darkMode is readonly, so a click here would
+                // throw; the glyph stays because the bar's left row
+                // reads better with it.
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "//"
+                    color: Theme.barForeground
+                    font.family: Theme.barFontFamily
+                    font.pixelSize: Theme.barFontSize
+                }
 
                 // ---- now playing: circular art + scrolling "Artist - Song" ---
                 // Always visible — shows a dim "Not playing" when no player has a
