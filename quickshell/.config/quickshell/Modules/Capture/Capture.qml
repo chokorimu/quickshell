@@ -5,7 +5,7 @@
 // sections: screenshot (output / window / region), clipboard viewing,
 // and screen recording.
 //
-// Step 2 wired the screenshot row: three pills, one grim chain each,
+// Step 2 wired the screenshot row: three pills, one hyprshot each,
 // saving to ~/Pictures/Screenshots and copying to the clipboard on
 // the way out. Step 4 wired the record row to OBS over obs-websocket:
 // one pill toggles StartRecord/StopRecord with the elapsed time
@@ -93,17 +93,17 @@ Item {
         spacing: 16
 
         // ---- screenshot: label + output / window / region -------------
-        // Wired in step 2 to grim, which takes all three geometries:
-        // the whole output, the active window's rectangle out of
-        // hyprctl, or a slurp selection. The island dismisses itself
-        // first — slurp takes the input grab, and a card caught
-        // mid-pop would be in the frame.
+        // Wired in step 2 to hyprshot, which takes all three geometries
+        // itself: the active output, the active window, or a slurp
+        // selection. The island dismisses itself first — slurp takes
+        // the input grab, and a card caught mid-pop would be in the
+        // frame.
         //
         // The row is the theme page's control-row idiom: a 40px Item
         // carrying the label in a fixed 120px column with the pills
         // beside it, so the label reads as a row header instead of a
         // caption floating over the controls. The pills themselves are
-        // untouched — same surfaces, radii, glyphs and grim chains.
+        // untouched — same surfaces, radii, glyphs and hyprshot modes.
         Item {
             width: parent.width
             height: 40
@@ -552,41 +552,47 @@ Item {
     }
 
     // ---- the screenshot machinery -------------------------------------
-    // Three modes, three geometry sources, one capture: grim writes
-    // the file, wl-copy takes it off disk straight after, and a
-    // notification reports where it landed.
+    // One hyprshot per shot. hyprshot does the geometry itself —
+    // slurp for region, hyprctl's activewindow for window, its own
+    // active-output lookup for output — then grim, then wl-copy, then
+    // its own notification, so the three-process chain the grim
+    // version ran by hand collapses into one argv with no shell and
+    // no redirection anywhere.
     //
-    // hyprshot was the first choice and lost on evidence: it
-    // backgrounds its grab (`begin_grab & checkRunning` on the last
-    // line), so the main process exits about a second before the
-    // screenshot exists and nothing downstream can chain off its
-    // exit; its active-output lookup (`hyprctl -j monitors` filtered
-    // by the active workspace id) comes up empty on this Lua-config
-    // hyprland and silently degrades to `grim -g ""`, a full-screen
-    // grab; and its freeze flag is a no-op here anyway because
-    // hyprpicker is not installed. grim direct gives clean exits and
-    // one code path for all three modes.
+    // hyprshot was the first choice here and lost on evidence, all of
+    // which has since been re-measured and overturned: it backgrounds
+    // its grab (`begin_grab & checkRunning` on the last line), so the
+    // main process exits about a second before the screenshot exists
+    // — still true, and harmless, because nothing downstream needs
+    // the file at exit (the notification is hyprshot's own, and the
+    // only thing chained off the exit is the queue release, which
+    // the 350ms dismiss timer pushes a further 350ms out anyway);
+    // its active-output lookup (`hyprctl -j monitors` filtered by the
+    // active workspace id) used to come up empty on this Lua-config
+    // hyprland and silently degrade to `grim -g ""` — it now returns
+    // 0,0 1600x1000, verified; and its freeze flag was a no-op
+    // because hyprpicker was not installed — it is now, and the
+    // freeze/unfreeze cycle probes clean in both the shot and the
+    // cancel path.
     //
-    // The clipboard is wl-copy, which reads stdin — and QML's
-    // Process has no file redirection — so that one step runs
-    // through sh with the path single-quoted. The path is generated
-    // here (a timestamp under ~/Pictures/Screenshots), so there is
-    // nothing in it to escape.
+    // The exit code is ignored for the same family of reasons:
+    // without -z, checkRunning's `pkill hyprpicker` matches nothing
+    // and the script's `set -e` turns that into exit 1 on every
+    // successful shot (with -z it exits 0). A cancelled region shot
+    // exits 1 too, and both cases want the same thing — release the
+    // chain, write nothing.
     readonly property string screenshotDir: Quickshell.env("HOME")
         + "/Pictures/Screenshots"
 
-    // A shot is a chain: a geometry source (slurp for region, hyprctl
-    // for window, none for output), then grim to file + clipboard,
-    // then the notification. chainBusy gates re-entry, and a click
-    // landing mid-chain waits in `queued` — the same one-deep queue
+    // A shot is a chain: the dismissal wait, then one hyprshot, then
+    // the release. chainBusy gates re-entry, and a click landing
+    // mid-chain waits in `queued` — the same one-deep queue
     // Wallpapers uses, because `running = true` on a busy Process is
     // a silent no-op and the second click would vanish.
     property bool chainBusy: false
     property string queued: ""
     // the mode waiting on the dismissal timer, consumed when it fires
     property string pendingMode: ""
-    // the file the running shot writes, for the notification
-    property string lastPath: ""
 
     // Held from the pill click until the shot is actually on its
     // way. Bar.qml binds captureDismissing to this and holds the
@@ -618,87 +624,45 @@ Item {
         }
     }
 
+    // One hyprshot per mode. `-m active` is hyprshot's own active
+    // window/output lookup (a second -m after the selection mode),
+    // which replaces both hand-rolled geometry sources: hyprctl's
+    // activewindow JSON parse for window, and nothing-at-all for
+    // output. Region keeps hyprshot's internal slurp.
+    //
+    // -z (freeze) is region-only, and only now possible at all:
+    // hyprpicker is installed, so hyprshot's `hyprpicker -r -z &`
+    // actually freezes, and checkRunning pkills it the moment slurp
+    // exits — verified in both the shot and the cancel path, no
+    // strays either way. It is region-only because that is the one
+    // mode where the screen moves under the cursor mid-selection;
+    // output and window grab whatever is there the instant they run.
+    //
+    // -f carries this page's own timestamp rather than hyprshot's
+    // default `%Y-%m-%d-%H%M%S_hyprshot.png`, so the island's shots
+    // keep the bare shape hyprland's own screenshot keybinds use and
+    // sort together with them in the directory — and keep the -2/-3
+    // suffix when a second shot lands in the same second, which the
+    // one-deep queue makes routine.
     function startSource(mode) {
+        var args = ["hyprshot", "-m"]
         if (mode === "region")
-            slurpProcess.running = true
+            args.push("region", "-z")
         else if (mode === "window")
-            windowProcess.running = true
+            args.push("window", "-m", "active")
         else
-            capture("")
-    }
-
-    // region: slurp prints "x,y wxh" in logical pixels and exits 0,
-    // or prints "selection cancelled" to stderr and exits 1
-    Process {
-        id: slurpProcess
-        command: ["slurp"]
-        stdout: StdioCollector { id: slurpOut }
-        onExited: (exitCode) => {
-            if (exitCode === 0 && slurpOut.text.trim().length > 0)
-                capturePage.capture(slurpOut.text.trim())
-            else
-                capturePage.chainDone()
-        }
-    }
-
-    // window: hyprctl's activewindow, {"at":[x,y],"size":[w,h]} in
-    // the same logical convention slurp prints and grim -g eats
-    Process {
-        id: windowProcess
-        command: ["hyprctl", "-j", "activewindow"]
-        stdout: StdioCollector { id: windowOut }
-        onExited: (exitCode) => {
-            var geom = capturePage.windowGeometry(windowOut.text)
-            if (exitCode === 0 && geom.length > 0)
-                capturePage.capture(geom)
-            else
-                capturePage.chainDone()
-        }
-    }
-
-    // An empty object (no focused window) has no at/size and yields
-    // "", which drops the shot rather than grabbing the whole
-    // screen — grim with no -g is the output mode's behaviour, not
-    // something a missing window should fall back to.
-    function windowGeometry(json) {
-        try {
-            var w = JSON.parse(json)
-            if (!w.at || !w.size)
-                return ""
-            return w.at[0] + "," + w.at[1] + " " + w.size[0] + "x" + w.size[1]
-        } catch (e) {
-            return ""
-        }
-    }
-
-    // grim writes the file, wl-copy takes it off disk straight
-    // after — chained with && so a failed capture never reaches the
-    // clipboard.
-    function capture(geometry) {
-        var path = screenshotDir + "/" + timestamp() + ".png"
-        var cmd = "grim"
-        if (geometry.length > 0)
-            cmd += " -g '" + geometry + "'"
-        cmd += " '" + path + "' && wl-copy --type image/png < '" + path + "'"
-        captureProcess.command = ["/bin/sh", "-c", cmd]
+            args.push("output", "-m", "active")
+        args.push("-o", screenshotDir, "-f", timestamp() + ".png")
+        captureProcess.command = args
         captureProcess.running = true
-        lastPath = path
     }
 
+    // The only job left at the exit is releasing the chain: the file,
+    // the clipboard and the notification are all hyprshot's own work
+    // in its backgrounded grab, and none of them report back here.
     Process {
         id: captureProcess
-        onExited: (exitCode) => {
-            if (exitCode === 0 && capturePage.lastPath.length > 0) {
-                notifyProcess.command = ["notify-send", "Screenshot saved",
-                    capturePage.lastPath]
-                notifyProcess.running = true
-            }
-            capturePage.chainDone()
-        }
-    }
-
-    Process {
-        id: notifyProcess
+        onExited: capturePage.chainDone()
     }
 
     function chainDone() {
