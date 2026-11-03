@@ -36,7 +36,7 @@ Item {
 
         Text {
             anchors.verticalCenter: parent.verticalCenter
-            text: "VOLUME"
+            text: "// VOLUME"
             color: Theme.cardForeground
             font.family: Theme.barFontFamily
             font.pixelSize: 20

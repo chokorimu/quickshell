@@ -71,7 +71,7 @@ Item {
 
         Text {
             anchors.verticalCenter: parent.verticalCenter
-            text: "CAPTURE"
+            text: "// CAPTURE"
             color: Theme.cardForeground
             font.family: Theme.barFontFamily
             font.pixelSize: 20

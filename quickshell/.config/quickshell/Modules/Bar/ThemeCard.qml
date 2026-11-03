@@ -88,7 +88,7 @@ Item {
 
         Text {
             anchors.verticalCenter: parent.verticalCenter
-            text: "THEME"
+            text: "// THEME"
             color: Theme.cardForeground
             font.family: Theme.barFontFamily
             font.pixelSize: 20
