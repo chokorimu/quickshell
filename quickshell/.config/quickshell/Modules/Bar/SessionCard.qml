@@ -10,8 +10,8 @@
 // user comes from $USER and the hostname from /proc/sys/kernel/hostname
 // (no env var is guaranteed to carry it).
 //
-// The power cells DO take hover — they lighten under the cursor, and
-// a hold has to cancel when the cursor walks off — and that is
+// The power cells DO take hover — the fill inverts under the cursor,
+// and a hold has to cancel when the cursor walks off — and that is
 // exactly the trap this note used to warn about: a hover-enabled
 // MouseArea inside the card steals cardZone's hover in Bar.qml and
 // collapses the island under a resting cursor. The cells therefore
@@ -193,14 +193,16 @@ Item {
         }
 
         // power grid — lock / logout / reboot / shutdown. The cells
-        // lighten under the cursor to Theme.cardHover — a neutral that
-        // is light in both palettes — with the glyph and label knocked
-        // out in cardHoverOn. The hold traces a yellow ring — the fixed
-        // launcherSelection, LO's call — around the cell's outline,
-        // framing a button inset by the ring's width. What the ring is
-        // judged against is therefore the card, not the fill: yellow on
-        // the dark card is ~12:1, on the light one ~1.2:1, so the light
-        // palette's ring is the weak one.
+        // invert under the cursor to Theme.cardHover — light on the
+        // dark card, dark on the light one, each the other palette's
+        // cardHighlight — with the glyph and label knocked out in
+        // cardHoverOn, which flips with the fill. The hold traces a
+        // yellow ring — the fixed launcherSelection, LO's call —
+        // around the cell's outline, framing a button inset by the
+        // ring's width. What the ring is judged against is therefore
+        // the card, not the fill: yellow on the dark card is ~12:1,
+        // on the light one ~1.2:1, so the light palette's ring is the
+        // weak one.
         GridLayout {
             anchors.horizontalCenter: parent.horizontalCenter
             columns: 4
@@ -256,9 +258,9 @@ Item {
                         height: parent.height - 2 * sessionCard.holdRingWidth
                         radius: parent.radius - sessionCard.holdRingWidth
 
-                        // the hover fill lightens the button in both
-                        // palettes, so the knocked-out content reads
-                        // against it
+                        // the hover fill inverts — light on the dark
+                        // card, dark on the light one — so the
+                        // knocked-out content reads against it
                         color: sessionCard.hoveredCell === index
                             ? Theme.cardHover
                             : Theme.cardHighlight
@@ -268,9 +270,9 @@ Item {
                             ColorAnimation { duration: 120 }
                         }
 
-                        // resting content — the near-black that reads on
-                        // the light hover fill, or the card's own ink on
-                        // the grey
+                        // content — cardHoverOn while hovered, which
+                        // flips with the fill, or the card's own ink on
+                        // the grey at rest
                         Column {
                             anchors.centerIn: parent
                             spacing: 8
@@ -324,8 +326,9 @@ Item {
                     // the top centre and runs clockwise.
                     //
                     // The interior never changes colour, so the content
-                    // needs no second copy — the glyph and label sit
-                    // near-black on the hover fill for the whole hold.
+                    // needs no second copy — the glyph and label keep
+                    // cardHoverOn, which reads on the hover fill in
+                    // either palette, for the whole hold.
                     // That is the other thing the ring buys over the
                     // sweep: the old wipe needed a duplicated Text in the
                     // fill's colour, because one copy would have had to

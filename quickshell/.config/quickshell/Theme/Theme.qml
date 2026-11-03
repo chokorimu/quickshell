@@ -213,19 +213,19 @@ Singleton {
     readonly property color cardInk:       darkMode ? "#e8e8ea" : "#1b1b1f"
     readonly property color cardOnInk:     cardBackground
 
-    // power-cell hover — a neutral fill that lightens the cell in both
-    // palettes. The hold wipe is black, so its leading edge has to read
-    // against whatever it lands on: on the resting cardHighlight that
-    // edge is 1.7:1 in the dark palette, which is what made the fill
-    // look like it was leaking out of the button, and on this fill it
-    // is 14-17:1 in both. Light in both themes is the whole point — a
-    // symmetric invert would put a dark cell under a black fill and the
-    // progress would vanish for the length of the hold.
-    readonly property color cardHover:   darkMode ? "#e8e8ea" : "#ffffff"
-    // content on the hover fill. Near-black in both palettes, and it
-    // deliberately does not flip, because the fill it sits on is light
-    // in both — the same reason cardAccentOn is fixed.
-    readonly property color cardHoverOn: "#1b1b1f"
+    // power-cell hover — a soft inversion: light on the dark card,
+    // dark on the light one, each value the other palette's
+    // cardHighlight. The fill used to be light in both themes because
+    // the hold was a black wipe sweeping the button, and its leading
+    // edge vanished against a dark fill (1.7:1 on the resting
+    // cardHighlight); the hold is a ring now, traced on the card
+    // outside the button, so nothing constrains the fill to stay light
+    // and it can invert.
+    readonly property color cardHover:   darkMode ? "#d2d2d6" : "#3a3a40"
+    // content on the hover fill — flips with it, since the fill it
+    // sits on flips: near-black on the light fill in the dark palette,
+    // near-white on the dark fill in the light one.
+    readonly property color cardHoverOn: darkMode ? "#1b1b1f" : "#e8e8ea"
 
     // launcher selection — the active row's fill. Fixed in both
     // palettes like cardAccent, and the same value as it: one
