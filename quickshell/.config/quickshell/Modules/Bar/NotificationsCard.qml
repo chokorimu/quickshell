@@ -5,10 +5,10 @@
 // session pages; reached by hovering the seventh tab button in the
 // column. The toggles are four ToggleTiles in a 2x2 grid — wifi,
 // bluetooth, do-not-disturb, battery saver — and the history is the
-// clipboard list's idiom under a label row: a square cardHighlight
-// plate, hairline dividers, the partial row as the scroll
-// affordance, anchored to the card's bottom edge so it takes every
-// pixel the toggles leave it.
+// clipboard list's idiom under a label row: a rounded cardHighlight
+// plate, soft dividers, the partial row as the scroll affordance,
+// anchored to the card's bottom edge so it takes every pixel the
+// toggles leave it.
 //
 // The page is a persistent instance behind a visible flag, so the
 // three page-only services — Bluetooth, PowerProfiles and Network's
@@ -235,14 +235,22 @@ Item {
             width: parent.width
             height: 155
 
-            // The list's plate: the section's own surface, square-
-            // cornered for the same two reasons the clipboard list's
-            // is — the dividers run edge to edge, and a rounded plate
-            // would put their ends on the curve. The dividers cut
-            // back to cardBackground, which reads as a groove against
-            // the plate in both palettes.
+            // The list's plate: the section's own surface, rounded
+            // at the card's own 10 — the tile and pill radius — at
+            // LO's call. It shipped square, the clipboard list's
+            // rationale: the dividers run edge to edge, and a rounded
+            // plate was read as putting their ends on the curve. No
+            // divider ever reaches a corner, though — rows are 40px,
+            // so the feet land at y40/80/120 against corner zones of
+            // only the top and bottom 10px, and StopAtBounds leaves
+            // no overscroll to push one down into the bottom arc.
+            // The ListView's own clip stays rectangular, so the
+            // rounding is safe only because no row content reaches
+            // the corners either: the icon starts 10px in, and the
+            // partial fourth row's ink stops well inside the arcs.
             Rectangle {
                 anchors.fill: parent
+                radius: 10
                 color: Theme.cardHighlight
             }
 
@@ -362,14 +370,22 @@ Item {
                     }
 
                     // the divider, edge to edge at the row's foot —
-                    // the settings-list idiom, and the reason the
-                    // plate is square
+                    // the settings-list idiom. 2px of cardDim at 0.1
+                    // at LO's call, up from a 1px cardBackground
+                    // groove: the card's own surface cutting through
+                    // read as a deep channel, and the softer line
+                    // separates the rows without drawing them apart.
+                    // 0.35 was still too present and 0.2 after it, so
+                    // it came down again. cardDim rather than
+                    // cardHighlight, which would be invisible on a
+                    // cardHighlight plate.
                     Rectangle {
                         anchors.bottom: parent.bottom
                         anchors.left: parent.left
                         anchors.right: parent.right
-                        height: 1
-                        color: Theme.cardBackground
+                        height: 2
+                        color: Theme.cardDim
+                        opacity: 0.1
                         visible: index < historyList.count - 1
                     }
                 }

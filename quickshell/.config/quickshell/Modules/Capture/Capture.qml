@@ -446,19 +446,26 @@ Item {
             // still scrolls past that.
             height: 151
 
-            // The list's plate: the section's own surface, square-
-            // cornered at LO's call. Square rather than the shell's
-            // usual pill for two reasons — the dividers run edge to
-            // edge, and a rounded plate would put their ends on the
-            // curve — and a list panel reads as a panel, not as one
-            // more control. cardHighlight is the token every other
-            // control on the card already wears, so the plate reads
-            // as one more surface rather than a new idea; the
-            // dividers cut back to cardBackground, which reads as a
-            // groove (darker than the plate in the dark palette,
-            // lighter in the light one) instead of a drawn line.
+            // The list's plate: the section's own surface, rounded
+            // at the card's own 10 — the tile and pill radius — at
+            // LO's call, the same change the notification list's
+            // plate took, so the two read as one system. It shipped
+            // square for two reasons — the dividers run edge to
+            // edge, and a rounded plate was read as putting their
+            // ends on the curve — but no divider ever reaches a
+            // corner: rows are 30px, so the feet land at
+            // y30/60/90/120 against corner zones of only the top and
+            // bottom 10px, and StopAtBounds leaves no overscroll. The
+            // ListView's own clip stays rectangular, so the rounding
+            // is safe only because no row content reaches the corners
+            // either: the text starts 10px in, and the fifth row's
+            // ink stops inside the bottom arcs. cardHighlight is the
+            // token every other control on the card already wears,
+            // so the plate reads as one more surface rather than a
+            // new idea.
             Rectangle {
                 anchors.fill: parent
+                radius: 10
                 color: Theme.cardHighlight
             }
 
@@ -516,18 +523,22 @@ Item {
                     }
 
                     // the divider, edge to edge at the row's foot —
-                    // the settings-list idiom, and the reason the
-                    // plate is square. cardBackground rather than
-                    // cardHighlight: on a cardHighlight plate a
-                    // cardHighlight line would be invisible, and the
-                    // card's own surface cutting through reads as a
-                    // groove in both palettes
+                    // the settings-list idiom. 2px of cardDim at 0.1
+                    // at LO's call, up from a 1px cardBackground
+                    // groove: the card's own surface cutting through
+                    // read as a deep channel, and the softer line
+                    // separates the rows without drawing them apart.
+                    // 0.35 was still too present and 0.2 after it, so
+                    // it came down again. cardDim rather than
+                    // cardHighlight, which would be invisible on a
+                    // cardHighlight plate.
                     Rectangle {
                         anchors.bottom: parent.bottom
                         anchors.left: parent.left
                         anchors.right: parent.right
-                        height: 1
-                        color: Theme.cardBackground
+                        height: 2
+                        color: Theme.cardDim
+                        opacity: 0.1
                         visible: index < clipList.count - 1
                     }
                 }
@@ -538,9 +549,13 @@ Item {
             // slot: a line floating in the middle of a 167px empty
             // box reads as lost, while one at the top reads as
             // "nothing here yet" at the head of the list, where the
-            // first entry would land.
+            // first entry would land. 10px down rather than flush at
+            // y0 — the notification list's own placement, and with
+            // the plate now rounded a message hard against the top
+            // edge reads as cramped.
             Text {
                 anchors.top: parent.top
+                anchors.topMargin: 10
                 anchors.horizontalCenter: parent.horizontalCenter
                 visible: capturePage.clipEntries.length === 0
                 text: "No history yet"
