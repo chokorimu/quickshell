@@ -170,10 +170,12 @@ Singleton {
     // value washes out against light gray)
     readonly property color barWorkspaceDim:  darkMode ? fixedDarkBarMuted : "#6e6e73"
 
-    // card accent — the lime fill on the island tab column's selected
-    // button. Fixed in both palettes, like screenCornerColor: it is
-    // an accent, not a surface.
-    readonly property color cardAccent: "#cdf34e"
+    // card accent — the saturated yellow fill on the island tab
+    // column's selected button. Fixed in both palettes, like
+    // screenCornerColor: it is an accent, not a surface. One yellow
+    // with launcherSelection below — the same value, so every accent
+    // in the shell reads as one system.
+    readonly property color cardAccent: "#e6e600"
     // label color on the accent — the selected button's glyph. Fixed
     // for the same reason cardAccent is: the accent never flips.
     readonly property color cardAccentOn: "#1b1b1f"
@@ -226,10 +228,11 @@ Singleton {
     readonly property color cardHoverOn: "#1b1b1f"
 
     // launcher selection — the active row's fill. Fixed in both
-    // palettes like cardAccent: LO asked for yellow across all
-    // themes, so this deliberately does not flip with darkMode or
-    // follow matugen. Near-black label for contrast on the yellow.
-    readonly property color launcherSelection:   "#ffd400"
+    // palettes like cardAccent, and the same value as it: one
+    // saturated yellow across the shell, deliberately not flipping
+    // with darkMode or following matugen. Near-black label for
+    // contrast on the yellow.
+    readonly property color launcherSelection:   "#e6e600"
     readonly property color launcherSelectionOn: "#1b1b1f"
     // launcher search — the static label block beside the input
     // field. Inverted against the palette at LO's request: black in
