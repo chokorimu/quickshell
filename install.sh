@@ -45,6 +45,122 @@ for pkg in "${PACKAGES[@]}"; do
     fi
 done
 
+# --- dependency pre-flight ---------------------------------------------
+#
+# A warning, not a gate. Almost everything here degrades rather than
+# dies: a missing hyprshot leaves the capture page's screenshot row
+# dead, a missing nvidia-smi leaves the usage page's GPU cell reading
+# n/a. The one exception is qt6-websockets — Capture.qml imports
+# QtWebSockets at load time, so a missing module is a config that will
+# not start at all rather than a feature that is switched off. That one
+# is fatal, and only when the quickshell package is in play.
+#
+# Package names are Arch's. The list is the point, not the manager.
+
+# binary|package|what breaks without it
+RUNTIME_DEPS=(
+    "matugen|matugen|palette regeneration on every wallpaper pick"
+    "awww|awww|wallpaper transitions"
+    "rofi|rofi|the wallpaper and power menus"
+    "kitty|kitty|the terminal (SUPER+Return)"
+    "nmcli|networkmanager|the bar's network readout and the wifi tile"
+    "wpctl|pipewire|volume readout and the media transport"
+    "pactl|libpulse|the volume page's per-app sliders"
+    "brightnessctl|brightnessctl|the theme page's brightness slider"
+    "playerctl|playerctl|media transport controls"
+    "hyprlock|hyprlock|the session page's lock cell"
+    "hyprshot|hyprshot|the capture page's screenshot row"
+    "hyprpicker|hyprpicker|hyprshot's region freeze"
+    "slurp|slurp|region selection, hyprshot's and hyprland's own"
+    "grim|grim|hyprland's own screenshot keybinds"
+    "wl-copy|wl-clipboard|clipboard writes and the cliphist watcher exec-once"
+    "cliphist|cliphist|the capture page's clipboard history"
+    "notify-send|libnotify|screenshot and recording confirmations"
+    "bluetoothctl|bluez-utils|the bluetooth tile"
+    "rfkill|util-linux|bluetooth power-on, which clears the soft block"
+    "powerprofilesctl|power-profiles-daemon|the battery saver tile"
+    "cava|cava|the media page's visualiser"
+)
+
+# degrades to n/a, an offline line, or nothing at all
+OPTIONAL_DEPS=(
+    "nvidia-smi|nvidia-utils|the usage page's GPU cell reads n/a"
+    "wf-recorder|wf-recorder|an alternative record backend"
+    "otd-daemon|opentabletdriver|the tablet daemon in the autostart"
+)
+
+# Not binaries, so they cannot be command -v'd. None of these is a
+# package on this box — all four are hand-installed into
+# ~/.local/share/fonts, which is exactly why they are easy to lose on a
+# fresh machine and why nothing else here catches them.
+FONTS=(
+    "Montserrat SemiBold|the bar's UI font"
+    "JetBrainsMonoNL Nerd Font|every status glyph — tofu without it"
+    "Rubik|hyprlock"
+    "MartianMono Nerd Font|hyprlock"
+)
+
+missing_runtime=()
+missing_optional=()
+missing_fonts=()
+
+for entry in "${RUNTIME_DEPS[@]}"; do
+    IFS='|' read -r bin pkg what <<<"$entry"
+    command -v "$bin" >/dev/null 2>&1 || missing_runtime+=("$pkg — $what")
+done
+
+for entry in "${OPTIONAL_DEPS[@]}"; do
+    IFS='|' read -r bin pkg what <<<"$entry"
+    command -v "$bin" >/dev/null 2>&1 || missing_optional+=("$pkg — $what")
+done
+
+# fc-list : family emits comma-SPACE separated families, so after the tr
+# every line but the first carries a leading space — trim it, or grep -x
+# misses every family that is not listed first.
+#
+# Read once, into a variable, and match against the variable rather than
+# piping into grep -q. grep -q exits on its first match, and fc-list is
+# still writing the full system font list at that point, so it takes
+# SIGPIPE and dies 141 — which `set -o pipefail` turns into a failed
+# pipeline even though the font was found. Measured flaky at roughly one
+# run in three, failing on a different font each time. A herestring has
+# no upstream to signal, so it cannot race.
+font_families="$(fc-list : family 2>/dev/null | tr ',' '\n' | sed 's/^ *//; s/ *$//')"
+
+for entry in "${FONTS[@]}"; do
+    IFS='|' read -r family what <<<"$entry"
+    grep -ix "$family" <<<"$font_families" >/dev/null \
+        || missing_fonts+=("$family — $what")
+done
+
+if [ ${#missing_runtime[@]} -gt 0 ]; then
+    echo "warning: ${#missing_runtime[@]} runtime dependencies not found:" >&2
+    printf '    %s\n' "${missing_runtime[@]}" >&2
+fi
+
+if [ ${#missing_optional[@]} -gt 0 ]; then
+    echo "note: ${#missing_optional[@]} optional dependencies not found:" >&2
+    printf '    %s\n' "${missing_optional[@]}" >&2
+fi
+
+if [ ${#missing_fonts[@]} -gt 0 ]; then
+    echo "note: ${#missing_fonts[@]} font(s) not found — install into ~/.local/share/fonts:" >&2
+    printf '    %s\n' "${missing_fonts[@]}" >&2
+fi
+
+want_quickshell=0
+for pkg in "${PACKAGES[@]}"; do
+    if [ "$pkg" = "quickshell" ]; then
+        want_quickshell=1
+    fi
+done
+
+if [ "$want_quickshell" -eq 1 ] && [ ! -d /usr/lib/qt6/qml/QtWebSockets ]; then
+    echo "error: qt6-websockets not found. Capture.qml imports QtWebSockets, so" >&2
+    echo "       the shell will not load without it:  sudo pacman -S qt6-websockets" >&2
+    exit 1
+fi
+
 # --- stow ----------------------------------------------------------------
 
 for pkg in "${PACKAGES[@]}"; do
