@@ -547,11 +547,29 @@ Item {
                 ctx.fillStyle = "#000000"
                 ctx.fillRect(0, 0, w, h)
 
+                // Cover-fit, not stretch: the art is scaled until it
+                // fills the card in BOTH axes and the overflow is
+                // cropped, so a square cover keeps its aspect ratio on
+                // the 600x424 card instead of being squashed to fit.
+                // The crop is centred, which also keeps every blur tap
+                // inside the drawn copy — the copy is at least as large
+                // as the card on both axes, so a tap shifted off one
+                // edge still has the copy's own margin behind it (the
+                // stretch version had no margin at all, so its edge
+                // pixels relied on the taps shifted toward them).
+                var iw = mediaArtBackdrop.implicitWidth
+                var ih = mediaArtBackdrop.implicitHeight
+                var scale = (iw > 0 && ih > 0) ? Math.max(w / iw, h / ih) : 1
+                var dw = iw * scale
+                var dh = ih * scale
+                var dx = (w - dw) / 2
+                var dy = (h - dh) / 2
+
                 var n = artTaps.length
                 ctx.globalCompositeOperation = "lighter"
                 ctx.globalAlpha = 1 / n
                 for (var i = 0; i < n; i++)
-                    ctx.drawImage(mediaArtBackdrop, artTaps[i][0], artTaps[i][1], w, h)
+                    ctx.drawImage(mediaArtBackdrop, dx + artTaps[i][0], dy + artTaps[i][1], dw, dh)
                 ctx.globalCompositeOperation = "source-over"
                 ctx.globalAlpha = 1
                 ctx.restore()
