@@ -1533,7 +1533,61 @@ Item {
                     width: mediaSizeRow.implicitWidth + 6
 
                     readonly property var sizes: ["small", "big"]
+                    // Persisted like the theme mode (Theme.qml's
+                    // FileView): PersistentProperties only spans hot
+                    // reloads in 0.3.2, so a reboot would forget the
+                    // pick. The state file lives in ~/.local/state
+                    // rather than ~/.config/quickshell, which is this
+                    // repo through stow — a file written there would
+                    // land in git as an untracked artifact.
+                    readonly property string sizePath: Quickshell.env("HOME")
+                        + "/.local/state/quickshell/media-size"
+
+                    FileView {
+                        id: sizeFile
+                        path: mediaSizeSwitch.sizePath
+                        // A four-byte local file read while the shell
+                        // loads: the switch is a persistent instance
+                        // behind the page's visible flag, not a
+                        // Loader, so the blocking read costs
+                        // microseconds and the first frame paints on
+                        // the persisted size instead of flashing the
+                        // default.
+                        blockLoading: true
+                        // A missing file is the normal first boot.
+                        // Errors stay quiet so the log is not carrying
+                        // a load failure on every fresh start, and the
+                        // file is created on the spot holding the
+                        // current size.
+                        printErrors: false
+                        onLoadFailed: sizeFile.setText(mediaSizeSwitch.size)
+                    }
+
                     property string size: "small"
+
+                    // Read once, at construction: text() blocks until
+                    // the load has resolved, so the first frame paints
+                    // on the persisted size. A missing, empty or
+                    // unrecognised value leaves the size on small.
+                    // A plain assignment rather than a binding on
+                    // purpose — a binding re-evaluates when the load
+                    // settles and emits a change signal even when the
+                    // value is unchanged, which would rewrite the file
+                    // on every boot.
+                    Component.onCompleted: {
+                        var t = sizeFile.text().trim()
+                        if (t === "small" || t === "big")
+                            mediaSizeSwitch.size = t
+                    }
+
+                    // Every change after that is written straight back.
+                    // The content check keeps the boot-time assignment
+                    // from rewriting the file with the value it already
+                    // holds. A first boot with no file creates one from
+                    // onLoadFailed above, so this only ever fires for a
+                    // real change.
+                    onSizeChanged: if (sizeFile.text().trim() !== mediaSizeSwitch.size)
+                        sizeFile.setText(mediaSizeSwitch.size)
 
                     Row {
                         id: mediaSizeRow
