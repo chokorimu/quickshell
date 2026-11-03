@@ -17,6 +17,7 @@ import Quickshell
 import Quickshell.Services.Notifications
 import Quickshell.Wayland
 import "../../Theme"
+import "../../Services"
 
 PanelWindow {
     id: root
@@ -61,7 +62,17 @@ PanelWindow {
         // what apps send. This one line is the difference between popups
         // and silence; it cost a full source dive into 0.3.2's
         // NotificationServer::Notify to find.
-        onNotification: (notification) => notification.tracked = true
+        //
+        // History first, then the tracked decision. DND is simply not
+        // marking tracked — the discard above does the suppressing, with
+        // no daemon involved — while the history still records the
+        // notification. The append copies every field it needs out of
+        // the object on the spot, because the server deletes it the
+        // moment it goes untracked.
+        onNotification: (notification) => {
+            NotificationHistory.append(notification)
+            notification.tracked = !NotificationHistory.dnd
+        }
 
         // advertise what the cards can render so apps send bodies, actions
         // and icons instead of degrading to plain text
@@ -70,6 +81,24 @@ PanelWindow {
             notificationServer.actionsSupported = true
             notificationServer.actionIconsSupported = true
             notificationServer.imageSupported = true
+        }
+    }
+
+    // DND coming on also clears what is already on screen: a popup
+    // that survives the toggle reads as the toggle not working.
+    // dismiss() is the notification's own close — it tells the app
+    // and drops the card out of trackedNotifications, which is what
+    // retracts the stack. The target reference also constructs the
+    // history singleton at load, so its state file is read at shell
+    // start rather than at the first notification.
+    Connections {
+        target: NotificationHistory
+        function onDndChanged() {
+            if (!NotificationHistory.dnd)
+                return
+            var live = notificationServer.trackedNotifications.values
+            for (var i = 0; i < live.length; i++)
+                live[i].dismiss()
         }
     }
 

@@ -107,7 +107,7 @@ Item {
     }
 
     // hovering anywhere on the column — the strip itself or any of the
-    // six buttons — holds the island open and the column expanded
+    // seven buttons — holds the island open and the column expanded
     property bool columnHovered: columnZone.containsMouse
         || mediaTab.containsMouse
         || usageTab.containsMouse
@@ -115,6 +115,7 @@ Item {
         || volumeTab.containsMouse
         || captureTab.containsMouse
         || sessionTab.containsMouse
+        || notificationsTab.containsMouse
 
     onColumnHoveredChanged: columnExpand = columnHovered ? 1 : 0
 
@@ -134,6 +135,7 @@ Item {
         || (islandPage === "volume" && volumeIcon.containsMouse)
         || (islandPage === "session" && sessionPage.hovered)
         || (islandPage === "capture" && capturePage.hovered)
+        || (islandPage === "notifications" && notificationsPage.hovered)
 
     // ---- the keyboard-opened session menu ---------------------------------
     // SUPER+L pins the island open on the session page with the cursor
@@ -889,12 +891,26 @@ Item {
                     visible: root.islandPage === "session"
                 }
 
+                // ---- notifications page: toggles + history -------------
+                // Same card, same pop — reached by hovering the seventh
+                // tab button in the column. Gated on the page like the
+                // other six, so nothing paints underneath.
+                NotificationsCard {
+                    id: notificationsPage
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.bottom: parent.bottom
+                    visible: root.islandPage === "notifications"
+                }
+
                 // ---- page switcher: vertical tab column --------------------
-                // Six buttons down the card's left edge, flush against
+                // Seven buttons down the card's left edge, flush against
                 // the card's edge and each other (no margin, no gaps) and
                 // as wide as the column strip itself, so the block fills
                 // the strip edge to edge with no dead space beside it.
-                // Order is media, usage, theme, volume, capture, session. The
+                // Order is media, usage, theme, volume, capture, session,
+                // notifications. The
                 // selected page takes the accent fill — square
                 // corners, near-black glyph, and a black block down its
                 // left edge taking the full height and the left 10% of
@@ -1337,6 +1353,74 @@ Item {
                             anchors.fill: parent
                             hoverEnabled: true
                             onEntered: root.islandPage = "session"
+                        }
+                    }
+
+                    // ---- notifications: toggles + history -----------------
+                    // The session button's twin, one page over. The glyph
+                    // is the one difference: bell while popups are
+                    // allowed, bell-slash while do-not-disturb holds, so
+                    // the DND state reads off the bar without opening the
+                    // card.
+                    Rectangle {
+                        width: root.columnWidth
+                        height: 40
+                        color: root.islandPage === "notifications" ? Theme.cardAccent : "transparent"
+
+                        // the selected marker: a black block down the
+                        // button's left edge, taking the full height
+                        // and the left 10% of the resting strip — no
+                        // inset, so it reads as part of the silhouette
+                        Rectangle {
+                            x: 0
+                            width: root.cardColumnWidth * 0.1
+                            height: parent.height
+                            color: "black"
+                            visible: root.islandPage === "notifications"
+                        }
+
+                        // the glyph holds the resting 56px icon zone —
+                        // it does not drift right as the column opens
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            anchors.horizontalCenterOffset: -(parent.width - root.cardColumnWidth) / 2
+                            text: NotificationHistory.dnd ? "\uF1F6" : "\uF0F3"
+                            color: root.islandPage === "notifications" ? Theme.cardAccentOn : Theme.barDim
+                            font.family: Theme.iconFont
+                            font.pixelSize: 17
+                        }
+
+                        // the menu's name, revealed by the expansion —
+                        // clipped to the button so it can't spill onto
+                        // the card mid-animation
+                        Item {
+                            anchors.left: parent.left
+                            anchors.leftMargin: root.cardColumnWidth
+                            anchors.right: parent.right
+                            anchors.top: parent.top
+                            anchors.bottom: parent.bottom
+                            clip: true
+                            visible: root.columnExpand > 0.01
+
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                x: 10
+                                width: Math.max(0, parent.width - 20)
+                                text: "Notifications"
+                                color: root.islandPage === "notifications" ? Theme.cardAccentOn : Theme.barDim
+                                font.family: Theme.barFontFamily
+                                font.pixelSize: 13
+                                elide: Text.ElideRight
+                                opacity: root.columnExpand
+                            }
+                        }
+
+                        MouseArea {
+                            id: notificationsTab
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            onEntered: root.islandPage = "notifications"
                         }
                     }
                 }
