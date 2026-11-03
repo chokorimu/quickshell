@@ -20,11 +20,30 @@ Singleton {
     property int signal: 0 // 0..100
     property bool available: false
 
+    // ---- wifi radio -----------------------------------------------------
+    // The notifications page's wifi tile toggles the radio. nmcli lets
+    // an unprivileged user flip radios (verified both directions), so
+    // there is no privilege path to arrange. The flag is read only by
+    // that tile, so it polls only while the page is open — radioActive,
+    // flipped by the page — rather than riding the always-on 5s timer
+    // the bar's own readouts use. refresh() re-reads it on the way in,
+    // so the tile is live the moment the card opens.
+    property bool radioEnabled: false
+    property bool radioActive: false
+
     signal updated()
+
+    function setRadio(on) {
+        radioSetProc.command = ["nmcli", "radio", "wifi", on ? "on" : "off"]
+        if (!radioSetProc.running)
+            radioSetProc.running = true
+    }
 
     function refresh() {
         if (!statusProc.running)
             statusProc.running = true
+        if (root.radioActive && !radioStateProc.running)
+            radioStateProc.running = true
     }
 
     // DEVICE:TYPE:STATE:CONNECTION
@@ -88,6 +107,23 @@ Singleton {
                 root.updated()
             }
         }
+    }
+
+    // "enabled" | "disabled" — one line, wifi only
+    Process {
+        id: radioStateProc
+        command: ["nmcli", "radio", "wifi"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                root.radioEnabled = this.text.trim() === "enabled"
+                root.updated()
+            }
+        }
+    }
+
+    Process {
+        id: radioSetProc
+        onExited: root.refresh()
     }
 
     Timer {
