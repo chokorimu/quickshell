@@ -2239,15 +2239,15 @@ Item {
                     }
                 }
 
-                // battery — icon only; bolt while charging, otherwise a
-                // tiered cell
+                // battery — icon only; a tiered cell at every level,
+                // charging included. The bolt swap is gone: the tier
+                // already reads as the level, and a bolt told you
+                // nothing the tier did not.
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     text: {
                         if (!Battery.present)
                             return ""
-                        if (Battery.charging)
-                            return "\uF0E7"                        // bolt
                         var p = Battery.percentage
                         if (p > 0.75) return "\uF240"
                         if (p > 0.5)  return "\uF241"
