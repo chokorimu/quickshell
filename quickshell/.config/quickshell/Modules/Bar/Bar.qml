@@ -2109,7 +2109,13 @@ Item {
                             var t = (Media.title || "").trim()
                             if (a && t)
                                 return a + " - " + t
-                            return a || t || "Not playing"
+                            // A player IS running here, so it must not claim
+                            // "Not playing" — that string is for the no-player
+                            // case above. Both fields empty means the metadata
+                            // has not landed yet (VLC takes a bus round-trip
+                            // to hand over its file name), which reads the
+                            // same way the island card reads it.
+                            return a || t || "Unknown title"
                         }
 
                         // gap between copies while scrolling
