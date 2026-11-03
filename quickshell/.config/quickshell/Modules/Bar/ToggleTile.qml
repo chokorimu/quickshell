@@ -33,21 +33,50 @@ Rectangle {
     radius: 10
     color: tile.on ? Theme.cardAccent : Theme.cardHighlight
 
-    // the glyph, centred in the tile's own left icon zone
-    Text {
-        id: tileGlyph
+    // The glyph zone: a fixed 18px box, and the label anchors to its
+    // right edge so the label's left edge never moves. The pin is
+    // load-bearing — a Nerd Font glyph's Text width follows its ink
+    // rather than its advance (measured 12.8 for bluetooth against
+    // 20.8 for wifi at 18px), so an unpinned item drags the label's
+    // anchor along with it and every tile's label lands at a
+    // different x (38.8 to 46.8 across the four).
+    //
+    // The glyph is centred in the box rather than left-aligned, and
+    // that is the whole fix: with no width of its own the Text's
+    // implicit width IS its ink, so centring the item centres the
+    // ink. Left-aligned inside a fixed box, every icon's ink sat at
+    // its own offset — and the DND tile swaps between two of them,
+    // bell and bell-slash, whose inks are 3.11px apart, so the icon
+    // slid right on every toggle. Pixel-verified by rendering each
+    // glyph and reading the ink back: the four icons' centres
+    // scattered over 4.04px before and 0.31px after, and the toggle
+    // jump falls from 3.11px to 0.31px — half a device pixel at this
+    // monitor's 1.6 scale, which is as close as this font gets. The
+    // vertical ink centre is identical for every glyph (6.48px at
+    // 18px, off the outlines), so a swap only ever moved an icon
+    // sideways.
+    Item {
+        id: glyphBox
         anchors.left: parent.left
         anchors.leftMargin: 14
         anchors.verticalCenter: parent.verticalCenter
-        text: tile.glyph
-        color: tile.on ? Theme.cardAccentOn : Theme.cardForeground
-        font.family: Theme.iconFont
-        font.pixelSize: 18
+        width: 18
+        height: 18
+
+        Text {
+            id: tileGlyph
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.verticalCenter: parent.verticalCenter
+            text: tile.glyph
+            color: tile.on ? Theme.cardAccentOn : Theme.cardForeground
+            font.family: Theme.iconFont
+            font.pixelSize: 18
+        }
     }
 
     Text {
         id: tileLabel
-        anchors.left: tileGlyph.right
+        anchors.left: glyphBox.right
         anchors.leftMargin: 12
         anchors.right: tileState.left
         anchors.rightMargin: 8
@@ -60,7 +89,14 @@ Rectangle {
     }
 
     // the state takes what it needs — half the tile at most — and the
-    // label gives up the rest
+    // label gives up the rest. Right-aligned within that band, the
+    // volume row's own percent: the box is a fixed width anchored to
+    // the tile's right edge, so left alignment would start every value
+    // at the same x and leave the gap on the outside — "Off" and
+    // "Not connected" would begin together and stop at different
+    // places. Aligning right puts every value's last character on the
+    // same edge instead, which is what makes a column of them read as
+    // one column.
     Text {
         id: tileState
         anchors.right: parent.right
@@ -71,6 +107,7 @@ Rectangle {
         color: tile.on ? Theme.cardAccentOn : Theme.cardDim
         font.family: Theme.barFontFamily
         font.pixelSize: 12
+        horizontalAlignment: Text.AlignRight
         elide: Text.ElideRight
     }
 

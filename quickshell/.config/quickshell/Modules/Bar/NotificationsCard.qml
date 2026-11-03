@@ -82,6 +82,15 @@ Item {
     // Two anchored Rows rather than a Column of Rows: a Column gives
     // its children height but never width, so a Row inside one with
     // no width of its own is 0 wide and every tile vanishes.
+    //
+    // The labels run to a ~7-letter budget, and the long names are
+    // abbreviated at the source rather than left to truncate. The
+    // tile is 240 wide: the glyph takes 44 (14 margin + 18 + 12),
+    // the state band takes 120 off the right edge, which leaves the
+    // label 44..98 — 54px, about seven letters at 13px before
+    // ElideRight starts eating them. So Bluetooth is BT, Do Not
+    // Disturb is DND, and Battery Saver is Battery (the state line
+    // already says which mode is live). Wi-Fi fits as it is.
     Row {
         id: toggleRow1
         anchors.top: titleRow.bottom
@@ -108,7 +117,7 @@ Item {
         ToggleTile {
             width: 240
             glyph: "\uF293" // bluetooth-b
-            label: "Bluetooth"
+            label: "BT"
             stateText: Bluetooth.powered
                 ? (Bluetooth.connectedDevice.length > 0
                     ? Bluetooth.connectedDevice : "Not connected")
@@ -133,7 +142,7 @@ Item {
         ToggleTile {
             width: 240
             glyph: NotificationHistory.dnd ? "\uF1F6" : "\uF0F3"
-            label: "Do Not Disturb"
+            label: "DND"
             stateText: NotificationHistory.dnd ? "On" : "Off"
             on: NotificationHistory.dnd
             onClicked: NotificationHistory.dnd = !NotificationHistory.dnd
@@ -142,7 +151,7 @@ Item {
         ToggleTile {
             width: 240
             glyph: "\uF243" // battery-quarter
-            label: "Battery Saver"
+            label: "Battery"
             stateText: PowerProfiles.saverOn ? "Power saver" : "Balanced"
             available: PowerProfiles.available
             on: PowerProfiles.saverOn
@@ -175,7 +184,7 @@ Item {
             Text {
                 anchors.left: parent.left
                 anchors.verticalCenter: parent.verticalCenter
-                text: "History"
+                text: "Notification"
                 color: Theme.cardForeground
                 font.family: Theme.barFontFamily
                 font.pixelSize: 14
