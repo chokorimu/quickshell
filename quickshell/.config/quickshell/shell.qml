@@ -9,7 +9,6 @@ import "Modules/Bar"
 import "Modules/Capture"
 import "Modules/Launcher"
 import "Modules/Notifications"
-import "Modules/Corners"
 
 ShellRoot {
     // one bar per monitor
@@ -77,13 +76,23 @@ ShellRoot {
         }
     }
 
-    // rounded screen corners — one self-contained overlay per monitor
-    Variants {
-        model: Quickshell.screens
-        delegate: Component {
-            Corners {}
-        }
-    }
+    // Rounded screen corners — Modules/Corners is kept on disk but is NOT
+    // instantiated. The cutouts are an Overlay layer surface, and grim and
+    // hyprshot capture the composited framebuffer with no per-layer
+    // exclusion, so every full-output screenshot carried the four corners.
+    // The alternative — hiding the module for the duration of a capture —
+    // blinks the corners off and back on around every shot (and grim runs in
+    // hyprshot's backgrounded begin_grab, after the main process exits, so
+    // the restore has to be delayed or it races the capture). Dropped from
+    // the shell until that trade is worth revisiting; re-enabling is the
+    // import at the top plus the block below.
+    //
+    // Variants {
+    //     model: Quickshell.screens
+    //     delegate: Component {
+    //         Corners {}
+    //     }
+    // }
 
     // single instance, not per-monitor
     Launcher {}
