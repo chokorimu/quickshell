@@ -441,13 +441,42 @@ Item {
             width: root.cardWidth
             transform: Scale { origin.x: artBuffer.width / 2; origin.y: 0; xScale: root.pop }
 
-            // the tap set: a disc of offsets, radius 10 at a 5px step.
-            // Averaging one full-card copy of the art per offset is a box
-            // blur — cheap, isotropic, and smooth enough behind the page's
-            // content. Computed once; the paint reads it per artwork.
+            // The blur's tune-here lines, HyprlablurSizend-style — edit either
+            // and the file watcher reloads the shell:
+            //   blurSize   — the disc's radius in logical px (Hyprland's
+            //                blur `size`). The wash spreads this far
+            //                from every art pixel; bigger = stronger.
+            //                0 = no blur: the generator degenerates to a
+            //                single tap at (0,0), so the wash shows the
+            //                raw art at full strength (measured SD 127.3
+            //                against the unblurred 127.5) — the wash
+            //                itself only goes away at artBackdropAlpha 0.
+            //   blurStep   — tap spacing inside the disc. Smaller = more
+            //                taps = a smoother average at proportionally
+            //                more draws (13 at 10/5, 16 at 10/4, 29 at
+            //                12/4).
+            //   blurPasses — how many times the disc is applied. Each
+            //                pass blurs the previous result, so the
+            //                effective radius grows as size*sqrt(passes)
+            //                and the tap count grows with it — 13 at
+            //                passes 1, 22 at 2, 49 at 4 — the same order
+            //                of draws as running the 13-tap disc that
+            //                many times. 1 is the shipped look. More taps
+            //                also dims the wash slightly ('lighter' loses
+            //                energy as N grows); raise artBackdropAlpha on
+            //                the card below to compensate.
+            readonly property real blurSize: 0
+            readonly property real blurStep: 1
+            readonly property int blurPasses: 1
+
+            // the tap set: a disc of offsets at blurStep spacing inside
+            // blurSize*sqrt(blurPasses). Averaging one full-card copy of
+            // the art per offset is a box blur — cheap, isotropic, and
+            // smooth enough behind the page's content. Computed once;
+            // the paint reads it per artwork.
             property var artTaps: []
             Component.onCompleted: {
-                var r = 10, s = 5, t = []
+                var r = blurSize * Math.sqrt(blurPasses), s = blurStep, t = []
                 for (var dy = -r; dy <= r; dy += s)
                     for (var dx = -r; dx <= r; dx += s)
                         if (dx * dx + dy * dy <= r * r + 0.001)
@@ -467,7 +496,7 @@ Item {
                 visible: false
                 asynchronous: true
                 source: Media.artUrl
-                onStatusChanged: { artBuffer.requestPaint(); card.requestPaint() }
+                onStatusChanged: { artBuffer.requestPaint() }
             }
 
             onPaint: {
@@ -525,6 +554,18 @@ Item {
                 ctx.globalCompositeOperation = "source-over"
                 ctx.globalAlpha = 1
                 ctx.restore()
+
+                // The card composites this canvas, so it must repaint
+                // AFTER this paint lands, not merely alongside it. The
+                // art's onStatusChanged used to request both canvases in
+                // the same pass, and a same-pass pair paints the card
+                // before the buffer's new texture is committed, so the
+                // card's drawImage read the buffer's PREVIOUS texture:
+                // the wash sat a full track behind on every prev/next.
+                // Requesting the card from the end of this paint defers
+                // it one pass, by which time the texture is committed.
+                // No loop: the card's paint never requests this one.
+                card.requestPaint()
             }
         }
 
@@ -560,7 +601,7 @@ Item {
             // a few percent of the art's channels on a real cover
             // (verified end to end: the card lands 2-4% under the
             // intent).
-            readonly property real artBackdropAlpha: 0.7
+            readonly property real artBackdropAlpha: 0.1
 
             Connections {
                 target: cardClip
