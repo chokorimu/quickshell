@@ -2,8 +2,8 @@
 //
 // The Connections on Mpris.players is load-bearing, not decorative: Quickshell
 // initialises its services lazily, and without an observer the players model
-// stays empty forever. Prefers Spotify when it is running, else the first
-// player that shows up.
+// stays empty forever. Shows only the players on the allow-list below —
+// Spotify, for now — and nothing at all when none of them is running.
 import QtQml
 import QtQuick
 import Quickshell
@@ -25,18 +25,37 @@ Singleton {
 
     signal updated()
 
+    // Which players the bar will show. Matched against the MPRIS bus
+    // name (org.mpris.MediaPlayer2.<name>) first and the identity
+    // second, lowercased; the first running player that matches wins.
+    // Spotify only for now — the bar is a now-playing widget, not a
+    // mixer, and every browser and stray player used to land here.
+    // VLC is detectable the same way: it registers
+    // org.mpris.MediaPlayer2.vlc with identity "VLC media player"
+    // when built with D-Bus support (standard on Linux packages), so
+    // adding it is one word in this list.
+    readonly property var allowedPlayers: ["spotify"]
+
+    function matches(p) {
+        var bus = (p.dbusName || "").toLowerCase()
+        var id = (p.identity || "").toLowerCase()
+        for (var j = 0; j < root.allowedPlayers.length; j++) {
+            var want = root.allowedPlayers[j]
+            if (bus.indexOf(want) !== -1 || id.indexOf(want) !== -1)
+                return true
+        }
+        return false
+    }
+
     function pickPlayer() {
         var ps = Mpris.players.values
         var chosen = null
         for (var i = 0; i < ps.length; i++) {
-            var id = (ps[i].identity || "").toLowerCase()
-            if (id.indexOf("spotify") !== -1) {
+            if (root.matches(ps[i])) {
                 chosen = ps[i]
                 break
             }
         }
-        if (!chosen && ps.length > 0)
-            chosen = ps[0]
         root.player = chosen
     }
 
