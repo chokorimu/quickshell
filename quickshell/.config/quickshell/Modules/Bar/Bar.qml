@@ -401,6 +401,133 @@ Item {
         // from behind the bar fully opaque, and retracts back into it
         // on collapse
 
+        // ---- the media backdrop's blur, rendered once ----------------
+        // The blurred wash cannot be recomputed per frame: 13 full-card
+        // taps is ~3M pixels of blending, and the card canvas repaints on
+        // every frame of the pop (its bottom corner radius tracks the
+        // visible height). So the blur lives here, and the card composites
+        // it with a single drawImage.
+        //
+        // This canvas is the card's exact geometry — same size, same
+        // center, same top-center scale — and is declared before it, so the
+        // card paints over it and it is never visible on its own. Its
+        // paint is deliberately static: the art at the card's resting
+        // size, so the canvas's own bounds do the revealing as the clip
+        // shrinks and the pop needs no repaint here.
+        //
+        // "Never visible on its own" needs the clip in the paint to be
+        // true: the card's paint is TRANSPARENT outside its rounded
+        // outline, so a full-square buffer shows through in exactly those
+        // four corner regions and the card reads as having square corners
+        // (verified by composite readback — see the paint). The card's own
+        // drawImage clips the wash to the card's LIVE silhouette; this
+        // clips the buffer itself to the same silhouette at rest, which is
+        // what the card shows at pop 1. The one divergence is the bottom
+        // corners' radius while the card is shorter than 2*cardRadius —
+        // the first ~40ms of the pop, when it is under 100px wide.
+        //
+        // The taps average additively ('lighter', one Nth of each copy):
+        // source-over cannot reach an exact average, and measuring it
+        // showed why — the last copy drawn survives at (1 - a/N)^(N-1) and
+        // takes ~37% of the result, while the per-step 8-bit truncation
+        // costs another ~20% of the intended opacity. Adding avoids both.
+        // The opaque black fill before them is the other load-bearing part
+        // — see the paint.
+        Canvas {
+            id: artBuffer
+            anchors.top: parent.top
+            anchors.bottom: parent.bottom
+            anchors.horizontalCenter: parent.horizontalCenter
+            width: root.cardWidth
+            transform: Scale { origin.x: artBuffer.width / 2; origin.y: 0; xScale: root.pop }
+
+            // the tap set: a disc of offsets, radius 10 at a 5px step.
+            // Averaging one full-card copy of the art per offset is a box
+            // blur — cheap, isotropic, and smooth enough behind the page's
+            // content. Computed once; the paint reads it per artwork.
+            property var artTaps: []
+            Component.onCompleted: {
+                var r = 10, s = 5, t = []
+                for (var dy = -r; dy <= r; dy += s)
+                    for (var dx = -r; dx <= r; dx += s)
+                        if (dx * dx + dy * dy <= r * r + 0.001)
+                            t.push([dx, dy])
+                artTaps = t
+            }
+
+            // The art source for the wash. An Image element rather than the
+            // canvas's own loadImage because it loads asynchronously and
+            // repaints on arrival. Children of a Canvas render above its
+            // paint, so this one stays invisible and is only ever a pixmap
+            // source. (sourceSize would be the usual way to cap a big
+            // cover's decode, but canvas drawImage ignores it — a 1px line
+            // survived an 8x downscale request — so it is not set here.)
+            Image {
+                id: mediaArtBackdrop
+                visible: false
+                asynchronous: true
+                source: Media.artUrl
+                onStatusChanged: { artBuffer.requestPaint(); card.requestPaint() }
+            }
+
+            onPaint: {
+                var ctx = getContext("2d")
+                // the resting size, not the canvas's: the canvas's height is
+                // the pop height, and the paint has to outrun it so the
+                // bounds do the revealing
+                var w = root.cardWidth
+                var h = root.cardHeight + root.cardRadius
+                ctx.clearRect(0, 0, w, h)
+                // transparent when there is no art, so the card's composite
+                // is a no-op rather than a black wash
+                if (mediaArtBackdrop.status !== Image.Ready)
+                    return
+
+                // Opaque black before the taps is load-bearing: with a
+                // transparent destination the accumulated alpha only reaches
+                // ~55% and the colour is then divided by that alpha on read,
+                // which composites at the wrong strength (measured: a 1.3x
+                // colour over-delivery under a 55% alpha). Filled opaque, the
+                // alpha stays 1 for every tap and 'lighter' only adds colour.
+                //
+                // Everything from here is clipped to the card's own rounded
+                // silhouette — the same outline the card paints, at the
+                // resting size this canvas paints at. Without it the buffer
+                // is a full square, and because it sits BELOW the card (whose
+                // paint is transparent outside its outline) its square
+                // corners show through and the card reads as square-cornered.
+                // Probed by composite readback: unclipped, the corner outside
+                // the card's arc samples the buffer's art; clipped, it is
+                // transparent and falls through to the wallpaper.
+                var r = root.cardRadius
+                ctx.beginPath()
+                ctx.moveTo(r, 0)
+                ctx.lineTo(w - r, 0)
+                ctx.arc(w - r, r, r, -Math.PI / 2, 0, false)          // top-right
+                ctx.lineTo(w, h - r)
+                ctx.arc(w - r, h - r, r, 0, Math.PI / 2, false)       // bottom-right
+                ctx.lineTo(r, h)
+                ctx.arc(r, h - r, r, Math.PI / 2, Math.PI, false)     // bottom-left
+                ctx.lineTo(0, r)
+                ctx.arc(r, r, r, Math.PI, 3 * Math.PI / 2, false)     // top-left
+                ctx.closePath()
+                ctx.save()
+                ctx.clip()
+
+                ctx.fillStyle = "#000000"
+                ctx.fillRect(0, 0, w, h)
+
+                var n = artTaps.length
+                ctx.globalCompositeOperation = "lighter"
+                ctx.globalAlpha = 1 / n
+                for (var i = 0; i < n; i++)
+                    ctx.drawImage(mediaArtBackdrop, artTaps[i][0], artTaps[i][1], w, h)
+                ctx.globalCompositeOperation = "source-over"
+                ctx.globalAlpha = 1
+                ctx.restore()
+            }
+        }
+
         // A Canvas, not a Rectangle: the bottom corners stay rounded
         // through the whole pop. A Rectangle's radius is fixed, so an
         // 18px corner on a card the clip hasn't finished revealing reads
@@ -424,16 +551,30 @@ Item {
             // comes from the clip (pop-bound); this handles the width.
             transform: Scale { origin.x: card.width / 2; origin.y: 0; xScale: root.pop }
 
+            // How much of the media page's surface is the artwork wash.
+            // THE tune-here line: 0 is the plain card, 1 is the art at
+            // full strength (with the card's ink and the visualizer
+            // lines fighting it for legibility). The buffer is opaque, so
+            // this is the wash's exact fraction of the blurred art —
+            // modulo the blur's own 8-bit rounding, which measures within
+            // a few percent of the art's channels on a real cover
+            // (verified end to end: the card lands 2-4% under the
+            // intent).
+            readonly property real artBackdropAlpha: 0.7
+
             Connections {
                 target: cardClip
                 function onHeightChanged() { card.requestPaint() }
             }
 
             // the column's hover expansion repaints the strip's width
-            // every frame of the animation
+            // every frame of the animation. A page switch repaints the
+            // media backdrop in or out — it is the media page's material,
+            // and the other pages keep the plain card surface.
             Connections {
                 target: root
                 function onColumnExpandChanged() { card.requestPaint() }
+                function onIslandPageChanged() { card.requestPaint() }
             }
 
             // a matugen regeneration rewrites the palette underneath
@@ -473,6 +614,34 @@ Item {
                 ctx.arc(rt, rt, rt, Math.PI, 3 * Math.PI / 2, false)     // top-left
                 ctx.closePath()
                 ctx.fill()
+
+                // ---- media page backdrop: blurred album art --------------
+                // A low-opacity wash of the current artwork behind the
+                // media page's content — the art disc, the title, the
+                // transport pill and the visualizer lines all paint above
+                // it, since the content Item renders above this canvas.
+                //
+                // The blur itself is computed once, in artBuffer: 13
+                // full-card taps is ~3M pixels of blending, and this canvas
+                // repaints on every frame of the pop (its bottom corner
+                // radius tracks the visible height). All that is left here
+                // is one drawImage at the wash's alpha, which is what makes
+                // the constant above exact.
+                //
+                // The clip is still current after the fill, so the
+                // composite is masked to the card's own silhouette and
+                // never reaches past the rounded corners into the desktop.
+                // It is drawn at the card's resting height, not the
+                // visible one, so the art does not squash as the card
+                // pops — the clip reveals it instead. No art loaded means
+                // the buffer painted clear, and this is a no-op.
+                if (root.islandPage === "media" && h > 1) {
+                    ctx.save()
+                    ctx.clip()
+                    ctx.globalAlpha = artBackdropAlpha
+                    ctx.drawImage(artBuffer, 0, 0)
+                    ctx.restore()
+                }
 
                 // the menu column strip down the left edge takes the
                 // bar's color — the bar's material extends down into
@@ -1085,14 +1254,39 @@ Item {
                     // one revolution per 10s, clockwise (rotation
                     // increases — Qt's positive direction is clockwise).
                     // The 0 → 360 loop snap is invisible: 360 ≡ 0.
+                    //
+                    // Pausing SUSPENDS the animation; it does not stop it.
+                    // A stopped QML animation restarts from `from` on its
+                    // next run, which is what snapped the disc back to 0
+                    // on every unpause. A paused one freezes the target at
+                    // the angle it reached and continues from exactly
+                    // there (probed: 217.80 held across three samples,
+                    // then 254.88 — no jump, no reset). So `running`
+                    // tracks the player and `paused` tracks playback: the
+                    // animation only stops when the player itself goes
+                    // away, where restarting from 0 is right (a fresh
+                    // record), and it survives any number of
+                    // pause/unpause cycles mid-turn.
+                    //
+                    // Two details that keep that true: `setPaused()` is a
+                    // no-op before the animation is running, so a player
+                    // that appears ALREADY paused would spin anyway —
+                    // onRunningChanged pauses it in that one case; and
+                    // `paused` is gated on hasPlayer so the boot-time
+                    // evaluation never calls setPaused() on a stopped
+                    // animation (which logs a scene warning on every
+                    // shell start).
                     RotationAnimation {
+                        id: discSpin
                         target: bigArt
                         property: "rotation"
                         from: 0
                         to: 360
                         duration: 10000
                         loops: Animation.Infinite
-                        running: Media.playing && Media.hasPlayer
+                        running: Media.hasPlayer
+                        paused: Media.hasPlayer && !Media.playing
+                        onRunningChanged: if (running && !Media.playing) pause()
                     }
 
                     // placeholder disc while no art is loaded — the canvas
