@@ -1,4 +1,4 @@
-// VolumeCard.qml — the island's second menu: per-app volume.
+// VolumeCard.qml — the island's fourth menu: per-app volume.
 //
 // Lives inside the same pop-open card as the media page; Bar.qml gates
 // which page is visible. Master sink row on top (the Audio service),

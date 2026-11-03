@@ -1,7 +1,7 @@
-// SessionCard.qml — the island's fifth menu: the power menu.
+// SessionCard.qml — the island's sixth menu: the power menu.
 //
-// Same card and pop as the media, volume, theme and capture pages;
-// reached by hovering the fifth tab button in the column. A big avatar
+// Same card and pop as the media, usage, volume, theme and capture pages;
+// reached by hovering the sixth tab button in the column. A big avatar
 // (click to change), the user@host line under it, and a grid of power
 // actions below.
 //

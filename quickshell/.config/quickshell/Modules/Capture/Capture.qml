@@ -1,7 +1,7 @@
-// Capture.qml — the island's fourth menu: capture.
+// Capture.qml — the island's fifth menu: capture.
 //
-// Same card and pop as the media, volume, theme and session pages;
-// reached by hovering the fourth tab button in the column. Three
+// Same card and pop as the media, usage, volume, theme and session
+// pages; reached by hovering the fifth tab button in the column. Three
 // sections: screenshot (output / window / region), clipboard viewing,
 // and screen recording.
 //

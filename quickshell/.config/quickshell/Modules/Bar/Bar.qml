@@ -86,9 +86,9 @@ Item {
     // its way in. Holding `expanded` for a moment after the cursor leaves
     // gives the container time to finish and the cursor time to land.
     // Which menu the card shows: "media" (clock hover), "volume"
-    // (volume-icon hover) or "session" (third tab). Resets to media
-    // whenever the island collapses, so the clock always opens the
-    // media page fresh.
+    // (volume-icon hover), "session" (SUPER+L), or one of the tab
+    // column's pages. Resets to media whenever the island collapses,
+    // so the clock always opens the media page fresh.
     property string islandPage: "media"
 
     // The tab column expands on hover: 56px of icon-only strip at rest,
@@ -107,9 +107,10 @@ Item {
     }
 
     // hovering anywhere on the column — the strip itself or any of the
-    // five buttons — holds the island open and the column expanded
+    // six buttons — holds the island open and the column expanded
     property bool columnHovered: columnZone.containsMouse
         || mediaTab.containsMouse
+        || usageTab.containsMouse
         || themeTab.containsMouse
         || volumeTab.containsMouse
         || captureTab.containsMouse
@@ -808,6 +809,18 @@ Item {
                     }
                 }
 
+                // ---- usage page: cpu / gpu / memory / disk / battery ------
+                // Same card, same pop — reached by hovering the second
+                // tab button in the column. Gated on the page like the
+                // others, so nothing paints underneath.
+                UsageCard {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.bottom: parent.bottom
+                    visible: root.islandPage === "usage"
+                }
+
                 // ---- volume page: per-app sliders, pavucontrol style -------
                 // Same card, same pop — the volume icon in the bar's right
                 // row hovers this page open. Gated on the page so the media
@@ -821,7 +834,7 @@ Item {
                 }
 
                 // ---- theme page: the auto/light/dark switch ---------------
-                // Same card, same pop — reached by hovering the second
+                // Same card, same pop — reached by hovering the third
                 // tab button in the column. Gated on the page like the
                 // others, so nothing paints underneath.
                 ThemeCard {
@@ -833,7 +846,7 @@ Item {
                 }
 
                 // ---- capture page: screenshot / clipboard / record -------
-                // Same card, same pop — reached by hovering the fourth
+                // Same card, same pop — reached by hovering the fifth
                 // tab button in the column. Gated on the page like the
                 // others, so nothing paints underneath.
                 Capture {
@@ -846,9 +859,9 @@ Item {
                 }
 
                 // ---- session page: avatar, user@host, power grid --------
-                // Same card, same pop — reached by hovering the fifth
+                // Same card, same pop — reached by hovering the sixth
                 // tab button in the column. Gated on the page like the
-                // other four, so nothing paints underneath.
+                // other five, so nothing paints underneath.
                 SessionCard {
                     id: sessionPage
                     anchors.left: parent.left
@@ -859,11 +872,11 @@ Item {
                 }
 
                 // ---- page switcher: vertical tab column --------------------
-                // Five buttons down the card's left edge, flush against
+                // Six buttons down the card's left edge, flush against
                 // the card's edge and each other (no margin, no gaps) and
                 // as wide as the column strip itself, so the block fills
                 // the strip edge to edge with no dead space beside it.
-                // Order is media, theme, volume, capture, session. The
+                // Order is media, usage, theme, volume, capture, session. The
                 // selected page takes the accent fill — square
                 // corners, near-black glyph, and a black block down its
                 // left edge taking the full height and the left 10% of
@@ -993,8 +1006,72 @@ Item {
                         }
                     }
 
+                    // ---- usage: cpu / gpu / memory / disk / battery ---------
+                    // Second in the column, between media and theme.
+                    Rectangle {
+                        width: root.columnWidth
+                        height: 40
+                        color: root.islandPage === "usage" ? Theme.cardAccent : "transparent"
+
+                        // the selected marker: a black block down the
+                        // button's left edge, taking the full height
+                        // and the left 10% of the resting strip — no
+                        // inset, so it reads as part of the silhouette
+                        Rectangle {
+                            x: 0
+                            width: root.cardColumnWidth * 0.1
+                            height: parent.height
+                            color: "black"
+                            visible: root.islandPage === "usage"
+                        }
+
+                        // the glyph holds the resting 56px icon zone —
+                        // it does not drift right as the column opens
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            anchors.horizontalCenterOffset: -(parent.width - root.cardColumnWidth) / 2
+                            text: "\uF2DB" // microchip
+                            color: root.islandPage === "usage" ? Theme.cardAccentOn : Theme.barDim
+                            font.family: Theme.iconFont
+                            font.pixelSize: 17
+                        }
+
+                        // the menu's name, revealed by the expansion —
+                        // clipped to the button so it can't spill onto
+                        // the card mid-animation
+                        Item {
+                            anchors.left: parent.left
+                            anchors.leftMargin: root.cardColumnWidth
+                            anchors.right: parent.right
+                            anchors.top: parent.top
+                            anchors.bottom: parent.bottom
+                            clip: true
+                            visible: root.columnExpand > 0.01
+
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                x: 10
+                                width: Math.max(0, parent.width - 20)
+                                text: "Usage"
+                                color: root.islandPage === "usage" ? Theme.cardAccentOn : Theme.barDim
+                                font.family: Theme.barFontFamily
+                                font.pixelSize: 13
+                                elide: Text.ElideRight
+                                opacity: root.columnExpand
+                            }
+                        }
+
+                        MouseArea {
+                            id: usageTab
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            onEntered: root.islandPage = "usage"
+                        }
+                    }
+
                     // ---- theme: the auto/light/dark switch -------------------
-                    // Second in the column, between media and volume.
+                    // Third in the column, between usage and volume.
                     Rectangle {
                         width: root.columnWidth
                         height: 40
@@ -1120,7 +1197,7 @@ Item {
                     }
 
                     // ---- capture: screenshot / clipboard / record ---------
-                    // Fourth in the column, between volume and session.
+                    // Fifth in the column, between volume and session.
                     Rectangle {
                         width: root.columnWidth
                         height: 40

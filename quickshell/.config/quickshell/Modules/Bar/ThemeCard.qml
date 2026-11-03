@@ -1,7 +1,7 @@
-// ThemeCard.qml — the island's second menu: the theme switch.
+// ThemeCard.qml — the island's third menu: the theme switch.
 //
 // Same card and pop as the media, volume and session pages; reached by
-// hovering the second tab button in the column. Three controls: a
+// hovering the third tab button in the column. Three controls: a
 // three-way switch for the theme mode — auto / light / dark — held in
 // Theme.themeMode and written to a state file, so the choice is still
 // there after a reboot; a brightness slider; and a wallpaper grid.
