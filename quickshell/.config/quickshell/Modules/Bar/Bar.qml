@@ -132,7 +132,6 @@ Item {
     property bool hovered: cardZone.containsMouse
         || columnHovered
         || (islandPage === "media" && clockZone.containsMouse)
-        || (islandPage === "volume" && volumeIcon.containsMouse)
         || (islandPage === "session" && sessionPage.hovered)
         || (islandPage === "capture" && capturePage.hovered)
         || (islandPage === "notifications" && notificationsPage.hovered)
@@ -2361,9 +2360,12 @@ Item {
                     }
                 }
 
-                // volume — icon only; hover opens the island's app-volume
-                // page, click still opens pavucontrol for the full mixer,
-                // wheel adjusts the master
+                // volume — icon only; click opens pavucontrol for the full
+                // mixer, wheel adjusts the master. The island's app-volume
+                // page is reached from its own tab column, not from here:
+                // hovering the bar icon used to pop the card open, which
+                // read as the island opening for no reason on the way to
+                // the clock or the tray.
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     text: Audio.muted ? "\uF026" : (Audio.volume < 0.5 ? "\uF027" : "\uF028")
@@ -2372,10 +2374,7 @@ Item {
                     font.pixelSize: Theme.barFontSize
 
                     MouseArea {
-                        id: volumeIcon
                         anchors.fill: parent
-                        hoverEnabled: true
-                        onContainsMouseChanged: if (containsMouse) root.islandPage = "volume"
                         onClicked: root.launch(["pavucontrol"])
                         onWheel: function (wheel) {
                             Audio.nudge(wheel.angleDelta.y > 0 ? 0.05 : -0.05)
