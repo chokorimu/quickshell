@@ -25,6 +25,25 @@ Singleton {
     property bool playing: false
     property bool canGoNext: false
     property bool canGoPrevious: false
+    // Playback position and track length, in seconds. Polled, never bound
+    // to the player's own property: MprisPlayer advances position on its
+    // own internal timer but never emits positionChanged while playing
+    // (probed — a bound text froze at 29.202 while direct reads ran to
+    // 36.147), so a binding on it sits still forever. The timer at the
+    // bottom of this file re-reads it twice a second.
+    property real position: 0
+    property real length: 0
+    // The playback stream behind the current player, out of AppAudio's
+    // list — the media page's volume bar drives this app's own level
+    // rather than the master sink (the volume card's fourth tab owns
+    // that). Matched on the player's identity first: VLC reports
+    // "VLC media player", which is exactly what pactl prints as
+    // application.name. Then the bus name's suffix
+    // ("org.mpris.MediaPlayer2.vlc" -> "vlc"), then the identity's
+    // first word. Null when the player has no stream in the list yet —
+    // the stream appears a moment after the player does — or none at
+    // all, and the bar hides itself in that case.
+    property var appStream: null
 
     signal updated()
 
@@ -192,7 +211,49 @@ Singleton {
         root.player = chosen
     }
 
+    // Read straight off the player: a property read, not a fork, so this
+    // needs none of the page-gating the process-polling services use.
+    // Zeroes both when there is no player, so a player going away empties
+    // the progress bar in the same pass that blanks the title.
+    function refreshPosition() {
+        var p = root.player
+        root.position = p ? (p.position || 0) : 0
+        root.length = p ? (p.length || 0) : 0
+    }
+
+    // See the appStream comment. Re-run whenever the player changes and
+    // whenever the stream list does: the player's own stream shows up in
+    // pactl a moment after the player itself appears on the bus.
+    function refreshAppStream() {
+        var p = root.player
+        if (!p) {
+            root.appStream = null
+            return
+        }
+        var id = (p.identity || "").toLowerCase()
+        var bus = (p.dbusName || "").toLowerCase()
+        var needles = [id, bus.replace("org.mpris.mediaplayer2.", ""), id.split(/\s+/)[0]]
+        var streams = AppAudio.streams
+        var found = null
+        for (var n = 0; n < needles.length && !found; n++) {
+            var needle = needles[n]
+            if (!needle)
+                continue
+            for (var i = 0; i < streams.length; i++) {
+                if ((streams[i].app || "").toLowerCase().indexOf(needle) !== -1) {
+                    found = streams[i]
+                    break
+                }
+            }
+        }
+        root.appStream = found
+    }
+
     function sync() {
+        // position first: refreshPosition zeroes it when there is no
+        // player, which is the one case the early return below skips
+        root.refreshPosition()
+        root.refreshAppStream()
         var p = root.player
         if (!p) {
             root.hasPlayer = false
@@ -233,6 +294,13 @@ Singleton {
         }
     }
 
+    // the stream list turns over as apps start and stop audio, and the
+    // player's own stream lands in it a moment after the player does
+    Connections {
+        target: AppAudio
+        function onStreamsChanged() { root.refreshAppStream() }
+    }
+
     Connections {
         target: root.player
         // postTrackChanged, NOT trackChanged: MprisPlayer emits trackChanged
@@ -249,6 +317,19 @@ Singleton {
         function onIsPlayingChanged() { root.sync() }
         function onCanGoNextChanged() { root.sync() }
         function onCanGoPreviousChanged() { root.sync() }
+    }
+
+    // The position poll. 500ms is the right trade for a progress bar:
+    // the line moves twice a second, which reads as motion, without
+    // waking the main thread 60 times a second for a number nobody
+    // watches frame by frame. Gated on hasPlayer — a property read, so
+    // there is nothing to fork and no reason to gate it on the page
+    // being open the way the process-polling services are.
+    Timer {
+        interval: 500
+        repeat: true
+        running: root.hasPlayer
+        onTriggered: root.refreshPosition()
     }
 
     // xesam:url off the bus. busctl prints the a{sv} dict as

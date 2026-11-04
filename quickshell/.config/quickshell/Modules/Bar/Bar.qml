@@ -49,6 +49,23 @@ Item {
     // in the bar's color against the darker card body (see the card
     // canvas). The page content clears it with its left margins.
     readonly property int cardColumnWidth: 56
+    // the media page's playback progress line, at the very bottom of the
+    // card — painted in the card canvas, where the rounded silhouette is
+    // already clipped, so it runs from the menu column strip to the
+    // card's right edge without carrying any margins.
+    readonly property int mediaProgressHeight: 10
+    // the media page's cava visualizer: each bar is a stack of squares
+    // this wide (the square is as wide as the bar, which is what makes
+    // the column read as blocks), gap this far apart, at this alpha.
+    //
+    // The alpha is the one to reach for if the field reads too heavy or
+    // too faint. It came down from the 0.7 the 2px stems wore: a full
+    // stack of 10px squares carries several times the ink a 2px stem
+    // did, so the same alpha would have multiplied the backdrop's
+    // weight by about four.
+    readonly property int visualizerSquare: 10
+    readonly property int visualizerSquareGap: 4
+    readonly property real visualizerAlpha: 0.3
     // the column's width while expanded — wide enough for a glyph plus
     // each menu's label. The card never resizes to accommodate it; the
     // expanded column simply overlays the page content underneath.
@@ -646,6 +663,19 @@ Item {
                 function onCardBackgroundChanged() { card.requestPaint() }
             }
 
+            // the progress line's width moves twice a second while
+            // something plays. Guarded on the page being open: a
+            // collapsed card has no line to move, and the repaint is
+            // the whole card (fill, art composite, strip, line), not
+            // just the line.
+            Connections {
+                target: Media
+                function onPositionChanged() {
+                    if (root.islandPage === "media" && root.expanded)
+                        card.requestPaint()
+                }
+            }
+
             onPaint: {
                 var ctx = getContext("2d")
                 var w = width
@@ -719,6 +749,47 @@ Item {
                 ctx.fillStyle = Theme.barBackground
                 ctx.fillRect(0, 0, root.columnWidth, h)
                 ctx.restore()
+
+                // ---- media page: playback progress ----------------------
+                // A simple yellow line at the very bottom of the card,
+                // filled to the playback position — no track, the card's
+                // own surface is the track.
+                //
+                // Painted here rather than as a child of the content item
+                // because this is the one place in the card where the
+                // rounded silhouette is already clipped. A content-item
+                // child is clipped only to that item's rectangle — Qt's
+                // clip ignores radius, and this canvas's paint does not
+                // clip its children — so a line out there had to carry
+                // the page's content margins (80 left, 28 right) to stay
+                // inside the bottom corner arcs. Here it takes the card's
+                // own corners for free.
+                //
+                // It starts past the menu column strip rather than under
+                // it: that strip is the bar's own material, and a line
+                // crossing it reads as an element of the bar. The right
+                // end still runs to the card's edge, where the bottom
+                // corner arc clips it.
+                //
+                // h is the visible height, so the line slides with the
+                // pop instead of appearing only once the card is fully
+                // open. It paints below the content item, so the cava
+                // stems cross it — the visualizer runs flush to this
+                // edge. The fraction comes from Media.qml, which polls
+                // position: the player advances it without emitting
+                // positionChanged, so a binding would sit still.
+                if (root.islandPage === "media" && Media.hasPlayer && Media.length > 0
+                    && h > root.mediaProgressHeight) {
+                    ctx.save()
+                    ctx.clip()
+                    var f = Media.position / Media.length
+                    if (f < 0) f = 0
+                    if (f > 1) f = 1
+                    ctx.fillStyle = Theme.cardAccent
+                    ctx.fillRect(root.cardColumnWidth, h - root.mediaProgressHeight,
+                                 (w - root.cardColumnWidth) * f, root.mediaProgressHeight)
+                    ctx.restore()
+                }
             }
 
             // the content lives in the visible band below the tucked strip
@@ -730,12 +801,11 @@ Item {
                 enabled: root.expanded
 
                 // ---- media page background: the cava visualizer ----------
-                // The bottom-most child of the content item, so the lines
-                // paint behind the art, the title and the transport
-                // pill. It starts past the column strip: that strip is
-                // painted by the card canvas *below* this item, so lines
-                // reaching under it would paint over the bar's own
-                // material.
+                // The bottom-most child of the content item, so the field
+                // paints behind the art, the title and the transport
+                // pill. It starts past the menu column strip (the strip's
+                // resting width, not columnWidth) and runs to the card's
+                // right edge, flush to the bottom.
                 //
                 // One Canvas rather than a Repeater of Rectangles — a
                 // single paint call per frame instead of 32 binding
@@ -745,32 +815,47 @@ Item {
                 // mode; see that file's header for why SplitParser and
                 // not StdioCollector.
                 //
-                // Thin lines, not bars: a fixed 2px stem with the gap
-                // absorbing whatever width is left, so the row fills the
-                // card at any width. They run the full height of the page
-                // — behind the disc, the title and the transport pill —
-                // which is what makes them read as a backdrop rather than
-                // a widget sitting on the card. In silence the whole row
-                // is one unbroken 2px line.
+                // Bars, not stems: each bar is a column of squares as wide
+                // as the bar itself, stacked up from the bottom with a gap
+                // between them, so the field reads as blocks rather than
+                // one continuous rectangle per bar. The gap between bars
+                // absorbs whatever width is left, so the row fills the
+                // card at any width. The leading square is drawn at its
+                // partial height, which keeps the stack moving smoothly
+                // instead of stepping a whole square at a time — 21
+                // squares over 300px would otherwise quantise the motion
+                // visibly. Silence leaves one square standing at the foot
+                // of every bar, the same job the old 2px floor did: the
+                // row reads as part of the card's design instead of
+                // vanishing.
+                //
+                // They run the full height of the page — behind the disc,
+                // the title and the transport pill — which is what makes
+                // them read as a backdrop rather than a widget sitting on
+                // the card.
                 //
                 // The color is the card's own ink, not the fixed accent:
-                // near-black lines on the light card, near-white on the
+                // near-black squares on the light card, near-white on the
                 // dark one, so the visualizer follows the theme switch
-                // instead of sitting on top of the palette. The right
-                // margin keeps the stems clear of the card's rounded
-                // bottom-right corner — nothing in here is clipped to
-                // the card's silhouette (a Canvas clips only its own
-                // paint), so a line running to the card's right edge
-                // would paint onto the wallpaper in the corner. At 24
-                // the last stem's corner lands exactly on the arc's
-                // bottom point, tangent to it, which is why the lines
-                // can sit flush to the bottom edge without spilling.
+                // instead of sitting on top of the palette.
                 Canvas {
                     id: visualizer
+                    // Past the menu column strip, edge to edge on the
+                    // right: the strip is the bar's own material, painted
+                    // by the card canvas *below* this item, so squares
+                    // reaching under it would tint the bar. The right end
+                    // runs to the card's edge, where the clip in the paint
+                    // takes the corner off it.
+                    //
+                    // The inset is the strip's RESTING width, not
+                    // columnWidth: when the column expands on hover, the
+                    // switcher's cover Rectangle (z:1, declared after
+                    // this) hides the revealed region above the pages, so
+                    // the first bars disappear under the strip instead of
+                    // needing to track it.
                     anchors.left: parent.left
-                    anchors.leftMargin: root.cardColumnWidth + 20
+                    anchors.leftMargin: root.cardColumnWidth
                     anchors.right: parent.right
-                    anchors.rightMargin: 24
                     anchors.bottom: parent.bottom
                     height: 300
                     visible: root.islandPage === "media"
@@ -807,24 +892,84 @@ Item {
                         if (!levels || levels.length === 0)
                             return
 
-                        // fixed 2px stem, gap absorbs the rest — the row
-                        // fills whatever width the card has
-                        var bw = 2
+                        // the square is as wide as the bar, and the gap
+                        // between bars absorbs whatever width is left, so
+                        // the field fills the card at any width
+                        var sq = root.visualizerSquare
+                        var sg = root.visualizerSquareGap
                         var n = levels.length
-                        var gap = (w - bw * n) / (n - 1)
+                        var gap = (w - sq * n) / (n - 1)
                         if (gap < 1)
                             return
 
+                        // ---- the card's own bottom corners -----------------
+                        // The field now runs to the card's right edge, so it
+                        // has to clip itself: nothing in the content item
+                        // is clipped to the card's silhouette (a Canvas
+                        // clips only its own paint, and the clip Item is a
+                        // plain rect), and a square reaching the card's
+                        // right edge would paint onto the wallpaper in the
+                        // corner.
+                        //
+                        // The path is the card canvas's own bottom-corner
+                        // geometry, in CARD coordinates: the card's left
+                        // edge sits one column strip to the left of this
+                        // canvas, so the whole path is shifted by the
+                        // inset and the bottom-left arc lands entirely
+                        // off-canvas. The two canvases share the card's
+                        // top-center scale, so local coordinates correspond
+                        // exactly and no transform math is needed — only
+                        // the vertical offset, which is the distance from
+                        // this canvas's bottom to the card's. That distance
+                        // is fixed at rest (the content item is anchored to
+                        // the card's top) and closes as the card pops, so
+                        // it comes off the clip's live height. rb is the
+                        // card canvas's own formula, so the corner tracks
+                        // the pop the same way the card's does.
+                        var inset = root.cardColumnWidth
+                        var cardBottom = h - (root.cardRadius + root.cardHeight - cardClip.height)
+                        if (cardBottom <= 0)
+                            return
+                        var rb = Math.min(root.cardRadius,
+                                          Math.max(0, (cardClip.height - root.cardRadius) / 2))
+                        ctx.save()
+                        ctx.beginPath()
+                        ctx.moveTo(-inset, 0)
+                        ctx.lineTo(w, 0)
+                        ctx.lineTo(w, cardBottom - rb)
+                        if (rb > 0.5)
+                            ctx.arc(w - rb, cardBottom - rb, rb, 0, Math.PI / 2, false)
+                        ctx.lineTo(-inset + rb, cardBottom)
+                        if (rb > 0.5)
+                            ctx.arc(-inset + rb, cardBottom - rb, rb, Math.PI / 2, Math.PI, false)
+                        ctx.lineTo(-inset, cardBottom - rb)
+                        ctx.closePath()
+                        ctx.clip()
+
+                        // how many squares fit up the height
+                        var seg = Math.floor((h + sg) / (sq + sg))
+
                         ctx.fillStyle = Theme.cardForeground
-                        ctx.globalAlpha = 0.7
+                        ctx.globalAlpha = root.visualizerAlpha
                         for (var i = 0; i < n; i++) {
-                            // a 2px floor, so the row reads as part of
-                            // the card's design in silence instead of
-                            // vanishing and looking broken
-                            var bh = Math.max(2, levels[i] * h)
-                            ctx.fillRect(i * (bw + gap), h - bh, bw, bh)
+                            var x = i * (sq + gap)
+                            var lit = levels[i] * seg
+                            var whole = Math.floor(lit)
+                            // one square stands in silence, so the row
+                            // never vanishes and reads as broken
+                            var full = whole < 1 ? 1 : whole
+                            var frac = lit - whole
+                            for (var s = 0; s < full; s++)
+                                ctx.fillRect(x, h - s * (sq + sg) - sq, sq, sq)
+                            // the leading square at its partial height —
+                            // smooth motion without stepping a whole
+                            // square at a time
+                            if (frac > 0.02)
+                                ctx.fillRect(x, h - full * (sq + sg) - sq * frac,
+                                             sq, sq * frac)
                         }
-                        ctx.globalAlpha = 1
+                        // drops the corner clip and the alpha together
+                        ctx.restore()
                     }
                 }
 
@@ -1851,6 +1996,115 @@ Item {
                                 anchors.fill: parent
                                 onClicked: Media.next()
                             }
+                        }
+                    }
+                }
+
+                // ---- media page: the playing app's volume -----------------
+                // A bare horizontal bar to the right of the transport pill
+                // — no pill, no plate, nothing behind it but the card's own
+                // surface. It drives the level of the app the media page
+                // detected (Media.appStream, matched out of AppAudio's
+                // stream list), not the master sink: the volume card's
+                // fourth tab owns the master. It hides itself when the
+                // detected player has no stream in the list yet, or none
+                // at all, rather than quietly driving something else.
+                //
+                // VolumeRow's design, verbatim: 5px track on cardHighlight,
+                // cardDim fill, a cardForeground handle riding the fill's
+                // edge. The local visual value is what the handle reads
+                // while dragging — AppAudio polls every 2s and a read-back
+                // landing mid-drag would snap the handle back to the old
+                // value — commits throttle to one pactl per 100ms so the
+                // audio follows the drag live, and the final value is
+                // always committed on release.
+                //
+                // The MouseArea is taller than the track so a drag that
+                // drifts vertically keeps tracking, and it is click-only
+                // like every other MouseArea on the card: a hover-enabled
+                // one would steal cardZone's hover and collapse the island
+                // under a resting cursor.
+                Item {
+                    id: appVolume
+                    anchors.left: transportPill.right
+                    anchors.leftMargin: 24
+                    anchors.verticalCenter: transportPill.verticalCenter
+                    width: 120
+                    height: 24
+                    visible: root.islandPage === "media" && Media.appStream !== null
+
+                    readonly property var stream: Media.appStream
+                    readonly property real maxValue: 1.5
+                    property real visual: 0
+                    property bool dragging: false
+                    readonly property real shown: dragging ? visual : (stream ? stream.volume : 0)
+                    readonly property real fraction: Math.max(0, Math.min(1, shown / maxValue))
+                    readonly property bool muted: stream ? stream.muted : false
+
+                    function commit(v) {
+                        if (appVolume.stream)
+                            AppAudio.setVolume(appVolume.stream.id, v)
+                    }
+
+                    function setFromX(x) {
+                        visual = Math.max(0, Math.min(1, x / appVolume.width)) * maxValue
+                        if (!writeThrottle.running) {
+                            commit(visual)
+                            writeThrottle.restart()
+                        }
+                    }
+
+                    Timer {
+                        id: writeThrottle
+                        interval: 100
+                    }
+
+                    Rectangle {
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: parent.width
+                        height: 5
+                        radius: 2.5
+                        color: Theme.cardHighlight
+
+                        Rectangle {
+                            width: parent.width * appVolume.fraction
+                            height: parent.height
+                            radius: 2.5
+                            color: appVolume.muted ? Theme.cardHighlight : Theme.cardDim
+                        }
+                    }
+
+                    // handle rides the fill's edge, clamped to the track so
+                    // its ends never overhang at 0% or max
+                    Rectangle {
+                        x: Math.max(0, Math.min(parent.width - width,
+                            parent.width * appVolume.fraction - width / 2))
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 32
+                        height: 8
+                        radius: 3
+                        color: Theme.cardForeground
+                        visible: !appVolume.muted
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        onPressed: (mouse) => {
+                            appVolume.dragging = true
+                            appVolume.setFromX(mouse.x)
+                        }
+                        onPositionChanged: (mouse) => {
+                            if (appVolume.dragging)
+                                appVolume.setFromX(mouse.x)
+                        }
+                        onReleased: {
+                            appVolume.dragging = false
+                            appVolume.commit(appVolume.visual)
+                        }
+                        onWheel: (wheel) => {
+                            if (appVolume.stream)
+                                AppAudio.nudge(appVolume.stream.id,
+                                    wheel.angleDelta.y > 0 ? 0.05 : -0.05)
                         }
                     }
                 }

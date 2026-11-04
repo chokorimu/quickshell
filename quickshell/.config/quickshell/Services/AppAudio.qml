@@ -56,6 +56,21 @@ Singleton {
         pump()
     }
 
+    // delta is in 0..1 units; its sign picks the direction. Reads the
+    // stream's current level out of the list and hands the sum to
+    // setVolume, which clamps and queues it.
+    function nudge(id, delta) {
+        var cur = 1
+        var streams = root.streams
+        for (var i = 0; i < streams.length; i++) {
+            if (streams[i].id === id) {
+                cur = streams[i].volume
+                break
+            }
+        }
+        root.setVolume(id, cur + delta)
+    }
+
     function pump() {
         if (ctlProc.running || queue.length === 0)
             return
