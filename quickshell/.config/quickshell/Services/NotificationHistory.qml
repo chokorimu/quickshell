@@ -71,6 +71,20 @@ Singleton {
         root.entries = []
     }
 
+    // Remove one entry by its index in the list — the per-row delete
+    // the history list's trash glyph calls. Clear() empties the whole
+    // log; this takes the row's own index, the same number the row's
+    // divider uses to find the last one. The copy-then-splice keeps
+    // the reassignment a real change, so the ListView re-lays out and
+    // the write-back fires.
+    function remove(index) {
+        if (index < 0 || index >= root.entries.length)
+            return
+        var next = root.entries.slice()
+        next.splice(index, 1)
+        root.entries = next
+    }
+
     FileView {
         id: historyFile
         path: root.historyPath

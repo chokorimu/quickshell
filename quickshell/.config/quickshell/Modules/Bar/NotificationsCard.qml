@@ -8,7 +8,9 @@
 // clipboard list's idiom under a label row: a rounded cardHighlight
 // plate, soft dividers, the partial row as the scroll affordance,
 // anchored to the card's bottom edge so it takes every pixel the
-// toggles leave it.
+// toggles leave it. Each row carries a trash glyph after its time —
+// the per-row delete, quiet in cardDim against the label row's Clear
+// pill, which stays the loud one.
 //
 // The page is a persistent instance behind a visible flag, so the
 // three page-only services — Bluetooth, PowerProfiles and Network's
@@ -349,10 +351,16 @@ Item {
                     // receipt time — HH:MM today, MM/DD before that.
                     // Freedesktop notifications carry no timestamp of
                     // their own, so this is when the shell saw it.
+                    //
+                    // It moved in from the row's right edge to make
+                    // room for the trash glyph: the time now anchors
+                    // to the delete button's left rather than to the
+                    // row's, and the text column's right anchor
+                    // follows it automatically.
                     Text {
                         id: historyTime
-                        anchors.right: parent.right
-                        anchors.rightMargin: 10
+                        anchors.right: historyTrash.left
+                        anchors.rightMargin: 8
                         anchors.verticalCenter: parent.verticalCenter
                         text: {
                             var d = new Date(modelData.time)
@@ -367,6 +375,52 @@ Item {
                         color: Theme.cardDim
                         font.family: Theme.barFontFamily
                         font.pixelSize: 12
+                    }
+
+                    // per-row delete — the trash glyph after the time,
+                    // at the row's right edge. cardDim like the time,
+                    // so it reads as a quiet per-row action rather
+                    // than a second Clear pill: the label row's Clear
+                    // is the loud one, and this is the one you reach
+                    // for on a single entry.
+                    //
+                    // A fixed 18px box rather than the glyph's own
+                    // Text, the control-centre tiles' fix: a Nerd
+                    // Font glyph's Text width follows its ink, not its
+                    // advance, so an unpinned glyph would drag the
+                    // time's right anchor along with it. The glyph is
+                    // centered in the box with no width of its own,
+                    // which centres the ink instead. Measured off the
+                    // font files, the trash's ink centre is 0.360em
+                    // against the time's digits' 0.350em — 0.10px at
+                    // 12px, so both land on the row's centre line
+                    // with plain vertical centring and no shared line
+                    // box needed.
+                    //
+                    // Click-only like every MouseArea on the page: a
+                    // hover-enabled one would steal cardZone's hover
+                    // and collapse the island under a resting cursor.
+                    Item {
+                        id: historyTrash
+                        anchors.right: parent.right
+                        anchors.rightMargin: 10
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 18
+                        height: 18
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: "\uF1F8" // trash
+                            color: Theme.cardDim
+                            font.family: Theme.iconFont
+                            font.pixelSize: 14
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: NotificationHistory.remove(index)
+                        }
                     }
 
                     // the divider, edge to edge at the row's foot —
