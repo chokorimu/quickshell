@@ -10,7 +10,9 @@
 // anchored to the card's bottom edge so it takes every pixel the
 // toggles leave it. Each row carries a trash glyph after its time —
 // the per-row delete, quiet in cardDim against the label row's Clear
-// pill, which stays the loud one.
+// pill, which stays the loud one — with a vertical hairline standing
+// between the time and the glyph so the delete reads as the row's own
+// action zone rather than as more row text.
 //
 // The page is a persistent instance behind a visible flag, so the
 // three page-only services — Bluetooth, PowerProfiles and Network's
@@ -353,13 +355,13 @@ Item {
                     // their own, so this is when the shell saw it.
                     //
                     // It moved in from the row's right edge to make
-                    // room for the trash glyph: the time now anchors
-                    // to the delete button's left rather than to the
-                    // row's, and the text column's right anchor
-                    // follows it automatically.
+                    // room for the delete action: the time now anchors
+                    // to the separator's left rather than to the row's,
+                    // and the text column's right anchor follows it
+                    // automatically.
                     Text {
                         id: historyTime
-                        anchors.right: historyTrash.left
+                        anchors.right: historyTrashSep.left
                         anchors.rightMargin: 8
                         anchors.verticalCenter: parent.verticalCenter
                         text: {
@@ -375,6 +377,49 @@ Item {
                         color: Theme.cardDim
                         font.family: Theme.barFontFamily
                         font.pixelSize: 12
+                    }
+
+                    // the separator between the row's content and its
+                    // delete action — a vertical hairline standing in
+                    // the gap the time moved out of. Without it the
+                    // trash glyph reads as one more piece of row text
+                    // that happens to sit at the end; with it the row
+                    // splits into "what happened" and "what you can do
+                    // about it", the settings-list trailing-action
+                    // idiom.
+                    //
+                    // The row divider's own language, turned on its
+                    // side: 2px of cardDim at 0.1, the same weight and
+                    // the same softness as the hairline at the row's
+                    // foot, so the two read as one system rather than
+                    // as a border drawn around the row. cardDim rather
+                    // than cardHighlight, which would be invisible on
+                    // a cardHighlight plate.
+                    //
+                    // 24px in a 40px row — 60%, so the line sits
+                    // slightly proud of the 18px trash box it divides
+                    // from the time instead of tracing the glyph's own
+                    // edges, and leaves 8px clear top and bottom. Full
+                    // row height was the other candidate and reads as a
+                    // table column rule, which would grid the list
+                    // against its own foot dividers.
+                    //
+                    // Symmetric 8px gaps either side: the time anchors
+                    // to this line's left, the line to the trash box's,
+                    // so the three sit on an even rhythm.
+                    //
+                    // A plain Rectangle, so it carries no MouseArea and
+                    // cannot steal cardZone's hover the way a
+                    // hover-enabled control on this page would.
+                    Rectangle {
+                        id: historyTrashSep
+                        anchors.right: historyTrash.left
+                        anchors.rightMargin: 8
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 2
+                        height: 24
+                        color: Theme.cardDim
+                        opacity: 0.1
                     }
 
                     // per-row delete — the trash glyph after the time,
