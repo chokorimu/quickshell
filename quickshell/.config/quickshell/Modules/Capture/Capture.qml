@@ -14,18 +14,20 @@
 // dead backend has nothing to toggle.
 // Step 3 wired the clipboard row last and below the
 // record button, at LO's request: a scrollable history read out of
-// cliphist's db, one click copying an entry back, one Reset pill
-// wiping it.
+// cliphist's db, one click copying an entry back, one pill wiping
+// it. A later pass gave every row a pin and a trash glyph — pins
+// render first and survive the wipe, which is why the pill reads
+// Clear rather than Reset.
 //
 // A later pass moved the layout onto the theme page's idiom without
 // touching any behaviour: the screenshot and record sections became
 // control rows — label in a fixed 120px column, the pills beside it —
 // riding the content margins at 16 spacing, and the clipboard section
 // reads label, list top to bottom — the label in the other sections'
-// style with a Reset pill on its right, and the 1px hairline that
-// used to sit under the label removed. The theme page's own
-// controls (the mode switch, the brightness slider) stayed there;
-// only the layout language crossed over.
+// style with a pill on its right, and the 1px hairline that used to
+// sit under the label removed. The theme page's own controls (the
+// mode switch, the brightness slider) stayed there; only the layout
+// language crossed over.
 //
 // The pills are click-only on purpose, the same rule the session and
 // theme pages follow: a hover-enabled MouseArea in here steals
@@ -39,6 +41,7 @@ import Quickshell
 import Quickshell.Io
 import QtWebSockets
 import "../../Theme"
+import "../../Services"
 // the header mark lives with the other cards; this is the first
 // cross-module import in the tree, and it is circular with Bar.qml's
 // own import of ../Capture — QML resolves both lazily, verified by
@@ -359,11 +362,11 @@ Item {
     //
     // Top to bottom it reads label, list. The label takes the other
     // sections' styling — cardForeground at 14, not the dim 12 this
-    // section started with — and carries a Reset pill on its right
-    // that wipes the db through cliphist's own wipe and re-reads the
-    // list. The 1px hairline that sat under the label is gone: once
-    // the label matched the others, the ruler was the one thing left
-    // styling this section differently.
+    // section started with — and carries a Clear pill on its right
+    // that empties the history without touching the pins. The 1px
+    // hairline that sat under the label is gone: once the label
+    // matched the others, the ruler was the one thing left styling
+    // this section differently.
     Column {
         anchors.bottom: parent.bottom
         anchors.bottomMargin: 16
@@ -374,7 +377,7 @@ Item {
         spacing: 8
 
         // the label row: title on the left in the other sections'
-        // style, Reset on the right. An Item with an explicit height
+        // style, Clear on the right. An Item with an explicit height
         // because a Column leaves its children's height alone, and
         // anchors are illegal directly inside one — the same reason
         // the list's slot below is an Item.
@@ -391,23 +394,27 @@ Item {
                 font.pixelSize: 14
             }
 
-            // Reset is destructive — it wipes every entry — so it is
-            // deliberately the smallest pill on the page, sat out of
-            // the way on the label's right rather than in the control
-            // column where the other sections' pills live. Click-only
+            // Clear is destructive — it empties every unpinned entry
+            // — so it is deliberately the smallest pill on the page,
+            // sat out of the way on the label's right rather than in
+            // the control column where the other sections' pills
+            // live. It reads Clear rather than Reset because it no
+            // longer wipes the db outright: pins are records in
+            // ClipboardPins and the pill only deletes the ids that
+            // are not one, so a clear leaves them standing. Click-only
             // like every MouseArea in here.
             Rectangle {
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
                 height: 20
-                width: clipResetLabel.implicitWidth + 24
+                width: clipClearLabel.implicitWidth + 24
                 radius: 10
                 color: Theme.cardHighlight
 
                 Text {
-                    id: clipResetLabel
+                    id: clipClearLabel
                     anchors.centerIn: parent
-                    text: "Reset"
+                    text: "Clear"
                     color: Theme.cardForeground
                     font.family: Theme.barFontFamily
                     font.pixelSize: 12
@@ -416,7 +423,7 @@ Item {
                 MouseArea {
                     anchors.fill: parent
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: capturePage.resetClipboard()
+                    onClicked: capturePage.clearClipboard()
                 }
             }
         }
@@ -480,7 +487,7 @@ Item {
                 boundsBehavior: Flickable.StopAtBounds
                 // no scrollbar — the partial fourth row is the
                 // affordance, same as the wallpaper grid
-                model: capturePage.clipEntries
+                model: capturePage.clipModel
 
                 delegate: Rectangle {
                     id: clipRow
@@ -490,6 +497,12 @@ Item {
                     // final entry would read as a border the list
                     // does not have
                     required property int index
+                    // A pin record renders from ClipboardPins, a
+                    // history row from cliphist; the two live in one
+                    // list, pins first, and the row's own kind is what
+                    // the pin glyph toggles and what the trash checks
+                    // before it drops a record along with the entry.
+                    readonly property bool pinned: clipRow.modelData.kind === "pin"
 
                     // clipList.width, never ListView.width: with no id
                     // on the view, ListView resolves to the TYPE
@@ -504,8 +517,13 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         anchors.left: parent.left
                         anchors.leftMargin: 10
-                        anchors.right: parent.right
-                        anchors.rightMargin: 4
+                        // in from the row's right edge to clear the
+                        // action zone — the separator, then the pin
+                        // and trash boxes — so a long preview elides
+                        // against the separator rather than running
+                        // under the glyphs
+                        anchors.right: clipSep.left
+                        anchors.rightMargin: 8
                         text: clipRow.modelData.preview
                         elide: Text.ElideRight
                         // an image has no text to show, so cliphist's
@@ -516,10 +534,138 @@ Item {
                         font.pixelSize: 13
                     }
 
+                    // The copy-back action, inset to the separator:
+                    // the pick area stops where the action zone
+                    // starts, so the two glyph MouseAreas never sit
+                    // under a row-wide one and win by z-order alone.
+                    // Click-only like every MouseArea on the page — a
+                    // hover-enabled one would steal cardZone's hover
+                    // and collapse the island under a resting cursor.
                     MouseArea {
-                        anchors.fill: parent
+                        anchors.left: parent.left
+                        anchors.right: clipSep.left
+                        anchors.top: parent.top
+                        anchors.bottom: parent.bottom
                         cursorShape: Qt.PointingHandCursor
                         onClicked: capturePage.pickClip(clipRow.modelData.id)
+                    }
+
+                    // The separator between the row's content and its
+                    // action zone — the notification history row's own
+                    // hairline, at this row's density: 2px of cardDim
+                    // at 0.1, 20px in the 30px row so it sits proud of
+                    // the 18px boxes it divides from the text rather
+                    // than tracing their edges. cardDim rather than
+                    // cardHighlight, which would be invisible on a
+                    // cardHighlight plate.
+                    Rectangle {
+                        id: clipSep
+                        anchors.right: clipPin.left
+                        anchors.rightMargin: 8
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 2
+                        height: 20
+                        color: Theme.cardDim
+                        opacity: 0.1
+                    }
+
+                    // The pin, left of the trash as LO asked — the two
+                    // glyphs read as one action group at the row's
+                    // end, and the single separator divides the whole
+                    // group from the content rather than putting a
+                    // rule between the two buttons.
+                    //
+                    // A fixed 18px box rather than the glyph's own
+                    // Text, the control-centre tiles' fix: a Nerd Font
+                    // glyph's Text width follows its ink, not its
+                    // advance, so an unpinned glyph would drag the
+                    // trash's left anchor along with it. The glyph is
+                    // centered in the box with no width of its own,
+                    // which centres the ink instead — the thumbtack's
+                    // ink centre measures 0.360em off the font file,
+                    // the same as the trash's and the ban's, so it
+                    // lands on the row's centre line with plain
+                    // vertical centring.
+                    //
+                    // Pinned reads as pinned: full ink against the dim
+                    // the unpinned rows wear, the two-state language
+                    // the workspace numbers and the bar's status
+                    // glyphs already use. The accent yellow was the
+                    // other candidate and lost on the light card —
+                    // #e6e600 on cardHighlight #d2d2d6 is close to
+                    // invisible, and the accent only reads with
+                    // near-black ink knocked out of it, which a bare
+                    // glyph cannot carry.
+                    //
+                    // The toggle is a record op, not a db one: the
+                    // entry stays in cliphist either way, so pinning
+                    // moves the row up and unpinning drops it back
+                    // into the history list at its own position.
+                    Item {
+                        id: clipPin
+                        anchors.right: clipTrash.left
+                        anchors.rightMargin: 8
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 18
+                        height: 18
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: "\uF08D" // thumbtack
+                            color: clipRow.pinned ? Theme.cardForeground : Theme.cardDim
+                            font.family: Theme.iconFont
+                            font.pixelSize: 14
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                if (clipRow.pinned)
+                                    ClipboardPins.drop(clipRow.modelData.id)
+                                else
+                                    ClipboardPins.pin(clipRow.modelData)
+                            }
+                        }
+                    }
+
+                    // The per-row delete — the trash glyph at the
+                    // row's right edge, the notification history
+                    // row's own control verbatim: cardDim at 14 in a
+                    // fixed 18px box, so it reads as a quiet per-row
+                    // action and the label row's Clear pill stays the
+                    // loud one.
+                    //
+                    // A pinned row's delete drops the record first.
+                    // Without that the entry would survive in cliphist
+                    // and fall straight back into the history list the
+                    // moment the row is gone — the click would read as
+                    // an unpin rather than a delete.
+                    Item {
+                        id: clipTrash
+                        anchors.right: parent.right
+                        anchors.rightMargin: 10
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 18
+                        height: 18
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: "\uF1F8" // trash
+                            color: Theme.cardDim
+                            font.family: Theme.iconFont
+                            font.pixelSize: 14
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                if (clipRow.pinned)
+                                    ClipboardPins.drop(clipRow.modelData.id)
+                                capturePage.deleteClip(clipRow.modelData.id)
+                            }
+                        }
                     }
 
                     // the divider, edge to edge at the row's foot —
@@ -557,7 +703,7 @@ Item {
                 anchors.top: parent.top
                 anchors.topMargin: 10
                 anchors.horizontalCenter: parent.horizontalCenter
-                visible: capturePage.clipEntries.length === 0
+                visible: capturePage.clipModel.length === 0
                 text: "No history yet"
                 color: Theme.cardDim
                 font.family: Theme.barFontFamily
@@ -960,6 +1106,47 @@ Item {
     // row's copies round-trip too.
     property var clipEntries: []
 
+    // The list the page renders: pinned records first, then the
+    // cliphist entries that are not pinned. One model rather than two
+    // views, so the slot's arithmetic and the partial-row affordance
+    // are unchanged — "pinned items always on top" is just the
+    // concatenation order.
+    //
+    // The history half filters by id: a pinned entry stays in cliphist
+    // — that is what lets a pinned row decode, and what lets Clear
+    // skip it — so without the filter it would render twice, once in
+    // each zone. The binding tracks both sources, so a pin or a fresh
+    // cliphist read re-lays the list out on its own.
+    readonly property var clipModel: {
+        var out = []
+        var pins = ClipboardPins.entries
+        for (var i = 0; i < pins.length; i++)
+            out.push({
+                kind: "pin",
+                id: pins[i].id,
+                preview: pins[i].preview,
+                image: pins[i].image === true
+            })
+        for (var i = 0; i < clipEntries.length; i++) {
+            var entry = clipEntries[i]
+            var pinned = false
+            for (var j = 0; j < pins.length; j++) {
+                if (pins[j].id === entry.id) {
+                    pinned = true
+                    break
+                }
+            }
+            if (!pinned)
+                out.push({
+                    kind: "clip",
+                    id: entry.id,
+                    preview: entry.preview,
+                    image: entry.image === true
+                })
+        }
+        return out
+    }
+
     function onClipList(text) {
         var out = []
         var lines = text.split("\n")
@@ -970,9 +1157,17 @@ Item {
             var tab = lines[i].indexOf("\t")
             if (tab < 0)
                 continue
+            var id = lines[i].substring(0, tab)
+            // The id is interpolated into shell commands — the pick
+            // pipe and the Clear pill's delete loop both carry it —
+            // so it is checked here, once, at the parse rather than
+            // at each use. cliphist only ever prints digits, but a
+            // malformed line would otherwise reach a shell.
+            if (!/^\d+$/.test(id))
+                continue
             var preview = lines[i].substring(tab + 1)
             out.push({
-                id: lines[i].substring(0, tab),
+                id: id,
                 preview: preview,
                 image: preview.indexOf("[[ binary data") === 0
             })
@@ -994,14 +1189,79 @@ Item {
         clipDecodeProcess.running = true
     }
 
-    // Reset wipes the whole db. cliphist owns it, so the wipe is
-    // cliphist's own subcommand — no shell, no db-path guessing —
-    // and the list re-reads off the process's exit, the same
-    // StdioCollector path the open-refresh uses. A second click
-    // mid-wipe is a silent no-op on an already-running Process,
-    // which is the right behaviour here anyway.
-    function resetClipboard() {
-        clipWipeProcess.running = true
+    // Clear empties the history and leaves the pins alone. It cannot
+    // be cliphist's own wipe any more — that would take the pinned
+    // entries with it — so it deletes the unpinned ids and never
+    // touches a pinned one, and the list re-reads when the queue
+    // drains.
+    //
+    // cliphist's delete takes its ids on STDIN, not argv: `cliphist
+    // delete 12` exits 0 and deletes nothing, silently, which is the
+    // worst possible failure for a destructive pill. One printf
+    // carries every id on its own line — verified to delete them all
+    // in a single invocation — so a full 750-entry history clears in
+    // one process rather than 750. The ids come out of cliphist's own
+    // output and are checked numeric at the parse, so the format
+    // string carries nothing but digits and backslash-n.
+    function clearClipboard() {
+        var pins = ClipboardPins.entries
+        var ids = ""
+        for (var i = 0; i < clipEntries.length; i++) {
+            var entry = clipEntries[i]
+            var pinned = false
+            for (var j = 0; j < pins.length; j++) {
+                if (pins[j].id === entry.id) {
+                    pinned = true
+                    break
+                }
+            }
+            if (!pinned)
+                ids += entry.id + "\\n"
+        }
+        // everything left is pinned — there is nothing to clear
+        if (ids.length === 0)
+            return
+        capturePage.enqueueClip(["sh", "-c",
+            "printf '" + ids + "' | cliphist delete"])
+    }
+
+    // One process drains every db mutation — the per-row delete and
+    // the Clear pill — because `running = true` on an already-running
+    // Process is a silent no-op and the second click would vanish,
+    // the same trap AppAudio's slider writes and Wallpapers' picks
+    // queue around. The queue is unbounded but drains one command per
+    // exit, and the list re-reads once it is empty rather than once
+    // per command.
+    property var clipQueue: []
+
+    function enqueueClip(cmd) {
+        clipQueue.push(cmd)
+        drainClip()
+    }
+
+    function drainClip() {
+        if (clipQueue.length === 0) {
+            clipListProcess.running = true
+            return
+        }
+        if (clipMutateProcess.running)
+            return
+        clipMutateProcess.command = clipQueue.shift()
+        clipMutateProcess.running = true
+    }
+
+    // The per-row delete. cliphist's delete reads its ids from STDIN
+    // — the argv form `cliphist delete 12` exits 0 and deletes
+    // nothing, verified against the installed build — and a
+    // Quickshell Process has no stdin to write to, so the id goes
+    // through a one-line shell. A pinned row's trash drops the record
+    // first, in the delegate, so the entry does not fall back into
+    // the history list on its way out.
+    function deleteClip(id) {
+        if (!/^\d+$/.test(id))
+            return
+        capturePage.enqueueClip(["sh", "-c",
+            "echo " + id + " | cliphist delete"])
     }
 
     Process {
@@ -1017,8 +1277,7 @@ Item {
     }
 
     Process {
-        id: clipWipeProcess
-        command: ["cliphist", "wipe"]
-        onExited: clipListProcess.running = true
+        id: clipMutateProcess
+        onExited: capturePage.drainClip()
     }
 }
