@@ -34,10 +34,17 @@
 // menu (SUPER+G) does: awww for the grow transition, then matugen to
 // regenerate the palette from the new image.
 //
+// The grid wears a "Wallpapers" label above it — the control rows' own
+// type, cardForeground at 14, the 120px column's size rather than a
+// dim caption — with a placeholder "Select path" pill on its right in
+// Reset's and Clear's slot. The pill is not wired: it is the shape of
+// the directory picker this page will grow, sitting where that control
+// will land.
+//
 // Both controls sit on the content area's margins (80 left, 28 right —
 // the volume page's rows), with a 120px label column so the pill and
 // the slider share a left edge, rather than centred in the card. The
-// grid rides the same margins under them.
+// grid rides the same margins under them, and its label row with it.
 //
 // No MouseArea in here takes hover: a hover-enabled area would steal
 // cardZone's hover in Bar.qml and collapse the island under a resting
@@ -304,16 +311,77 @@ Item {
         }
     }
 
-    // wallpaper grid — three columns, scrolling when the directory
-    // holds more than the card can show. Anchored between the controls
-    // and the card's bottom edge so it takes whatever height is left:
-    // a GridView whose height binds to its own contentHeight never
-    // renders anything (it starts at zero, instantiates no delegates,
-    // and can never grow), so the height has to come from the card.
-    GridView {
-        id: wallGrid
+    // ---- wallpapers: label + grid ------------------------------------
+    // The clipboard and history sections' own shape, minus the
+    // bottom-anchored column: the label rides the content margins
+    // between the controls and the grid, and the grid keeps its anchor
+    // to the card's bottom edge so it still takes whatever height is
+    // left — a GridView whose height binds to its own contentHeight
+    // never renders anything (it starts at zero, instantiates no
+    // delegates, and can never grow), so the height has to come from
+    // the card.
+    //
+    // The label is the control rows' own type — cardForeground at 14,
+    // the 120px column's size — rather than a dim caption, and it
+    // carries a placeholder "Select path" pill on its right in Reset's
+    // and Clear's slot. The pill is not wired: it is the shape of the
+    // directory picker this page will grow, sitting where that control
+    // will land.
+    Item {
+        id: wallLabelRow
         anchors.top: controlColumn.bottom
         anchors.topMargin: 16
+        anchors.left: parent.left
+        anchors.leftMargin: 80
+        anchors.right: parent.right
+        anchors.rightMargin: 28
+        height: 20
+
+        Text {
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
+            text: "Wallpapers"
+            color: Theme.cardForeground
+            font.family: Theme.barFontFamily
+            font.pixelSize: 14
+        }
+
+        // placeholder — the pill Reset and Clear wear, with no handler
+        // behind it yet. Click-only like every MouseArea on this page:
+        // a hover-enabled one would steal cardZone's hover in Bar.qml
+        // and collapse the island under a resting cursor.
+        Rectangle {
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            height: 20
+            width: selectPathLabel.implicitWidth + 24
+            radius: 10
+            color: Theme.cardHighlight
+
+            Text {
+                id: selectPathLabel
+                anchors.centerIn: parent
+                text: "Select path"
+                color: Theme.cardForeground
+                font.family: Theme.barFontFamily
+                font.pixelSize: 12
+            }
+
+            MouseArea {
+                anchors.fill: parent
+                cursorShape: Qt.PointingHandCursor
+            }
+        }
+    }
+
+    // wallpaper grid — three columns, scrolling when the directory
+    // holds more than the card can show. Anchored between the label
+    // row and the card's bottom edge so it takes whatever height is
+    // left.
+    GridView {
+        id: wallGrid
+        anchors.top: wallLabelRow.bottom
+        anchors.topMargin: 8
         anchors.left: parent.left
         anchors.leftMargin: 80
         anchors.right: parent.right

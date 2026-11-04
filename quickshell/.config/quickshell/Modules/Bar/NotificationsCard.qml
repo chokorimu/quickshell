@@ -184,7 +184,7 @@ Item {
             Text {
                 anchors.left: parent.left
                 anchors.verticalCenter: parent.verticalCenter
-                text: "Notification"
+                text: "Notifications"
                 color: Theme.cardForeground
                 font.family: Theme.barFontFamily
                 font.pixelSize: 14
