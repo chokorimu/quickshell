@@ -74,7 +74,7 @@ degrades rather than dies.
 - `obs-websocket` (the OBS plugin) — the capture page's record row reads "OBS offline" without it
 - `nvidia-utils` (`nvidia-smi`) — the usage page's GPU cell reads `n/a`
 - `wf-recorder` — an alternative record backend
-- `qt6-webp` — two `.webp` wallpapers render as bare plates
+- `qt6-imageformats` — the two `.webp` wallpapers render as bare plates without it (installed)
 
 ### keybind targets
 
