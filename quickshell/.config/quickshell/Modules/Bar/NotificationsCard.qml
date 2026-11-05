@@ -291,14 +291,15 @@ Item {
                     height: 40
                     color: "transparent"
 
-                    // the app's icon — appIcon only. The
-                    // notification's own image is the sender's
-                    // avatar through a transient image:// URL that
-                    // would not survive a restart, so the history
-                    // stores the icon name instead and reads the
-                    // same way after a reboot. iconPath("") mangles
-                    // into a broken request, so only ask when the
-                    // app named an icon.
+                    // the sender's avatar when the entry has one: a
+                    // copy of the notification's own image, saved to
+                    // disk at receipt (see the capture in
+                    // Notifications.qml) because the image:// URL it
+                    // arrived through dies with the Notification
+                    // object. Falls back to the app icon — the popup
+                    // card's own fallback — and then to nothing:
+                    // iconPath("") mangles into a broken request, so
+                    // only ask when the app named an icon.
                     Image {
                         anchors.left: parent.left
                         anchors.leftMargin: 10
@@ -307,9 +308,11 @@ Item {
                         height: 22
                         sourceSize: Qt.size(22, 22)
                         fillMode: Image.PreserveAspectFit
-                        source: modelData.icon.length > 0
-                            ? Quickshell.iconPath(modelData.icon, "application-x-executable")
-                            : ""
+                        source: modelData.imagePath.length > 0
+                            ? "file://" + modelData.imagePath
+                            : modelData.icon.length > 0
+                                ? Quickshell.iconPath(modelData.icon, "application-x-executable")
+                                : ""
                     }
 
                     // summary over body — the popup card's own

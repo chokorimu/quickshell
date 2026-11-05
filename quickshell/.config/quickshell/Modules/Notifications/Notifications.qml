@@ -68,9 +68,14 @@ PanelWindow {
         // no daemon involved — while the history still records the
         // notification. The append copies every field it needs out of
         // the object on the spot, because the server deletes it the
-        // moment it goes untracked.
+        // moment it goes untracked, and hands back the entry's id so
+        // the avatar grab below can find its entry again once the
+        // file lands.
         onNotification: (notification) => {
-            NotificationHistory.append(notification)
+            var entryId = NotificationHistory.append(notification)
+            var image = notification.image ? notification.image.toString() : ""
+            if (image.length > 0)
+                captureAvatar(image, entryId)
             notification.tracked = !NotificationHistory.dnd
         }
 
@@ -150,5 +155,68 @@ PanelWindow {
                 NumberAnimation { properties: "x,y"; duration: 200; easing.type: Easing.OutCubic }
             }
         }
+    }
+
+    // ---- avatar capture --------------------------------------------------
+    // The notification's own image is the sender's avatar (Discord sends
+    // the profile picture as image-data), served through a transient
+    // image:// provider URL that dies with the Notification object — the
+    // server deletes that object the moment it goes untracked. So the
+    // avatar is copied out to disk at receipt, one grabber per
+    // notification, and the history rows show the file.
+    //
+    // A fresh Image per notification, not a reused one: re-pointing a
+    // loading Image at a new source cancels the previous load, and a
+    // cancelled grab never lands. The grabber is invisible and sits at
+    // x 800 — outside the input mask, which covers only the stack
+    // column — so it takes no clicks and paints nothing; grabToImage on
+    // a visible:false item outside the mask was probe-verified
+    // (/tmp/opencode/grabprobe). It destroys itself the moment the file
+    // lands, so nothing accumulates.
+    //
+    // The entry starts life with an empty imagePath and is confirmed
+    // only once saveToFile has run, so a row never points at a file
+    // that does not exist. A grab that never lands — DND deletes the
+    // object mid-load, or the app sent no usable image — leaves the row
+    // on its app icon, the same fallback NotificationCard uses.
+    Component {
+        id: avatarGrabber
+        Image {
+            required property string target
+            required property int entryId
+            asynchronous: true
+            cache: false
+            visible: false
+            x: 800
+            y: 50
+            width: 44
+            height: 44
+            sourceSize: Qt.size(44, 44)
+            fillMode: Image.PreserveAspectFit
+            onStatusChanged: {
+                if (status === Image.Ready) {
+                    grabToImage(function (result) {
+                        result.saveToFile(target)
+                        NotificationHistory.setImage(entryId, target)
+                        destroy()
+                    })
+                } else if (status === Image.Error) {
+                    destroy()
+                }
+            }
+        }
+    }
+
+    // Spawns one grabber for a notification's avatar. The filename is
+    // built here — notif-<ms>-<entry id>.png — so it is unique per
+    // notification and traceable back to its entry.
+    function captureAvatar(imageUrl, entryId) {
+        var target = NotificationHistory.imageDir + "/notif-"
+            + Date.now() + "-" + entryId + ".png"
+        avatarGrabber.createObject(root.contentItem, {
+            source: imageUrl,
+            target: target,
+            entryId: entryId
+        })
     }
 }
