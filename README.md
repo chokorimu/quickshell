@@ -6,8 +6,8 @@ whole-desktop dotfiles: the quickshell shell plus hyprland, matugen and the apps
 
 | package | what |
 |---|---|
-| `quickshell` | the shell: bar + dynamic island (media / usage / theme / volume / capture / session / notifications), launcher, notifications, matugen theming |
-| `hypr` | hyprland config (pure lua — `hyprland.lua` requires animations/effects/keybinds) + hyprlock |
+| `quickshell` | the shell: bar + dynamic island (media / usage / theme / volume / capture / session / notifications), launcher, lockscreen, notifications, matugen theming |
+| `hypr` | hyprland config (pure lua — `hyprland.lua` requires animations/effects/keybinds) + a dormant hyprlock fallback config |
 | `matugen` | wallpaper → palette templates for hypr, rofi, kitty, cava, quickshell |
 | `rofi` | launcher + wallpaper/power menus — drun replaced by the quickshell launcher |
 | `kitty` `cava` `btop` `fastfetch` | terminal, audio visualiser, system monitor, fetch |
@@ -52,7 +52,7 @@ arch package names. `./install.sh` checks for the binaries before it stows and w
 | `cava` | the media page's visualiser |
 | `hyprshot`, `hyprpicker`, `slurp`, `grim` | the capture page's screenshot row, and hyprland's own screenshot keybinds |
 | `wl-clipboard` (`wl-copy`, `wl-paste`), `cliphist` | clipboard writes and the capture page's clipboard history |
-| `hyprlock`, `hyprpolkitagent` | the session page's lock cell, and the autostart's polkit agent |
+| `hyprpolkitagent` | the autostart's polkit agent |
 | `libnotify` (`notify-send`) | screenshot and recording confirmations |
 | `bluez-utils` (`bluetoothctl`), `util-linux` (`rfkill`) | the control centre's bluetooth tile — power-on clears the rfkill soft block first |
 | `power-profiles-daemon` (`powerprofilesctl`) | the control centre's battery saver tile |
@@ -63,7 +63,7 @@ not packages — all four are hand-installed into `~/.local/share/fonts`, which 
 
 - `Montserrat SemiBold` — the bar's UI font
 - `JetBrainsMonoNL Nerd Font` — every status glyph; tofu without it
-- `Rubik`, `MartianMono Nerd Font` — hyprlock
+- `Rubik`, `MartianMono Nerd Font` — hyprlock, now only the lockscreen's dormant fallback
 
 cursor: `capitaine-cursors-light`, set by the autostart and `HYPRCURSOR_THEME`.
 
@@ -74,6 +74,7 @@ degrades rather than dies.
 - `obs-websocket` (the OBS plugin) — the capture page's record row reads "OBS offline" without it
 - `nvidia-utils` (`nvidia-smi`) — the usage page's GPU cell reads `n/a`
 - `wf-recorder` — an alternative record backend
+- `hyprlock` — the lockscreen's fallback if the shell's own PAM stack cannot be opened at all; the session page's lock cell is Quickshell's own now
 - `qt6-imageformats` — the two `.webp` wallpapers render as bare plates without it (installed)
 
 ### keybind targets
@@ -88,4 +89,4 @@ in `hypr/.config/hypr/keybinds.lua`, but these are your apps rather than the she
 
 ## status
 
-bar + launcher + notifications live; osd still stubbed, session menu lives in the island.
+bar + launcher + notifications + lockscreen live; osd still stubbed, session menu lives in the island.

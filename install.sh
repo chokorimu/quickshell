@@ -68,7 +68,6 @@ RUNTIME_DEPS=(
     "pactl|libpulse|the volume page's per-app sliders"
     "brightnessctl|brightnessctl|the theme page's brightness slider"
     "playerctl|playerctl|media transport controls"
-    "hyprlock|hyprlock|the session page's lock cell"
     "hyprshot|hyprshot|the capture page's screenshot row"
     "hyprpicker|hyprpicker|hyprshot's region freeze"
     "slurp|slurp|region selection, hyprshot's and hyprland's own"
@@ -87,6 +86,7 @@ OPTIONAL_DEPS=(
     "nvidia-smi|nvidia-utils|the usage page's GPU cell reads n/a"
     "wf-recorder|wf-recorder|an alternative record backend"
     "otd-daemon|opentabletdriver|the tablet daemon in the autostart"
+    "hyprlock|hyprlock|the lockscreen's fallback if our own PAM stack cannot be opened at all — the session page's lock cell is Quickshell's own now"
 )
 
 # Not binaries, so they cannot be command -v'd. None of these is a
@@ -96,8 +96,8 @@ OPTIONAL_DEPS=(
 FONTS=(
     "Montserrat SemiBold|the bar's UI font"
     "JetBrainsMonoNL Nerd Font|every status glyph — tofu without it"
-    "Rubik|hyprlock"
-    "MartianMono Nerd Font|hyprlock"
+    "Rubik|hyprlock, now only the lockscreen's dormant fallback"
+    "MartianMono Nerd Font|hyprlock, now only the lockscreen's dormant fallback"
 )
 
 missing_runtime=()
