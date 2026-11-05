@@ -1438,74 +1438,11 @@ Item {
                         }
                     }
 
-                    Rectangle {
-                        width: root.columnWidth
-                        height: 40
-                        color: root.islandPage === "session" ? Theme.cardAccent : "transparent"
-
-                        // the selected marker: a black block down the
-                        // button's left edge, taking the full height
-                        // and the left 10% of the resting strip — no
-                        // inset, so it reads as part of the silhouette
-                        Rectangle {
-                            x: 0
-                            width: root.cardColumnWidth * 0.1
-                            height: parent.height
-                            color: "black"
-                            visible: root.islandPage === "session"
-                        }
-
-                        // the glyph holds the resting 56px icon zone —
-                        // it does not drift right as the column opens
-                        Text {
-                            anchors.verticalCenter: parent.verticalCenter
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            anchors.horizontalCenterOffset: -(parent.width - root.cardColumnWidth) / 2
-                            text: "\uDB82\uDC1C" // door-open
-                            color: root.islandPage === "session" ? Theme.cardAccentOn : Theme.barDim
-                            font.family: Theme.iconFont
-                            font.pixelSize: 17
-                        }
-
-                        // the menu's name, revealed by the expansion —
-                        // clipped to the button so it can't spill onto
-                        // the card mid-animation
-                        Item {
-                            anchors.left: parent.left
-                            anchors.leftMargin: root.cardColumnWidth
-                            anchors.right: parent.right
-                            anchors.top: parent.top
-                            anchors.bottom: parent.bottom
-                            clip: true
-                            visible: root.columnExpand > 0.01
-
-                            Text {
-                                anchors.verticalCenter: parent.verticalCenter
-                                x: 10
-                                width: Math.max(0, parent.width - 20)
-                                text: "Session"
-                                color: root.islandPage === "session" ? Theme.cardAccentOn : Theme.barDim
-                                font.family: Theme.barFontFamily
-                                font.pixelSize: 13
-                                elide: Text.ElideRight
-                                opacity: root.columnExpand
-                            }
-                        }
-
-                        MouseArea {
-                            id: sessionTab
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            onEntered: root.islandPage = "session"
-                        }
-                    }
-
                     // ---- notifications: toggles + history -----------------
-                    // The session button's twin, one page over. The glyph
-                    // is the one difference: bell while popups are
-                    // allowed, bell-slash while do-not-disturb holds, so
-                    // the DND state reads off the bar without opening the
-                    // card.
+                    // The session button's twin. The glyph is the one
+                    // difference: bell while popups are allowed,
+                    // bell-slash while do-not-disturb holds, so the DND
+                    // state reads off the bar without opening the card.
                     Rectangle {
                         width: root.columnWidth
                         height: 40
@@ -1565,6 +1502,68 @@ Item {
                             anchors.fill: parent
                             hoverEnabled: true
                             onEntered: root.islandPage = "notifications"
+                        }
+                    }
+
+                    Rectangle {
+                        width: root.columnWidth
+                        height: 40
+                        color: root.islandPage === "session" ? Theme.cardAccent : "transparent"
+
+                        // the selected marker: a black block down the
+                        // button's left edge, taking the full height
+                        // and the left 10% of the resting strip — no
+                        // inset, so it reads as part of the silhouette
+                        Rectangle {
+                            x: 0
+                            width: root.cardColumnWidth * 0.1
+                            height: parent.height
+                            color: "black"
+                            visible: root.islandPage === "session"
+                        }
+
+                        // the glyph holds the resting 56px icon zone —
+                        // it does not drift right as the column opens
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            anchors.horizontalCenterOffset: -(parent.width - root.cardColumnWidth) / 2
+                            text: "\uDB82\uDC1C" // door-open
+                            color: root.islandPage === "session" ? Theme.cardAccentOn : Theme.barDim
+                            font.family: Theme.iconFont
+                            font.pixelSize: 17
+                        }
+
+                        // the menu's name, revealed by the expansion —
+                        // clipped to the button so it can't spill onto
+                        // the card mid-animation
+                        Item {
+                            anchors.left: parent.left
+                            anchors.leftMargin: root.cardColumnWidth
+                            anchors.right: parent.right
+                            anchors.top: parent.top
+                            anchors.bottom: parent.bottom
+                            clip: true
+                            visible: root.columnExpand > 0.01
+
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                x: 10
+                                width: Math.max(0, parent.width - 20)
+                                text: "Session"
+                                color: root.islandPage === "session" ? Theme.cardAccentOn : Theme.barDim
+                                font.family: Theme.barFontFamily
+                                font.pixelSize: 13
+                                elide: Text.ElideRight
+                                opacity: root.columnExpand
+                            }
+                        }
+
+                        MouseArea {
+                            id: sessionTab
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            onEntered: root.islandPage = "session"
                         }
                     }
                 }
