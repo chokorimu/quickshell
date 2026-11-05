@@ -8,6 +8,7 @@ import "Theme"
 import "Modules/Bar"
 import "Modules/Capture"
 import "Modules/Launcher"
+import "Modules/Lock"
 import "Modules/Notifications"
 
 ShellRoot {
@@ -97,4 +98,10 @@ ShellRoot {
     // single instance, not per-monitor
     Launcher {}
     Notifications {}
+
+    // the lockscreen. One state holder; the per-monitor surfaces are
+    // its Variants. Locked from the session page's power cell (or
+    // `qs ipc call lock lock`), and the only way out is a successful
+    // PAM conversation.
+    Lock {}
 }

@@ -1,0 +1,29 @@
+# PAM stack for the quickshell lockscreen (Modules/Lock).
+#
+# Deliberately NOT /etc/pam.d/hyprlock. That chain is
+# `auth include login` -> system-local-login -> system-login ->
+# system-auth, and system-auth wraps pam_unix in pam_faillock with
+# deny=3 and a 900s unlock: three typos at the lockscreen and the
+# session is locked out for fifteen minutes. A lockscreen's job is
+# to keep the desk locked, not to rate-limit someone who already
+# has physical access to the machine and a live session — so the
+# attempt cap goes.
+#
+# What is left is the one module that does the actual work:
+# pam_unix, the same password check every login on this machine
+# goes through. Dropped along with faillock:
+#   - pam_nologin (/etc/nologin gates logins, not unlocks — a
+#     lockscreen should still unlock in maintenance mode)
+#   - pam_shells (the user's shell is in /etc/shells; it says
+#     nothing about whether they may unlock their own screen)
+#
+# What stays: FAIL_DELAY 3 from /etc/login.defs, which pam_unix
+# honors — every wrong guess still costs three seconds. No cap,
+# but no fast brute force either.
+#
+# This lives in ~/.config (stow-deployed from this repo) rather
+# than /etc/pam.d so it needs no root to install or edit, and
+# PamContext.configDirectory points PAM's lookup here. That
+# redirect is verified working; it is also what lets the module
+# be probed against throwaway stacks without touching this one.
+auth required pam_unix.so

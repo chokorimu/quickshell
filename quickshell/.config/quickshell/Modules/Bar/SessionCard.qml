@@ -216,7 +216,12 @@ Item {
             Repeater {
                 id: powerCells
                 model: [
-                    { glyph: "\uF023", label: "Lock",     cmd: ["hyprlock"] },
+                    // Lock goes through the module's IPC route, not
+                    // hyprlock: the lockscreen is Quickshell's own now
+                    // (Modules/Lock), themed and PAM-driven. hyprlock
+                    // stays installed as that module's StartFailed
+                    // fallback, but nothing invokes it directly.
+                    { glyph: "\uF023", label: "Lock",     cmd: ["qs", "ipc", "call", "lock", "lock"] },
                     { glyph: "\uF08B", label: "Log out",  cmd: ["hyprctl", "dispatch", "exit"] },
                     { glyph: "\uF021", label: "Reboot",   cmd: ["systemctl", "reboot"] },
                     { glyph: "\uF011", label: "Shut down", cmd: ["systemctl", "poweroff"] }
