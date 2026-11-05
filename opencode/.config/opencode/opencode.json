@@ -1,0 +1,26 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "tig": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "tig",
+      "options": {
+        "baseURL": "https://api.trustisgold.web.id/v1"
+      },
+      "models": {
+        "tig/step-5-unrestricted": {
+          "name": "step-5-unrestricted"
+        },
+        "tig/deepseek-unrestricted": {
+          "name": "deepseek-unrestricted"
+        },
+        "tig/step-5-preview": {
+          "name": "step-5-preview"
+        },
+        "tig/step-3.7-unrestricted": {
+          "name": "step-3.7-unrestricted"
+        }
+      }
+    }
+  }
+}

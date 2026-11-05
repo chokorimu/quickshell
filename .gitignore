@@ -5,6 +5,10 @@
 rofi/.config/rofi/wallpapers/
 # Avatar picked through the island's session page — runtime user data
 quickshell/.config/quickshell/avatar.png
+# opencode's server password — a credential, kept local. The rest of
+# the package (opencode.json, cli.json) is tracked; this file stays on
+# disk so stow still deploys it.
+opencode/.config/opencode/service.json
 
 # Backup files
 *.bak
