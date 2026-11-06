@@ -32,7 +32,12 @@ local screenshotArea  = "grim -g \"$(slurp; sleep 0.2)\" ~/Pictures/Screenshots/
 local menu            = "qs ipc call launcher toggle"
 local sessionmenu     = "qs ipc call island session"
 local reloadBar       = "pkill -x qs; sleep 1; qs"
-local testNotif       = "notify-send -t 10000 'SUPER+N test' 'This body runs long on purpose so the two-line clamp has something to cut, and every card stays exactly the same size no matter how much text arrives.'"
+    -- the image is the session page's own avatar pick, which is what puts a
+    -- picture in the popup's header slot: the card prefers notification.image
+    -- over the app icon, and notify-send's -i sets the image-path hint. If the
+    -- file is ever missing the card falls back to the app icon and the slot
+    -- stays empty, so the layout is still exercisable without it.
+    local testNotif       = "notify-send -t 10000 -i ~/.config/quickshell/avatar.png 'SUPER+N test' 'This body runs long on purpose so the two-line clamp has something to cut, and every card stays exactly the same size no matter how much text arrives.'"
 local powermenu       = "pkill -SIGUSR2 rofi; rofi -show menu -modi \"menu:~/.config/rofi/custom/powermenu.sh\" -theme \"~/.config/rofi/custom/powermenu.rasi\""
 local wallpapermenu   = "pkill -SIGUSR2 rofi; rofi -show wallpaper -modi \"wallpaper:~/.config/rofi/custom/wallpapermenu.sh\" -theme \"~/.config/rofi/custom/wallpapermenu.rasi\" -show-icons"
 
