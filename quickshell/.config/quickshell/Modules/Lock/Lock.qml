@@ -16,19 +16,20 @@
 // itself carries the full reasoning.
 //
 // Structure: the root is a non-visual state holder — one instance in
-// shell.qml — and the per-monitor surfaces are Variants beneath it
-// binding to `locked`. The state lives here rather than in the
-// windows so every monitor locks and unlocks together; a lockscreen
-// that left one screen interactive would be no lockscreen at all.
+// shell.qml — and one WlSessionLock beneath it binding to `locked`.
+// The lock instantiates its surface component once per output, so
+// every monitor locks and unlocks together with no bookkeeping
+// here; a lockscreen that left one screen interactive would be no
+// lockscreen at all.
 //
-// The window maps and unmaps with `locked` instead of staying mapped
-// behind a collapsing input mask (the launcher's trick): a lockscreen
-// needs EXCLUSIVE keyboard focus, and an always-mapped exclusive
-// surface would hold the keyboard from the desktop while unlocked.
-// hyprlock maps on demand for the same reason. The ~56ms remap cost
-// the launcher measured is irrelevant for a surface that appears
-// once per lock, and Corners.qml already maps/unmaps on a flag, so
-// the pattern is proven here.
+// The surface is ext-session-lock-v1 rather than a layer surface,
+// and that is load-bearing: while a client holds the session lock,
+// hyprland blanks every other surface AND suppresses every keybind
+// without `locked = true`. The layer-shell draft of this module
+// looked the same but left the desktop live behind it — SUPER+W
+// still closed windows while locked. The binds that should survive
+// (volume, brightness, media transport) already carry that flag in
+// keybinds.lua; everything else now dies with the lock.
 import QtQml
 import QtQuick
 import Quickshell
@@ -266,40 +267,32 @@ Item {
         }
     }
 
-    // ---- per-monitor surfaces -------------------------------------------
+    // ---- the lock surface ------------------------------------------------
+    //
+    // One WlSessionLock, one surface per output: the lock
+    // instantiates the component per screen itself, so there is no
+    // Variants here and no screen bookkeeping to get wrong. The
+    // compositor hands the lock surfaces the keyboard, which is what
+    // the field below types into; the per-output instantiation, the
+    // keyboard and the clean unlock were all probe-verified
+    // (/tmp/opencode/slprobe, slprobe2) before this replaced the
+    // layer surface.
+    //
+    // The component is declared beside the lock rather than inline
+    // in its `surface` property purely so the content keeps its old
+    // indentation — inline would push every child four spaces right
+    // for no gain.
+    Component {
+        id: lockSurface
 
-    Variants {
-        model: Quickshell.screens
-        delegate: PanelWindow {
-            id: win
-            required property var modelData
-            screen: modelData
+        WlSessionLockSurface {
+            id: surf
 
-            visible: root.locked
-            color: "transparent"
-
-            anchors {
-                top: true
-                bottom: true
-                left: true
-                right: true
-            }
-
-            WlrLayershell.layer: WlrLayershell.Overlay
-            // Exclusive, and the enum is the standalone namespace —
-            // WlrLayershell.KeyboardFocus.* fails with a TypeError
-            // while the binding just stays dead. A lockscreen is the
-            // one surface in this shell that SHOULD hold the
-            // keyboard; the bar stays at None so it cannot be a focus
-            // thief, and the ESC experiment showed OnDemand is not
-            // granted on request here.
-            WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
-            exclusionMode: ExclusionMode.Ignore
-
-            // No mask: the surface only exists while locked, and a
-            // lockscreen wants every click and scroll on the monitor.
-            // (The layer-shell input region defaults to the whole
-            // surface, which is exactly right here.)
+            // black base behind the scrim — the compositor's own
+            // blank color, so a slow first paint never flashes the
+            // wallpaper through. The scrim Rectangle below is the
+            // real background; this is only the floor under it.
+            color: "black"
 
             // scrim — the card surface's own darker step, so the card
             // reads as a raised surface on it
@@ -657,5 +650,11 @@ Item {
                 }
             }
         }
+    }
+
+    WlSessionLock {
+        id: sessionLock
+        locked: root.locked
+        surface: lockSurface
     }
 }
