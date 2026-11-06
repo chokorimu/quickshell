@@ -14,6 +14,7 @@ import QtQml
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Quickshell.Wayland
 import "../../Theme"
 
 PanelWindow {
@@ -100,6 +101,24 @@ PanelWindow {
     visible: true
     focusable: true
     exclusionMode: ExclusionMode.Ignore
+
+    // Keyboard priority while the card is up. A layer surface's
+    // keyboard interactivity defaults to None, and the window-level
+    // `focusable` above does NOT override it — with None the
+    // compositor never routes key events to the surface no matter
+    // what forceActiveFocus() does inside it, which is why typing,
+    // the arrows, Enter and Escape all went nowhere before this
+    // line existed. Flipping to Exclusive on the already-mapped
+    // surface takes the keyboard the moment the card opens
+    // (probe-verified: /tmp/opencode/lfprobe — hyprland honors the
+    // interactivity change with no remap, so the pop keeps its
+    // zero-stall always-mapped design), and back to None on close
+    // hands the keyboard to whatever window had it before. The
+    // island's ESC experiment tried this with OnDemand and the
+    // compositor never granted it; Exclusive lands.
+    WlrLayershell.keyboardFocus: root.open
+        ? WlrKeyboardFocus.Exclusive
+        : WlrKeyboardFocus.None
 
     mask: Region {
         x: 0
