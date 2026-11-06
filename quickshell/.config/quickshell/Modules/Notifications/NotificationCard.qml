@@ -53,8 +53,13 @@ Rectangle {
     // Bound directly, every property read on the fading card would hit null
     // and flood the log with TypeErrors. The RetainableLock at the bottom
     // keeps the captured object alive until the card itself is destroyed.
+    //
+    // `model.notification`, not `modelData`: the view's model is the
+    // newest-first mirror ListModel in Notifications.qml (see the note
+    // there on why a mirror exists at all), so the notification arrives
+    // as a named role rather than as the model object itself.
     property var notification: null
-    Component.onCompleted: notification = modelData
+    Component.onCompleted: notification = model.notification
 
     // fixed width; the height sizes to the content (contentHeight below)
     width: 420
