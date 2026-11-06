@@ -153,14 +153,94 @@ PanelWindow {
         function onApplicationsChanged() { root.reloadApps() }
     }
 
-    readonly property var filtered: {
-        var f = root.filter.trim().toLowerCase()
-        if (f.length === 0) return root.apps
-        var out = []
-        for (var i = 0; i < root.apps.length; i++) {
-            if (root.apps[i].name.toLowerCase().indexOf(f) !== -1)
-                out.push(root.apps[i])
+    // ---- fuzzy search -----------------------------------------------------
+    // Subsequence matching with a score, so "vs" finds Visual Studio
+    // Code and "dc" finds Discord: every character of the query has to
+    // appear in the haystack in order, but not adjacently. The score
+    // ranks the results — a word-start hit, a consecutive run and an
+    // early position all pay — so the app you meant lands on top
+    // instead of whichever name happens to contain the letters first.
+    //
+    // The scan is greedy: each character takes its earliest remaining
+    // occurrence. That is cheap and predictable over a few hundred
+    // desktop entries, but it is not guaranteed to find the best-
+    // scoring path — in "Visual Studio Code" the query "vs" scores
+    // higher through the S of "Studio" (a word start) than the S
+    // inside "Visual", and the walk takes the latter. The weights are
+    // tuned so the ranking survives it anyway: the boundary V at
+    // position 0 plus the early S still outranks a mid-word match
+    // anywhere else in the list.
+    //
+    // Returns -1 for no match; higher is a better match.
+    //
+    // The specificity divisor's slope — every character of the haystack
+    // costs this much of the raw score, so the same subsequence found in
+    // a shorter name scores higher. This is what makes "dc" land on
+    // Discord rather than Dictionary: on raw match quality alone
+    // Dictionary wins, because its C sits one position earlier (11.6
+    // against 11.4) and no position-based penalty can prefer the later
+    // one. Only name length separates them.
+    //
+    // The slope lives in a narrow measured window and this is the middle
+    // of it. Too low and "dc" falls back to Dictionary (needs > 0.006);
+    // too high and the length term starts overriding genuinely better
+    // raw matches — at 0.05 "term" flips to Xfce Terminal, whose 44.8
+    // over 13 chars outranks Terminal Emulator's 48.8 over 17 (needs
+    // < 0.031). Tune-here, but re-run the corpus harness after: both
+    // edges are within a factor of two of this value.
+    readonly property real fuzzyLengthCost: 0.02
+
+    function fuzzyScore(query, haystack) {
+        if (query.length === 0) return 0
+        var q = query.toLowerCase()
+        var h = haystack.toLowerCase()
+        var score = 0
+        var from = 0
+        var prev = -2
+        for (var i = 0; i < q.length; i++) {
+            var c = q[i]
+            if (c === " ") continue
+            var idx = h.indexOf(c, from)
+            if (idx === -1) return -1
+            if (idx === prev + 1) score += 12              // consecutive run
+            if (idx === 0 || h[idx - 1] === " " || h[idx - 1] === "-" || h[idx - 1] === "_" || h[idx - 1] === ".") score += 10   // word start
+            score += 1                                     // per matched char
+            score -= Math.min(idx, 30) * 0.2               // earlier wins
+            prev = idx
+            from = idx + 1
         }
+        // Divisive, NOT subtractive, and that is load-bearing: a
+        // subtractive length penalty drives weak matches below zero and
+        // `filtered`'s `s >= 0` membership test then silently deletes
+        // them from the list — measured, "vs" collapsed from 3 hits to 1
+        // at a 0.2/char penalty. A divisor keeps every match's sign
+        // intact, so membership and ranking stay separate concerns.
+        return score / (1 + h.length * root.fuzzyLengthCost)
+    }
+
+    // An entry's score is the best of its name and its comment, the
+    // name counting double so "code" ranks Code - OSS above an app
+    // that merely mentions it in its description. A missing or
+    // unmatched field scores -1 and drops out of the max.
+    function entryScore(query, entry) {
+        var name = entry.name ? fuzzyScore(query, entry.name) : -1
+        var comment = entry.comment ? fuzzyScore(query, entry.comment) * 0.5 : -1
+        return Math.max(name, comment)
+    }
+
+    readonly property var filtered: {
+        var f = root.filter.trim()
+        if (f.length === 0) return root.apps
+        var scored = []
+        for (var i = 0; i < root.apps.length; i++) {
+            var s = root.entryScore(f, root.apps[i])
+            if (s >= 0) scored.push({ entry: root.apps[i], score: s })
+        }
+        // best first; Array.sort is stable, so equal scores keep the
+        // DesktopEntries order (alphabetical by name) underneath
+        scored.sort(function (a, b) { return b.score - a.score })
+        var out = []
+        for (var j = 0; j < scored.length; j++) out.push(scored[j].entry)
         return out
     }
 
