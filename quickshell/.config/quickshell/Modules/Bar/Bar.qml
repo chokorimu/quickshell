@@ -2639,25 +2639,82 @@ Item {
                     }
                 }
 
-                // battery — icon only; a tiered cell at every level,
-                // charging included. The bolt swap is gone: the tier
-                // already reads as the level, and a bolt told you
-                // nothing the tier did not.
-                Text {
+                // battery — a tiered cell at every level, charging
+                // included, with the percentage revealed on hover. The
+                // bolt swap is gone: the tier already reads as the level,
+                // and a bolt told you nothing the tier did not.
+                //
+                // The readout is one Item — glyph, then the percentage to
+                // its right — and its width is what the row sees. The row
+                // is anchored right, so growing the readout on hover
+                // pushes every element to its left (the clock's clamp
+                // follows rightRow.x, so it slides with them) while the
+                // glyph itself keeps its place: it is the row's last
+                // child, so its x is the row's width minus its own, and
+                // the two grow by the same amount. The hover zone covers
+                // the revealed number too, so moving off the glyph onto
+                // the percentage does not collapse it.
+                //
+                // reveal is event-driven (onEntered/onExited), never read
+                // off containsMouse: a width binding on containsMouse
+                // would feed the area's own geometry back into itself and
+                // oscillate on the way out. (LO's call — hovering the
+                // battery "shifts elements to left and reveals percentage
+                // on the right".)
+                Item {
+                    id: batteryReadout
                     anchors.verticalCenter: parent.verticalCenter
-                    text: {
-                        if (!Battery.present)
-                            return ""
-                        var p = Battery.percentage
-                        if (p > 0.75) return "\uF240"
-                        if (p > 0.5)  return "\uF241"
-                        if (p > 0.25) return "\uF242"
-                        if (p > 0.10) return "\uF243"
-                        return "\uF244"
+                    height: batteryIcon.height
+                    width: batteryIcon.width + reveal * (4 + batteryPct.width)
+
+                    property real reveal: 0
+                    Behavior on reveal {
+                        NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
                     }
-                    color: !Battery.present ? Theme.barDim : (Battery.charging || Battery.percentage > 0.15 ? Theme.barForeground : Theme.barUrgent)
-                    font.family: Theme.iconFont
-                    font.pixelSize: Theme.barFontSize
+
+                    Text {
+                        id: batteryIcon
+                        anchors.left: parent.left
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: {
+                            if (!Battery.present)
+                                return ""
+                            var p = Battery.percentage
+                            if (p > 0.75) return "\uF240"
+                            if (p > 0.5)  return "\uF241"
+                            if (p > 0.25) return "\uF242"
+                            if (p > 0.10) return "\uF243"
+                            return "\uF244"
+                        }
+                        color: !Battery.present ? Theme.barDim : (Battery.charging || Battery.percentage > 0.15 ? Theme.barForeground : Theme.barUrgent)
+                        font.family: Theme.iconFont
+                        font.pixelSize: Theme.barFontSize
+                    }
+
+                    // the percentage mirrors the glyph's color logic, so a
+                    // critical battery reads urgent in both places at once
+                    Text {
+                        id: batteryPct
+                        anchors.left: batteryIcon.right
+                        anchors.leftMargin: 4
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: Battery.present ? Math.round(Battery.percentage * 100) + "%" : ""
+                        color: !Battery.present ? Theme.barDim : (Battery.charging || Battery.percentage > 0.15 ? Theme.barForeground : Theme.barUrgent)
+                        font.family: Theme.barFontFamily
+                        font.pixelSize: Theme.barFontSizeSmall
+                        opacity: batteryReadout.reveal
+                    }
+
+                    // hover only — the battery has no click action, and
+                    // NoButton keeps the zone from eating clicks meant
+                    // for whatever sits under the revealed number
+                    MouseArea {
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        acceptedButtons: Qt.NoButton
+                        onEntered: batteryReadout.reveal = 1
+                        onExited: batteryReadout.reveal = 0
+                    }
                 }
             }
         }
