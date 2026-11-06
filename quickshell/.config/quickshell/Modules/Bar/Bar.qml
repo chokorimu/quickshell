@@ -2547,19 +2547,23 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 12
 
-                // tray — all SNI icons in ONE pill, cut from the same
-                // cloth as the workspace pill: same barWorkspacePill
-                // surface, same height and height/2 radius, same 4px side
-                // padding. Icons ride in their own brand colors; left-click
-                // activates, right-click opens the item's menu. Hidden when
-                // nothing registers, so the row stays compact on a clean
+                // tray — all SNI icons in ONE pill. The surface is
+                // pinned dark in both palettes (Theme.trayPill): the
+                // icons ride in their own brand colors, and one dark
+                // plate keeps them reading the same whatever the bar
+                // is wearing — the bar and the workspace pill still
+                // flip, only this surface is fixed. Same height and
+                // height/2 radius as the workspace pill, same 4px
+                // side padding. Left-click activates, right-click
+                // opens the item's menu. Hidden when nothing
+                // registers, so the row stays compact on a clean
                 // session.
                 Rectangle {
                     id: trayPill
                     anchors.verticalCenter: parent.verticalCenter
                     height: root.workspacePillHeight
                     radius: height / 2
-                    color: Theme.barWorkspacePill
+                    color: Theme.trayPill
                     width: trayRow.implicitWidth + 8
                     visible: trayRow.implicitWidth > 0
 

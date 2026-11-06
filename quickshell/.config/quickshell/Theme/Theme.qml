@@ -170,6 +170,16 @@ Singleton {
     // value washes out against light gray)
     readonly property color barWorkspaceDim:  darkMode ? fixedDarkBarMuted : "#6e6e73"
 
+    // tray pill — the SNI icons' shared plate. Pinned to the dark
+    // pill in BOTH palettes at LO's request: the icons ride in
+    // their own brand colors, and one dark plate keeps them
+    // reading the same whatever the bar is wearing. The bar and the
+    // workspace pill still flip; only this surface is fixed — the
+    // same fixed-value treatment cardAccent and launcherSelection
+    // get, for the same reason: it is a brand surface, not palette
+    // content.
+    readonly property color trayPill: fixedPillDark
+
     // card accent — the saturated yellow fill on the island tab
     // column's selected button. Fixed in both palettes, like
     // screenCornerColor: it is an accent, not a surface. One yellow
