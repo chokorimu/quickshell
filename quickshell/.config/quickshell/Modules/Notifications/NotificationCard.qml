@@ -1,10 +1,14 @@
 // NotificationCard.qml — one popup card in the notification stack.
 //
-// Every card is exactly 420x140: the body clamps at two lines with an
-// ellipsis and the card never resizes, so the stack stays uniform no
-// matter how much text an app sends. The actions row claims a fixed
-// bottom slot when the app offered actions; when it is absent the body
-// takes that space instead.
+// The card is 420 wide and sizes its height to its content: the body
+// clamps at two lines with an ellipsis, which bounds the height from
+// above, and the image bounds it from below, so a card is born at the
+// height its content needs and never jumps as text arrives. It used to
+// be a fixed 140, which left up to 56px of empty space under a short
+// body — the body stretched to fill the card and top-aligned its text,
+// so the gap was simply the card being taller than its contents. The
+// actions row claims a slot at the bottom when the app offered actions;
+// when it is absent the card is that much shorter.
 //
 // Delegate over NotificationServer.trackedNotifications, so modelData is
 // the Notification. Click anywhere dismisses; action buttons invoke their
@@ -29,9 +33,10 @@
 // anchored to the summary's bottom with no margin, so the two are one
 // text column with nothing between them.
 //
-// The card's air is three named constants (margin, gap, timeGap) rather
-// than literals scattered through the anchors, so the spacing is changed
-// in one place. margin is the same on all four sides, the image included.
+// The card's air is four named constants (margin, gap, timeGap,
+// actionGap) rather than literals scattered through the anchors, so the
+// spacing is changed in one place. margin is the same on all four sides,
+// the image included.
 import QtQml
 import QtQuick
 import Quickshell
@@ -51,9 +56,8 @@ Rectangle {
     property var notification: null
     Component.onCompleted: notification = modelData
 
-    // fixed geometry — the stack never jumps as content changes
+    // fixed width; the height sizes to the content (contentHeight below)
     width: 420
-    height: 140
     radius: 18
     color: Theme.barBackground
 
@@ -89,10 +93,39 @@ Rectangle {
     // top margin bigger than left?" — is what found it.)
     //
     // gap is the air between the image and the text column, and timeGap the
-    // air between the text column and the header's timestamp.
+    // air between the text column and the header's timestamp. actionGap is
+    // the air between the body and the actions row.
     readonly property int margin: 14
     readonly property int gap: 10
     readonly property int timeGap: 8
+    readonly property int actionGap: 8
+
+    // The card sizes to its content. It used to be a fixed 140, and that
+    // is where the bottom gap came from: the body was anchored to the
+    // card's bottom edge and top-aligned its text, so the body STRETCHED
+    // to fill the card while the text sat at the top of its box — a
+    // two-line body left 56px of nothing under it, and a one-line body
+    // left 74. The header shrinking when the app name went away made it
+    // worse, not better.
+    //
+    // Now the body takes its content height (still clamped to two lines)
+    // and the card is the sum of its parts, so there is no gap to leave.
+    // The two-line clamp bounds the height from above and the image
+    // bounds it from below, so the card is born at the height its
+    // content needs and never jumps as text arrives — which was the
+    // point of the fixed size in the first place. (LO's call — "shrink".)
+    //
+    //   no body, no actions : 14 + max(20, 38) + 14           = 66
+    //   two-line body       : 14 + max(56, 38) + 14           = 84
+    //   two-line + actions  : 14 + 56 + 8 + 26 + 14           = 118
+    readonly property int contentHeight: {
+        var textBottom = margin + summaryText.height + (body.visible ? body.height : 0)
+        var h = Math.max(textBottom, margin + imageSize)
+        if (actionRow.visible)
+            h += actionGap + actionRow.height
+        return h + margin
+    }
+    height: contentHeight
 
     // The image is a square two text lines tall, and "two lines" is
     // measured rather than picked: the summary's line box is 20px and the
@@ -219,25 +252,32 @@ Rectangle {
         font.pixelSize: 12
     }
 
-    // body — two lines max, then ellipsis; fills whatever the actions
-    // row leaves, top-aligned so multi-line bodies read consistently.
-    // Anchored to the SUMMARY's bottom with no margin, not to a band's:
-    // the summary and the body are one text column with nothing between
-    // them, which is what puts the first two lines' centre on the image's
-    // (LO's call — "leave no gap between sender and message content").
+    // body — two lines max, then ellipsis. Anchored to the SUMMARY's
+    // bottom with no margin, not to a band's: the summary and the body
+    // are one text column with nothing between them, which is what puts
+    // the first two lines' centre on the image's (LO's call — "leave no
+    // gap between sender and message content").
+    //
+    // No bottom anchor: the body takes its content height, clamped to two
+    // lines by maximumLineCount, and the card shrinks to fit. It used to
+    // anchor to the card's bottom (or the actions row's top) and
+    // top-align its text inside that stretched box, which is what left
+    // the big gap under a short body.
+    //
+    // Dim rather than full ink: the island history row's own treatment,
+    // where the body line stacks under the summary in cardDim, so the
+    // popup and the row read the same way and the summary stays the
+    // loudest thing on the card (LO's call — "softer or less opaque").
     Text {
         id: body
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: summaryText.bottom
-        anchors.bottom: actionRow.visible ? actionRow.top : parent.bottom
         anchors.leftMargin: card.textInset
         anchors.rightMargin: card.margin
-        anchors.topMargin: 0
-        anchors.bottomMargin: actionRow.visible ? 8 : card.margin
         visible: card.notification.body.length > 0
         text: card.notification.body
-        color: Theme.barForeground
+        color: Theme.barDim
         font.family: Theme.barFontFamily
         font.pixelSize: 13
         wrapMode: Text.WordWrap
@@ -248,15 +288,18 @@ Rectangle {
 
     // actions — fixed bottom slot, hidden when the app offered none.
     // Takes the same textInset as every other block, and the same outer
-    // margin on the right and bottom.
+    // margin on the right. It hangs off the BODY's bottom rather than the
+    // card's, because the card is now sized to its content: the actions
+    // row is the last thing in the card, so it is what the card's bottom
+    // margin is measured from. With no body it hangs off the summary.
     Row {
         id: actionRow
         anchors.left: parent.left
         anchors.right: parent.right
-        anchors.bottom: parent.bottom
+        anchors.top: body.visible ? body.bottom : summaryText.bottom
+        anchors.topMargin: card.actionGap
         anchors.leftMargin: card.textInset
         anchors.rightMargin: card.margin
-        anchors.bottomMargin: card.margin
         height: 26
         spacing: 8
         visible: card.notification.actions.length > 0
