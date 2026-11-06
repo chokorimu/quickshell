@@ -197,7 +197,7 @@ Item {
         // dark card, dark on the light one, each the other palette's
         // cardHighlight — with the glyph and label knocked out in
         // cardHoverOn, which flips with the fill. The hold traces a
-        // yellow ring — the fixed launcherSelection, LO's call —
+        // yellow ring — the fixed cardAccent, LO's call —
         // around the cell's outline, framing a button inset by the
         // ring's width. What the ring is judged against is therefore
         // the card, not the fill: yellow on the dark card is ~12:1,
@@ -305,7 +305,7 @@ Item {
                     }
 
                     // the ring — a yellow stroke (the fixed
-                    // launcherSelection) traced around the slot's own
+                    // cardAccent) traced around the slot's own
                     // rounded-rect outline, filling clockwise from the
                     // top centre as the hold runs. It frames the button
                     // rather than sitting on it: the button's edge is
@@ -417,7 +417,7 @@ Item {
 
                             ctx.lineWidth = ring
                             ctx.lineCap = "butt"
-                            ctx.strokeStyle = Theme.launcherSelection
+                            ctx.strokeStyle = Theme.cardAccent
                             ctx.stroke()
                         }
 

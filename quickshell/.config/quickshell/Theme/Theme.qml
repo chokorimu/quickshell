@@ -181,10 +181,14 @@ Singleton {
     readonly property color trayPill: fixedPillDark
 
     // card accent — the saturated yellow fill on the island tab
-    // column's selected button. Fixed in both palettes, like
-    // screenCornerColor: it is an accent, not a surface. One yellow
-    // with launcherSelection below — the same value, so every accent
-    // in the shell reads as one system.
+    // column's selected button, the toggle tiles' on-state, the
+    // meters and the session page's hold ring. Fixed in both
+    // palettes, like screenCornerColor: it is an accent, not a
+    // surface. The launcher's selection row USED to share this
+    // value so every accent read as one system; it went neutral gray
+    // at LO's call (a full-width row of saturated yellow was too
+    // loud), so the ring that still wears yellow points here
+    // rather than at launcherSelection.
     readonly property color cardAccent: "#e6e600"
     // label color on the accent — the selected button's glyph. Fixed
     // for the same reason cardAccent is: the accent never flips.
@@ -237,20 +241,27 @@ Singleton {
     // near-white on the dark fill in the light one.
     readonly property color cardHoverOn: darkMode ? "#1b1b1f" : "#e8e8ea"
 
-    // launcher selection — the active row's fill. Fixed in both
-    // palettes like cardAccent, and the same value as it: one
-    // saturated yellow across the shell, deliberately not flipping
-    // with darkMode or following matugen. Near-black label for
-    // contrast on the yellow.
-    readonly property color launcherSelection:   "#e6e600"
-    readonly property color launcherSelectionOn: "#1b1b1f"
-    // launcher search — the static label block beside the input
-    // field. Inverted against the palette at LO's request: black in
-    // the light theme, white in the dark one, with the label knocked
-    // out in the opposite. Tied to darkMode like the rest of the
-    // fixed card palette; matugen computes no inversion.
-    readonly property color launcherSearchLabel:   darkMode ? "#ffffff" : "#000000"
-    readonly property color launcherSearchLabelOn: darkMode ? "#000000" : "#ffffff"
+    // launcher selection — the active row's fill. Neutral, at LO's
+    // call: the row shared cardAccent's saturated yellow until a
+    // full-width row of it read too loud, and the island's smaller
+    // accents (selected tab, toggle tiles, meters, hold ring) keep
+    // the yellow. The neutral then went through two solid passes —
+    // one fixed mid-gray (#9a9a9a), then a per-palette pair of
+    // opaque steps (#b8b8bc / #5e5e64) — LO asking for subtler each
+    // time, the last word "as if it was transparent but still
+    // visible". So the fill is a veil now: cardForeground, the same
+    // ink the label wears, washed across the card at low alpha —
+    // near-black over the light card, near-white over the dark one.
+    // The alpha is per palette because the two cards sit different
+    // distances from mid-gray: 0.18 over the light card lands ~1.5:1
+    // and 0.15 over the dark one ~1.6:1, each just above that
+    // palette's hover fill (cardHighlight, ~1.3:1 in both) and no
+    // louder — a lift you see rather than a slab. The label reads on
+    // the composite at ~10:1 (light) and ~7:1 (dark). Still no
+    // matugen: it computes no card grays, and the veil is
+    // card-palette content, flipping with darkMode like the rest.
+    readonly property color launcherSelection: Qt.rgba(cardForeground.r, cardForeground.g, cardForeground.b, darkMode ? 0.15 : 0.18)
+    readonly property color launcherSelectionOn: cardForeground
 
     // typography
     readonly property string fontFamily: "monospace"

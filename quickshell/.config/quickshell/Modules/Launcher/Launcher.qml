@@ -15,6 +15,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
+import "../Bar"
 import "../../Theme"
 
 PanelWindow {
@@ -27,14 +28,6 @@ PanelWindow {
     // ---- card metrics ----------------------------------------------------
     readonly property real cardWidth: 500
     readonly property real cardRadius: 22
-    // the search bar's label block — hugs the "Search" text: 76px
-    // wide (~8-10px beside the text) and 32px tall (~8px above and
-    // below; LO asked for the top and bottom padding smaller again).
-    // The block centers vertically in the 44px search row, so its
-    // text shares the input's center line. The input column takes
-    // the rest of the width, so both sides read the width number.
-    readonly property int searchLabelWidth: 76
-    readonly property int searchLabelHeight: 32
     // the pop's overshoot headroom: the pop-in bezier peaks at ~1.02x, so
     // the clip runs wider than the card or the overshoot gets shaved off
     readonly property real popOvershoot: 1.12
@@ -451,45 +444,49 @@ PanelWindow {
                 // no interaction while the card is retracting
                 enabled: root.open
 
-                // search — two columns: a static "Search" label block
-                // (square, inverted against the palette: black in the
-                // light theme, white in the dark one) beside the input
-                // field, which carries no placeholder and no background
-                // — the label says what the field is and the typed text
-                // sits straight on the card surface. Both columns are
-                // square; a rounded input beside a square label would
-                // read as a mismatch.
+                // search — the volume tab's header treatment: the
+                // brand mark and a "// SEARCH" title in the header's
+                // own type (cardForeground, 20px DemiBold,
+                // barFontFamily — VolumeCard's title row verbatim),
+                // then the input field beside it. The title says what
+                // the field is, so the input carries no placeholder
+                // and no background: the typed text sits straight on
+                // the card surface. The mark is HeaderIcon — fixed
+                // white plate, black arrow, in both palettes — the
+                // same brand treatment the volume tab wears.
                 Row {
                     width: parent.width
                     height: 44
-                    spacing: 0
+                    spacing: 12
 
-                    Rectangle {
-                        width: root.searchLabelWidth
-                        height: root.searchLabelHeight
-                        // centered in the row so the label's text shares
-                        // the input's center line despite the shorter box
+                    Row {
+                        id: searchHeader
                         anchors.verticalCenter: parent.verticalCenter
-                        color: Theme.launcherSearchLabel
+                        spacing: 12
+
+                        HeaderIcon {
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
 
                         Text {
-                            anchors.centerIn: parent
-                            text: "Search"
-                            color: Theme.launcherSearchLabelOn
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "// SEARCH"
+                            color: Theme.cardForeground
                             font.family: Theme.barFontFamily
-                            font.pixelSize: Theme.launcherFontSize
+                            font.pixelSize: 20
+                            font.weight: Font.DemiBold
                         }
                     }
 
-                    // no fill — the input's own background is gone
+                    // no fill — the input's own background is gone;
+                    // the row's 12px spacing is the gap from the title
                     Item {
-                        width: parent.width - root.searchLabelWidth
+                        width: parent.width - searchHeader.width - 12
                         height: parent.height
 
                         TextInput {
                             id: input
                             anchors.fill: parent
-                            anchors.leftMargin: 12
                             anchors.rightMargin: 12
                             verticalAlignment: Text.AlignVCenter
                             color: Theme.cardForeground
@@ -558,14 +555,16 @@ PanelWindow {
 
                         Rectangle {
                             anchors.fill: parent
-                            // square — the yellow reads as a full-width
+                            // square — the fill reads as a full-width
                             // bar, no rounding (LO's call). The selected
-                            // row takes the yellow, and since hover moves
-                            // the selection the row under the cursor is
-                            // normally the selected one; the highlight
-                            // fill remains for the case where the
-                            // keyboard moved the selection off the row
-                            // the mouse is resting on.
+                            // row takes the veil — the label's own ink
+                            // washed across the card at low alpha, one
+                            // strength per palette — and since hover
+                            // moves the selection the row under the
+                            // cursor is normally the selected one; the
+                            // highlight fill remains for the case where
+                            // the keyboard moved the selection off the
+                            // row the mouse is resting on.
                             color: index === root.selected
                                 ? Theme.launcherSelection
                                 : (parent.containsMouse ? Theme.cardHighlight : "transparent")
