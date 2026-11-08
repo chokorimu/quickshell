@@ -260,10 +260,34 @@ PanelWindow {
     function launch(entry) {
         if (!entry) return
         // DesktopEntry.command is a QStringList — hand it to Process as-is.
-        proc.command = entry.command
+        // A running GUI app keeps proc.running true, so setting
+        // running = true again is a silent no-op and drops the launch.
+        // One-deep queue: if proc is running, stash in pending.
+        if (proc.running) {
+            if (!pending) pending = []
+            pending.push(entry.command)
+            return
+        }
+        // Start next launch (pending first, else the incoming one)
+        const cmd = (pending && pending.length) ? pending.shift() : entry.command
+        proc.command = cmd
         proc.running = true
         root.close()
     }
+
+    Connections {
+        target: proc
+        function onRunningChanged() {
+            if (!proc.running && pending && pending.length) {
+                const cmd = pending.shift()
+                proc.command = cmd
+                proc.running = true
+                root.close()
+            }
+        }
+    }
+
+    property var pending: []
 
     Process { id: proc }
 
