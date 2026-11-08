@@ -230,3 +230,6 @@ echo '⡿⣿⣟⣻⣯⣽⣷⣿⡿⣿⣿⣻⣯⣿⣿⣿⢿⣛⣿⣭⣽⣷⣶⣶�
 ⣟⣯⡗⣯⠐⠢⠔⡊⠔⡡⢊⠔⣡⣾⣿⣿⣷⣮⡘⡀⢃⢼⣿⣿⣿⣿⣿⣿⣿⣿⡇⢊⠔⣈⢂⣱⣽⣿⣿⣔⠡⠒⠤⣉⢒⡈⠻⣾⣿⣿'
 }
 export PATH=~/.local/npm-global/bin:$PATH
+
+# opencode
+export PATH=/home/chokorimu/.opencode/bin:$PATH
