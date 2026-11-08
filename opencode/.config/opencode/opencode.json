@@ -19,6 +19,12 @@
         },
         "tig/step-3.7-unrestricted": {
           "name": "step-3.7-unrestricted"
+        },
+        "tig/step-3.7-flash": {
+          "name": "step-3.7-flash"
+        },
+        "tig/step-3.5-flash": {
+          "name": "step-3.5-flash"
         }
       }
     }
