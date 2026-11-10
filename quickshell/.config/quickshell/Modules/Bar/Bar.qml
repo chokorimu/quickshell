@@ -93,6 +93,15 @@ Item {
     readonly property Item pillItem: pill
     readonly property Item cardItem: cardClip
 
+    // The wifi page's password panel holds the keyboard while it is
+    // open. A layer surface cannot receive keys at keyboardFocus None,
+    // so shell.qml reads this and flips the bar window to Exclusive —
+    // the launcher's proven flip on an already-mapped surface. It is
+    // tied to the panel rather than the page: a hover-opened island
+    // must never take the keyboard away from the desktop, but a field
+    // the user just clicked into must.
+    readonly property bool keyboardActive: networkPage.keyboardActive
+
     // dynamic island state. Derived from the two hover zones below rather
     // than stored, so there is no signal ordering to get wrong.
     //
@@ -124,7 +133,7 @@ Item {
     }
 
     // hovering anywhere on the column — the strip itself or any of the
-    // seven buttons — holds the island open and the column expanded
+    // eight buttons — holds the island open and the column expanded
     property bool columnHovered: columnZone.containsMouse
         || mediaTab.containsMouse
         || usageTab.containsMouse
@@ -133,6 +142,7 @@ Item {
         || captureTab.containsMouse
         || sessionTab.containsMouse
         || notificationsTab.containsMouse
+        || networkTab.containsMouse
 
     onColumnHoveredChanged: columnExpand = columnHovered ? 1 : 0
 
@@ -152,6 +162,13 @@ Item {
         || (islandPage === "session" && sessionPage.hovered)
         || (islandPage === "capture" && capturePage.hovered)
         || (islandPage === "notifications" && notificationsPage.hovered)
+        // The wifi page's password panel: while a field the user
+        // clicked into is holding the keyboard, the card must not
+        // collapse just because the cursor wandered off it. OR-ing in
+        // keeps `hovered` true through the exit, so the handoff never
+        // clears hoverSettled and the island simply stays up until the
+        // panel closes. (The keyboard grab itself is shell.qml's.)
+        || (islandPage === "network" && networkPage.keyboardActive)
 
     // ---- the keyboard-opened session menu ---------------------------------
     // SUPER+L pins the island open on the session page with the cursor
@@ -1082,9 +1099,9 @@ Item {
                 }
 
                 // ---- notifications page: toggles + history -------------
-                // Same card, same pop — reached by hovering the seventh
+                // Same card, same pop — reached by hovering the sixth
                 // tab button in the column. Gated on the page like the
-                // other six, so nothing paints underneath.
+                // others, so nothing paints underneath.
                 NotificationsCard {
                     id: notificationsPage
                     anchors.left: parent.left
@@ -1094,13 +1111,28 @@ Item {
                     visible: root.islandPage === "notifications"
                 }
 
+                // ---- network page: the wifi picker ----------------------
+                // Same card, same pop — reached by hovering the seventh
+                // tab button in the column. Gated on the page like the
+                // others, so nothing paints underneath. It is also the
+                // only page that can ask for the keyboard, through its
+                // password panel — see `keyboardActive` above.
+                NetworkCard {
+                    id: networkPage
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.bottom: parent.bottom
+                    visible: root.islandPage === "network"
+                }
+
                 // ---- page switcher: vertical tab column --------------------
-                // Seven buttons down the card's left edge, flush against
+                // Eight buttons down the card's left edge, flush against
                 // the card's edge and each other (no margin, no gaps) and
                 // as wide as the column strip itself, so the block fills
                 // the strip edge to edge with no dead space beside it.
-                // Order is media, usage, theme, volume, capture, session,
-                // notifications. The
+                // Order is media, usage, theme, volume, capture,
+                // notifications, network, session. The
                 // selected page takes the accent fill — square
                 // corners, near-black glyph, and a black block down its
                 // left edge taking the full height and the left 10% of
@@ -1548,6 +1580,71 @@ Item {
                             anchors.fill: parent
                             hoverEnabled: true
                             onEntered: root.islandPage = "notifications"
+                        }
+                    }
+
+                    // ---- network: the wifi picker ----------------------------
+                    // Seventh in the column, between notifications (whose
+                    // own tile carries the radio) and session.
+                    Rectangle {
+                        width: root.columnWidth
+                        height: 40
+                        color: root.islandPage === "network" ? Theme.cardAccent : "transparent"
+
+                        // the selected marker: a black block down the
+                        // button's left edge, taking the full height
+                        // and the left 10% of the resting strip — no
+                        // inset, so it reads as part of the silhouette
+                        Rectangle {
+                            x: 0
+                            width: root.cardColumnWidth * 0.1
+                            height: parent.height
+                            color: "black"
+                            visible: root.islandPage === "network"
+                        }
+
+                        // the glyph holds the resting 56px icon zone —
+                        // it does not drift right as the column opens
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            anchors.horizontalCenterOffset: -(parent.width - root.cardColumnWidth) / 2
+                            text: "\uF1EB" // wifi
+                            color: root.islandPage === "network" ? Theme.cardAccentOn : Theme.barDim
+                            font.family: Theme.iconFont
+                            font.pixelSize: 17
+                        }
+
+                        // the menu's name, revealed by the expansion —
+                        // clipped to the button so it can't spill onto
+                        // the card mid-animation
+                        Item {
+                            anchors.left: parent.left
+                            anchors.leftMargin: root.cardColumnWidth
+                            anchors.right: parent.right
+                            anchors.top: parent.top
+                            anchors.bottom: parent.bottom
+                            clip: true
+                            visible: root.columnExpand > 0.01
+
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                x: 10
+                                width: Math.max(0, parent.width - 20)
+                                text: "Wi-Fi"
+                                color: root.islandPage === "network" ? Theme.cardAccentOn : Theme.barDim
+                                font.family: Theme.barFontFamily
+                                font.pixelSize: 13
+                                elide: Text.ElideRight
+                                opacity: root.columnExpand
+                            }
+                        }
+
+                        MouseArea {
+                            id: networkTab
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            onEntered: root.islandPage = "network"
                         }
                     }
 

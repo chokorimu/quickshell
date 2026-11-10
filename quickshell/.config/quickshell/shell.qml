@@ -4,6 +4,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Hyprland
+import Quickshell.Wayland
 import "Theme"
 import "Modules/Bar"
 import "Modules/Capture"
@@ -71,6 +72,23 @@ ShellRoot {
                         bottomRightRadius: bar.cardRadius
                     }
                 }
+
+                // Keyboard priority while the wifi page's password panel
+                // is open, and None the rest of the time. A layer
+                // surface's keyboard interactivity defaults to None and
+                // the window-level flag does not override it, so the
+                // input would receive nothing no matter what
+                // forceActiveFocus() did inside it. Flipping to
+                // Exclusive on an already-mapped surface takes the
+                // keyboard the moment the panel opens and hands it back
+                // when the panel closes — the launcher's own mechanism
+                // (see Modules/Launcher/Launcher.qml). Tied to the
+                // panel, not the page: a hover-opened island must never
+                // be a focus thief, but a field the user just clicked
+                // into must take the keys.
+                WlrLayershell.keyboardFocus: bar.keyboardActive
+                    ? WlrKeyboardFocus.Exclusive
+                    : WlrKeyboardFocus.None
 
                 Bar { id: bar }
             }
