@@ -168,16 +168,55 @@ Item {
     // leaves, so the next hover behaves normally.
     property bool keyboardDismissed: false
 
-    readonly property bool expanded: (hovered && !keyboardDismissed)
+    // ---- the open dwell ---------------------------------------------------
+    // A slight rest before the island opens. `expanded` used to follow
+    // `hovered` directly, so merely crossing the bar on the way somewhere
+    // else popped the card open on the first hover event (LO's call —
+    // "make the topbar less sensitive"). The cursor now has to stay on a
+    // hover zone for hoverOpenDelay before the card follows it.
+    //
+    // Only the OPENING is delayed. Closing is untouched: collapseGrace
+    // still holds the card through the linger after the cursor leaves, and
+    // sessionPinned still opens instantly from the keyboard. That matters
+    // for the hover handoff — an island that is already up when the cursor
+    // arrives (pinned open from SUPER+L, or still inside its close grace)
+    // settles the dwell immediately instead of dropping out from under the
+    // cursor on the way in, which is why `hoverSettled` is forced rather
+    // than timed there.
+    //
+    // Tune here: 150 is "slight". Too low and a fast pass-over still
+    // catches the bar; too high and a deliberate hover feels ignored.
+    readonly property int hoverOpenDelay: 150
+    property bool hoverSettled: false
+
+    Timer {
+        id: openDelay
+        interval: root.hoverOpenDelay
+        onTriggered: root.hoverSettled = true
+    }
+
+    readonly property bool expanded: (hovered && hoverSettled && !keyboardDismissed)
         || collapseGrace.running
         || sessionPinned
 
     onHoveredChanged: {
         if (hovered) {
+            // read before the pin is cleared: an island that is already
+            // open takes the cursor with no dwell at all
+            var wasOpen = root.expanded
             // handoff: the cursor has arrived, the pin is no longer needed
             root.sessionPinned = false
             collapseGrace.stop()
+            if (wasOpen) root.hoverSettled = true
+            else openDelay.restart()
         } else {
+            // the dwell only ever counts toward an opening; a cursor that
+            // leaves has to serve it again on the way back
+            openDelay.stop()
+            // read BEFORE clearing the dwell flag: `expanded` is what says
+            // whether there is actually a card up to linger for
+            var wasUp = root.expanded
+            root.hoverSettled = false
             // a capture in flight must not restart the grace timer:
             // the cursor leaves the collapsing card, and the reopen
             // that follows would put the island back under the
@@ -185,7 +224,14 @@ Item {
             // it. See captureDismissing below.
             if (!root.captureDismissing) {
                 root.keyboardDismissed = false
-                collapseGrace.restart()
+                // Only a card that was genuinely open earns the linger.
+                // Restarting the grace unconditionally is what let a flick
+                // through the bar open it: the dwell had not finished, so
+                // there was nothing to hold — yet collapseGrace.running is
+                // itself part of `expanded`, so the timer opened the card
+                // for its full 350ms on the way past. (LO's call — "when
+                // user flicks cursor on topbar it still open".)
+                if (wasUp) collapseGrace.restart()
             }
         }
     }
