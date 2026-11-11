@@ -2492,9 +2492,27 @@ Item {
                         anchors.left: artCircle.right
                         anchors.leftMargin: 10
                         anchors.verticalCenter: parent.verticalCenter
-                        width: 180
+                        // The 180px window is what the marquee scrolls
+                        // inside, and it stays fixed while a track plays
+                        // so the left row — and the workspace pill after
+                        // it — never dances as tracks change length. But
+                        // with no player the line is a short dim "Not
+                        // playing" and a full 180 would leave ~110px of
+                        // dead space pushing the workspaces right, so the
+                        // idle state shrink-wraps to the text instead and
+                        // leftRow closes the gap on its own.
+                        //
+                        // Sized from the Text's own implicitWidth, not from
+                        // baseMetrics: the two disagree by ~1.4px on this
+                        // font ("Not playing" measures 95.44 as a Text
+                        // against 93.x through TextMetrics), and with
+                        // clip: true that difference is shaved off the last
+                        // glyph. ceil guards the fractional case.
+                        width: Media.hasPlayer ? marqueeWidth : Math.ceil(mediaText.implicitWidth)
                         height: mediaText.implicitHeight
                         clip: true
+                        // the fixed window the marquee scrolls inside
+                        readonly property real marqueeWidth: 180
 
                         // the raw string, before any repetition
                         property string baseText: {
@@ -2521,7 +2539,15 @@ Item {
                         property real baseWidth: baseMetrics.width
                         property real unitWidth: unitMetrics.width
 
-                        property real overflow: Math.max(0, baseWidth - width)
+                        // Measured against the fixed marquee width, never
+                        // against `width`: the idle state derives `width`
+                        // from the text's implicitWidth, so an overflow
+                        // that read `width` would feed the text back into
+                        // the window size — width → implicitWidth → text →
+                        // needsScroll → overflow → width, a binding loop.
+                        // While a track plays the two are the same number
+                        // anyway, since width IS marqueeWidth then.
+                        property real overflow: Math.max(0, baseWidth - marqueeWidth)
                         property bool needsScroll: overflow > 1
 
                         // scroll distance that brings the string's tail to
