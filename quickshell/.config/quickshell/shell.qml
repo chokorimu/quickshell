@@ -43,15 +43,23 @@ ShellRoot {
                 // bar by the roll's depth, and an item-based region would cover
                 // that strip and swallow clicks below the bar's edge — so it is
                 // pinned to the bar's own 40px band.
+                //
+                // While a tray menu is open the whole window becomes the mask
+                // instead, and the radii go: the click-outside catcher fills
+                // the window and has to be able to receive a click anywhere on
+                // it, or a menu opened from the tray could only be dismissed
+                // by hitting the pill's own 40px band. The window is still
+                // only as tall as windowHeight, so this reaches the top band
+                // of the screen, not the whole desktop.
                 mask: Region {
-                    x: bar.pillItem.x
-                    y: bar.pillItem.y
-                    width: bar.pillItem.width
-                    height: bar.barHeight
-                    topLeftRadius: bar.pillItem.radius
-                    topRightRadius: bar.pillItem.radius
-                    bottomLeftRadius: bar.pillItem.radius
-                    bottomRightRadius: bar.pillItem.radius
+                    x: bar.trayMenuOpen ? 0 : bar.pillItem.x
+                    y: bar.trayMenuOpen ? 0 : bar.pillItem.y
+                    width: bar.trayMenuOpen ? barWindow.width : bar.pillItem.width
+                    height: bar.trayMenuOpen ? barWindow.height : bar.barHeight
+                    topLeftRadius: bar.trayMenuOpen ? 0 : bar.pillItem.radius
+                    topRightRadius: bar.trayMenuOpen ? 0 : bar.pillItem.radius
+                    bottomLeftRadius: bar.trayMenuOpen ? 0 : bar.pillItem.radius
+                    bottomRightRadius: bar.trayMenuOpen ? 0 : bar.pillItem.radius
 
                     // The card's region is explicit for the same class of
                     // reason: the card pops open scaled, and a Region tracks

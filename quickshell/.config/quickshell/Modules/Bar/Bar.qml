@@ -79,6 +79,16 @@ Item {
     // placeholders, reaching ~x530 at ten workspaces — well past
     // where a clock centered in the 1000px pill would start (~x430).
     readonly property real workspaceRight: leftRow.x + workspacePill.x + workspacePill.width
+    // The tray pill's right edge, in root coordinates — what the tray menu
+    // hangs off. Computed, not anchored: QML refuses an anchor to an item
+    // that is not a parent or sibling ("Cannot anchor to an item that isn't
+    // a parent or sibling"), and trayPill is a grandchild of the pill canvas,
+    // so `anchors.right: trayPill.right` is silently dropped and leaves the
+    // menu at x=0. This is the same chain workspaceRight walks from the other
+    // side: the pill is centered, and everything inside it is laid out from
+    // the pill's own origin.
+    readonly property real trayRight: (width - barWidth) / 2
+        + rightRow.x + trayPill.x + trayPill.width
     // the pop's overshoot headroom. The pop-in bezier peaks at ~1.02x, so
     // the clip runs wider than the card and the window runs taller than
     // the card's resting bottom — without both, the overshoot gets shaved
@@ -101,6 +111,26 @@ Item {
     // must never take the keyboard away from the desktop, but a field
     // the user just clicked into must.
     readonly property bool keyboardActive: networkPage.keyboardActive
+
+    // ---- the tray menu ----------------------------------------------------
+    // The SystemTrayItem whose dbusmenu is showing, or null. The menu itself
+    // is TrayMenu.qml, a child of this file rather than a platform menu:
+    // SystemTrayItem.display() opens Qt's native menu at the cursor, which
+    // renders outside the bar's palette entirely.
+    //
+    // Only one menu is ever open, and it is identified by its tray item so a
+    // second right-click on the same icon toggles it shut instead of
+    // reopening the same tree.
+    property var trayMenuTarget: null
+    readonly property bool trayMenuOpen: trayMenuTarget !== null
+
+    function closeTrayMenu() {
+        root.trayMenuTarget = null
+    }
+
+    function toggleTrayMenu(item) {
+        root.trayMenuTarget = root.trayMenuTarget === item ? null : item
+    }
 
     // dynamic island state. Derived from the two hover zones below rather
     // than stored, so there is no signal ordering to get wrong.
@@ -2511,6 +2541,7 @@ Item {
                         width: Media.hasPlayer ? marqueeWidth : Math.ceil(mediaText.implicitWidth)
                         height: mediaText.implicitHeight
                         clip: true
+
                         // the fixed window the marquee scrolls inside
                         readonly property real marqueeWidth: 180
 
@@ -2750,17 +2781,29 @@ Item {
                                 source: modelData.icon
                                 fillMode: Image.PreserveAspectFit
 
-                                // the MouseArea stays on the icon: mouse.x/y
-                                // feed modelData.display() and must keep the
-                                // icon-relative origin
+                                // the MouseArea stays on the icon: the menu
+                                // is anchored to this item, and right-click
+                                // toggles it through the bar rather than
+                                // calling display() — that opens Qt's
+                                // native menu, which renders outside the
+                                // bar's palette (see TrayMenu.qml).
                                 MouseArea {
                                     anchors.fill: parent
                                     acceptedButtons: Qt.LeftButton | Qt.RightButton
                                     onClicked: function (mouse) {
                                         if (mouse.button === Qt.RightButton)
-                                            modelData.display(root, mouse.x, mouse.y)
-                                        else
+                                            root.toggleTrayMenu(modelData)
+                                        else if (modelData.onlyMenu && modelData.hasMenu)
+                                            // an SNI that declares itself
+                                            // menu-only has no primary
+                                            // action to run, so left-click
+                                            // opens the menu instead of
+                                            // doing nothing
+                                            root.toggleTrayMenu(modelData)
+                                        else {
+                                            root.closeTrayMenu()
                                             modelData.activate()
+                                        }
                                     }
                                 }
                             }
@@ -2910,7 +2953,52 @@ Item {
             hoverEnabled: true
             onContainsMouseChanged: if (containsMouse) root.islandPage = "media"
         }
+    }
 
+    // ---- the tray menu's click-outside catcher ----------------------------
+    // A child of the bar's root Item, not of the pill, so `anchors.fill` is
+    // the whole window — the same extent shell.qml's mask opens up while a
+    // menu is showing. Inside the pill it would only cover the pill's own
+    // 1000x64 box, and a click on the empty desktop either side of the bar
+    // would reach the masked surface with nothing to handle it: swallowed
+    // without dismissing anything.
+    //
+    // Declared after the pill and the card so it paints above both, and
+    // before the menu itself so the menu keeps its clicks. `visible: false`
+    // takes the whole area out of hit-testing, so the bar behaves normally
+    // the rest of the time.
+    //
+    // A click on any bar control while the menu is up dismisses it and does
+    // nothing else — the native menu's behaviour: the first click dismisses,
+    // the second acts. Consuming the click is what makes the dismissal
+    // reliable; passing it through would leave the menu up over whatever the
+    // click did.
+    //
+    // hoverEnabled stays false on purpose: it must not take hover away from
+    // the clock zone or the card zone underneath, or the island could not
+    // open while a menu happened to be showing.
+    MouseArea {
+        id: trayMenuCatcher
+        anchors.fill: parent
+        visible: root.trayMenuOpen
+        onClicked: root.closeTrayMenu()
+    }
 
+    // ---- the tray menu ----------------------------------------------------
+    // Hangs from the bar's bottom edge, right-aligned to the tray pill so it
+    // reads as belonging to that icon. Anchored off the window's top plus the
+    // bar's own metrics rather than off topBand's bottom: topBand is a child
+    // of the pill canvas, and the bar's bottom edge is a fixed place that does
+    // not depend on that nesting. TrayMenu hides itself when it has no handle,
+    // so the open state lives entirely in trayMenuTarget.
+    TrayMenu {
+        id: trayMenu
+        menuHandle: root.trayMenuTarget ? root.trayMenuTarget.menu : null
+        // right-aligned to the tray pill through root.trayRight rather than an
+        // anchor — see that property for why an anchor cannot reach it
+        x: root.trayRight - width
+        anchors.top: root.top
+        anchors.topMargin: root.topMargin + root.barHeight + 6
+        onCloseRequested: root.closeTrayMenu()
     }
 }
