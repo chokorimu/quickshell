@@ -1,45 +1,39 @@
 // Capture.qml — the island's fifth menu: capture.
 //
 // Same card and pop as the media, usage, volume, theme and session
-// pages; reached by hovering the fifth tab button in the column. Three
-// sections: screenshot (output / window / region), clipboard viewing,
-// and screen recording.
+// pages; reached by hovering the fifth tab button in the column. Two
+// sections: screenshot (output / window / region) and the clipboard
+// history.
 //
-// Step 2 wired the screenshot row: three pills, one hyprshot each,
-// saving to ~/Pictures/Screenshots and copying to the clipboard on
-// the way out. Step 4 wired the record row to OBS over obs-websocket:
-// one pill toggles StartRecord/StopRecord with the elapsed time
-// beside it — and while OBS is down the pill steps aside for a dim
-// "OBS offline" line with the bar's ban glyph beside it, since a
-// dead backend has nothing to toggle.
-// Step 3 wired the clipboard row last and below the
-// record button, at LO's request: a scrollable history read out of
-// cliphist's db, one click copying an entry back, one pill wiping
-// it. A later pass gave every row a pin and a trash glyph — pins
-// render first and survive the wipe, which is why the pill reads
-// Clear rather than Reset.
+// The screenshot row is three pills, one hyprshot each, saving to
+// ~/Pictures/Screenshots and copying to the clipboard on the way out.
+// The clipboard section is a scrollable history read out of cliphist's
+// db, one click copying an entry back, one pill clearing the unpinned
+// ones. Every row carries a pin and a trash glyph — pins render first
+// and survive the clear, which is why the pill reads Clear rather than
+// Reset.
 //
-// A later pass moved the layout onto the theme page's idiom without
-// touching any behaviour: the screenshot and record sections became
-// control rows — label in a fixed 120px column, the pills beside it —
+// The page used to carry a record row: two OBS pills (record / stream)
+// over obs-websocket, with the elapsed time under them. It came out
+// once the OBS tray icon was live — the same Start/Stop lives in the
+// tray menu now, and the record row was the shell's only QtWebSockets
+// consumer, so dropping it dropped that load-time dependency too.
+//
+// The layout follows the theme page's idiom: the screenshot section is
+// a control row — label in a fixed 120px column, the pills beside it —
 // riding the content margins at 16 spacing, and the clipboard section
-// reads label, list top to bottom — the label in the other sections'
-// style with a pill on its right, and the 1px hairline that used to
-// sit under the label removed. The theme page's own controls (the
-// mode switch, the brightness slider) stayed there; only the layout
-// language crossed over.
+// reads label, list top to bottom — the label in the same style with a
+// pill on its right.
 //
 // The pills are click-only on purpose, the same rule the session and
 // theme pages follow: a hover-enabled MouseArea in here steals
 // cardZone's hover in Bar.qml and collapses the island under a
-// resting cursor. Anything that needs hover later (a recording timer,
-// say) has to report up through `hovered` the way SessionCard's power
-// cells do.
+// resting cursor. Anything that needs hover later has to report up
+// through `hovered` the way SessionCard's power cells do.
 import QtQml
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import QtWebSockets
 import "../../Theme"
 import "../../Services"
 // the header mark lives with the other cards; this is the first
@@ -159,201 +153,13 @@ Item {
             }
         }
 
-        // ---- record -----------------------------------------------------
-        // Wired in step 4 to OBS over obs-websocket: the record pill
-        // toggles StartRecord/StopRecord, the stream pill beside it
-        // StartStream/StopStream, the elapsed time rides under them,
-        // and the state arrives as events — so a recording or
-        // stream started from OBS's own UI or a hotkey shows on the
-        // pills too. wf-recorder is the alternative backend, not
-        // installed yet.
-        //
-        // The screenshot section's control-row idiom, with the readout
-        // demoted: label in the 120px column, the pills beside it, and
-        // the elapsed/error Text anchored under the pills rather than
-        // riding in the row at their right (LO's call — beside them it
-        // read as a third control in the row, under them it reads as
-        // the running state of whichever is live). The pills, the
-        // red-while-recording and blue-while-streaming colours and the
-        // Text's own binding are all unchanged from the single-pill
-        // pass.
-        //
-        // OBS offline: both pills disappear entirely and a dim "OBS
-        // offline" line takes their slot — LO's call. A dead backend
-        // has nothing to toggle, and the 5s retry timer already
-        // reconnects, so the pills' old click-to-retry job was
-        // covered anyway; the slot reads as status instead of
-        // wearing a dead button. The ban glyph beside the text is
-        // the bar's own disconnected mark — the network readout
-        // wears the same one — so the state reads identically in
-        // both places.
-        Item {
-            width: parent.width
-            // 56, not 40: the elapsed time moved below the pills at
-            // LO's call, so the row carries the 36px pill stack, a 4px
-            // gap and the ~16px readout under it. The clipboard slot
-            // gives up the same 16 (167→151) to keep the gap under
-            // this row at the uniform 16.
-            height: 56
-
-            Text {
-                id: recLabel
-                anchors.left: parent.left
-                // centred on the pills, not the row: the readout hangs
-                // below them, and centring against the whole 56px
-                // stack would drop the label 10px under the pills' own
-                // centre line
-                anchors.verticalCenter: recPills.verticalCenter
-                width: 120
-                text: "Record"
-                color: Theme.cardForeground
-                font.family: Theme.barFontFamily
-                font.pixelSize: 14
-            }
-
-            Row {
-                id: recPills
-                anchors.left: recLabel.right
-                anchors.leftMargin: 12
-                anchors.top: parent.top
-                spacing: 8
-
-                Rectangle {
-                    id: recPill
-                    // gone while OBS is down — the dim line below takes
-                    // the slot. `|| recording` keeps it up if the socket
-                    // drops mid-recording, so a stale live state can
-                    // still be stopped
-                    visible: capturePage.obsConnected || capturePage.recording
-                    height: 36
-                    // content-driven width like the screenshot pills —
-                    // the label is the widest thing in the row, so the
-                    // duration readout never moves the pill
-                    width: recPillLabel.implicitWidth + 36
-                    radius: 18
-                    // recording reads as recording: the theme's red,
-                    // the one color in the palette that means "live"
-                    // without a legend
-                    color: capturePage.recording ? Theme.barUrgent : Theme.cardHighlight
-
-                    Text {
-                        id: recPillLabel
-                        anchors.centerIn: parent
-                        // no offline branch any more: the pill is only
-                        // ever up when there is a backend to talk to
-                        text: capturePage.recording ? "Stop recording" : "Start recording"
-                        color: capturePage.recording ? Theme.cardOnInk : Theme.cardForeground
-                        font.family: Theme.barFontFamily
-                        font.pixelSize: 13
-                    }
-
-                    MouseArea {
-                        anchors.fill: parent
-                        onClicked: capturePage.toggleRecord()
-                    }
-                }
-
-                // the stream pill — the record pill's twin, one state
-                // over. Same shape, same visibility rule (`|| streaming`
-                // so a socket drop mid-stream stays stoppable), and the
-                // same content-driven width. Blue while live, the one
-                // other color that reads as "live" without a legend;
-                // recording took the palette's red, so streaming gets a
-                // fixed blue that reads on both card surfaces.
-                Rectangle {
-                    id: streamPill
-                    visible: capturePage.obsConnected || capturePage.streaming
-                    height: 36
-                    width: streamPillLabel.implicitWidth + 36
-                    radius: 18
-                    color: capturePage.streaming ? Theme.cardStream : Theme.cardHighlight
-
-                    Text {
-                        id: streamPillLabel
-                        anchors.centerIn: parent
-                        text: capturePage.streaming ? "Stop streaming" : "Start streaming"
-                        color: capturePage.streaming ? Theme.cardStreamOn : Theme.cardForeground
-                        font.family: Theme.barFontFamily
-                        font.pixelSize: 13
-                    }
-
-                    MouseArea {
-                        anchors.fill: parent
-                        onClicked: capturePage.toggleStream()
-                    }
-                }
-
-                // the offline stand-in, sitting exactly where the pills
-                // were — the Row collapses the hidden pills, so this
-                // lands on the left with nothing to do. The ban glyph
-                // is the bar's own disconnected mark (the network
-                // readout wears the same one), so the offline state
-                // reads the same way here as it does out there.
-                Row {
-                    visible: !capturePage.obsConnected && !capturePage.recording && !capturePage.streaming
-                    spacing: 6
-
-                    Text {
-                        id: offGlyph
-                        text: "\uF05E" // ban
-                        color: Theme.cardDim
-                        font.family: Theme.iconFont
-                        font.pixelSize: 14
-                    }
-
-                    Text {
-                        id: offText
-                        text: "OBS offline"
-                        color: Theme.cardDim
-                        font.family: Theme.barFontFamily
-                        font.pixelSize: 13
-                        // A Row top-aligns its children, and the two
-                        // fonts' line boxes differ — the icon font's
-                        // runs ~19 at 14px against the UI font's ~16
-                        // at 13px — so both started at the row's top
-                        // and the glyph's ink sat ~1.6px below the
-                        // text's. Taking the glyph's line box as the
-                        // shared height and centring the text's ink
-                        // inside it puts both on one line: measured
-                        // off the font files, the ban's ink centre is
-                        // 0.360em over its baseline against the
-                        // string's 0.381em, so once the boxes match
-                        // the two centres land 0.3px apart —
-                        // sub-pixel, and the eye reads one line.
-                        height: offGlyph.height
-                        verticalAlignment: Text.AlignVCenter
-                    }
-                }
-
-            }
-
-            // the elapsed time while recording, or the stream's while
-            // streaming — one readout, and recording wins when both are
-            // live. It moved below the pills at LO's call: beside them
-            // it read as a third control in the row, under them it
-            // reads as the running state of whichever is live. The
-            // slot doubles as the error readout, so a rejected request
-            // never fails silently — the pills just sit there.
-            Text {
-                id: recElapsed
-                anchors.left: recPills.left
-                anchors.top: recPills.bottom
-                anchors.topMargin: 4
-                text: capturePage.obsError.length > 0 ? capturePage.obsError
-                    : (capturePage.recording ? capturePage.fmtDuration(capturePage.recSeconds)
-                        : (capturePage.streaming ? capturePage.fmtDuration(capturePage.streamSeconds) : ""))
-                color: capturePage.obsError.length > 0 ? Theme.barUrgent : Theme.cardDim
-                font.family: Theme.barFontFamily
-                font.pixelSize: 13
-            }
-        }
     }
 
     // ---- clipboard: history -------------------------------------------
-    // Below the record button, at LO's request, and anchored to the
-    // card's bottom edge rather than flowed in the column above —
-    // the theme page's wallpaper grid sits the same way, and it buys
-    // the list every pixel the sections above leave it.
+    // Below the screenshot row and anchored to the card's bottom edge
+    // rather than flowed in the column above — the theme page's
+    // wallpaper grid sits the same way, and it buys the list every
+    // pixel the sections above leave it.
     //
     // wl-paste reads the current selection only, so the history
     // lives in cliphist's db, fed by `wl-paste --watch cliphist
@@ -437,21 +243,24 @@ Item {
         // renders neither the list nor the empty message.
         Item {
             width: parent.width
-            // 151, not 108. The column is bottom-anchored, so every
-            // pixel added here lifts its top edge by one and eats the
-            // dead card between the record row and the clipboard
-            // label. Measured baseline: the sections Column spaces at
-            // 16, which puts the record row's bottom at y173, and the
-            // column is exactly children-driven (20 label row + 8 +
-            // slot — the hairline that used to add 1 + 8 is gone), so
-            // its top edge sits at 384 - (28 + slot) = 356 - slot.
-            // 356 - 151 = 205 lands the label at y205, a 16px gap
-            // under the record row. The row grew 40→56 when the
-            // elapsed moved below the pills (LO's call), so the slot
-            // gave up the same 16 to hold the gap — the list shows
-            // exactly five rows now instead of five plus a peek, and
-            // still scrolls past that.
-            height: 151
+            // 223. The column is bottom-anchored, so every pixel added
+            // here lifts its top edge by one and eats the dead card
+            // between the screenshot row and the clipboard label.
+            // Measured baseline: the sections Column spaces at 16, which
+            // puts the screenshot row's bottom at y117, and the column is
+            // exactly children-driven (20 label row + 8 + slot — the
+            // hairline that used to add 1 + 8 is gone), so its top edge
+            // sits at 384 - (28 + slot) = 356 - slot. 356 - 223 = 133
+            // lands the label at y133, the uniform 16px gap under the
+            // screenshot row.
+            //
+            // 223 is the freed 72 taken straight back: the record row was
+            // 56 tall with a 16px gap under it, and both went when the
+            // row did. That leaves 223 over 30px rows as seven full rows
+            // plus a 13px peek — the notifications list's partial row as
+            // the scroll affordance, which is what the slot showed before
+            // the record row grew into it.
+            height: 223
 
             // The list's plate: the section's own surface, rounded
             // at the card's own 10 — the tile and pill radius — at
@@ -865,236 +674,6 @@ Item {
         return stamp
     }
 
-    // ---- the OBS client -----------------------------------------------
-    // The record row's backend: obs-websocket 5.x over a plain
-    // WebSocket. On connect the server sends Hello (op 0), the client
-    // answers Identify (op 1) — with auth off there is no
-    // challenge-response to compute, which is the whole reason the
-    // localhost port runs unauthenticated, since 5.x auth is a SHA256
-    // handshake QML's JS cannot do — and the server replies Identified
-    // (op 2). From there it is requests (op 6) with responses (op 7),
-    // plus events (op 5) the server pushes on its own.
-    //
-    // The CLI route (obs --startrecording) was the alternative and
-    // lost on readback: it is a start button with no way to ask OBS
-    // what it is doing, so the pill could never know when to say
-    // "stop". The socket gives both directions.
-    //
-    // The socket lives for the shell's whole life — this page is a
-    // persistent instance behind a visible flag, not a Loader — so
-    // the connection is up before the capture page is ever opened,
-    // and a recording started elsewhere still shows on the pill.
-    readonly property string obsUrl: "ws://127.0.0.1:4455"
-
-    // Identified received: the handshake is done and requests will be
-    // answered
-    property bool obsConnected: false
-    property bool recording: false
-    property int recSeconds: 0
-    // the stream's mirror of the two above — same event/status shape,
-    // different output
-    property bool streaming: false
-    property int streamSeconds: 0
-    // a rejected request's comment, shown in the duration slot for a
-    // few seconds
-    property string obsError: ""
-    property int obsReqId: 0
-
-    WebSocket {
-        id: obsSocket
-        url: capturePage.obsUrl
-        active: true
-
-        onStatusChanged: (status) => {
-            // 0 connecting, 1 open, 2 closing, 3 closed, 4 error —
-            // the enum is not in the qmltypes, so the numbers are
-            // spelled out here rather than referenced by name. Only
-            // a dead socket arms the retry: a connecting one is
-            // already on its way, and arming on the initial
-            // Connecting would bounce a healthy connection at the
-            // five-second mark.
-            if (status === 3 || status === 4) {
-                capturePage.obsConnected = false
-                capturePage.scheduleObsRetry()
-            }
-        }
-
-        onTextMessageReceived: (text) => {
-            var msg
-            try {
-                msg = JSON.parse(text)
-            } catch (e) {
-                return
-            }
-            var d = msg.d || {}
-            if (msg.op === 0) {
-                // Hello: identify. No authentication field when the
-                // server runs with auth off, and the default
-                // subscription covers every non-high-volume category,
-                // which includes the Outputs events the record state
-                // rides on
-                obsSocket.sendTextMessage(JSON.stringify({
-                    op: 1,
-                    d: { rpcVersion: 1 }
-                }))
-            } else if (msg.op === 2) {
-                capturePage.obsConnected = true
-                obsRetry.stop()
-                capturePage.obsError = ""
-                // sync the state OBS is already in — it may have been
-                // recording or streaming since before the shell started
-                capturePage.obsRequest("GetRecordStatus")
-                capturePage.obsRequest("GetStreamStatus")
-            } else if (msg.op === 7) {
-                capturePage.onObsResponse(d)
-            } else if (msg.op === 5) {
-                if (d.eventType === "RecordStateChanged") {
-                    var active = d.eventData && d.eventData.outputActive === true
-                    // the stop event carries the saved file's path
-                    if (!active && d.eventData && d.eventData.outputPath)
-                        capturePage.notifySaved(d.eventData.outputPath)
-                    capturePage.setRecording(active)
-                } else if (d.eventType === "StreamStateChanged") {
-                    // no outputPath here — a stream has no saved file,
-                    // so the stop event carries nothing to notify with
-                    capturePage.setStreaming(
-                        d.eventData && d.eventData.outputActive === true)
-                }
-            }
-        }
-    }
-
-    function obsRequest(type) {
-        if (!obsConnected)
-            return
-        obsReqId++
-        obsSocket.sendTextMessage(JSON.stringify({
-            op: 6,
-            d: { requestType: type, requestId: "" + obsReqId }
-        }))
-    }
-
-    function onObsResponse(d) {
-        if (!d.requestStatus || d.requestStatus.result !== true) {
-            capturePage.obsError = (d.requestStatus && d.requestStatus.comment)
-                || "request failed"
-            obsErrorTimer.restart()
-            return
-        }
-        if (d.requestType === "GetRecordStatus" && d.responseData)
-            capturePage.setRecording(d.responseData.outputActive === true,
-                d.responseData.outputDuration)
-        if (d.requestType === "GetStreamStatus" && d.responseData)
-            capturePage.setStreaming(d.responseData.outputActive === true,
-                d.responseData.outputDuration)
-    }
-
-    // The event and the status response agree on the shape; the
-    // duration only comes from the status response, so it seeds the
-    // counter and the event leaves it alone. A state change is also
-    // proof the last request landed, so it clears the error readout
-    // rather than leaving a stale comment up for the timer.
-    function setRecording(active, duration) {
-        if (active === capturePage.recording && duration === undefined)
-            return
-        capturePage.recording = active
-        capturePage.obsError = ""
-        if (active)
-            capturePage.recSeconds = (duration !== undefined && duration > 0)
-                ? Math.floor(duration) : 0
-    }
-
-    // the stream's twin — same contract, its own counter. The two
-    // outputs are independent in OBS (record and stream can run
-    // alone, together, or neither), so the state is tracked
-    // separately rather than folded into one "live" flag.
-    function setStreaming(active, duration) {
-        if (active === capturePage.streaming && duration === undefined)
-            return
-        capturePage.streaming = active
-        capturePage.obsError = ""
-        if (active)
-            capturePage.streamSeconds = (duration !== undefined && duration > 0)
-                ? Math.floor(duration) : 0
-    }
-
-    function toggleRecord() {
-        if (!obsConnected) {
-            // OBS is down (or still starting): retry now rather than
-            // making the click wait out the retry timer
-            capturePage.reconnectObs()
-            return
-        }
-        capturePage.obsRequest(capturePage.recording ? "StopRecord" : "StartRecord")
-    }
-
-    function toggleStream() {
-        if (!obsConnected) {
-            capturePage.reconnectObs()
-            return
-        }
-        capturePage.obsRequest(capturePage.streaming ? "StopStream" : "StartStream")
-    }
-
-    // The QML WebSocket has no open() — active is the only handle —
-    // so a retry is a bounce: off aborts the dead socket, on opens a
-    // fresh one. Five seconds matches the cadence the other pollers
-    // run at, and a refused local connect costs nothing.
-    Timer {
-        id: obsRetry
-        interval: 5000
-        onTriggered: capturePage.reconnectObs()
-    }
-
-    function scheduleObsRetry() {
-        obsRetry.restart()
-    }
-
-    function reconnectObs() {
-        obsSocket.active = false
-        obsSocket.active = true
-    }
-
-    Timer {
-        id: obsErrorTimer
-        interval: 4000
-        onTriggered: capturePage.obsError = ""
-    }
-
-    // one tick a second while the recorder runs; the binding keeps it
-    // stopped the rest of the time
-    Timer {
-        interval: 1000
-        repeat: true
-        running: capturePage.recording
-        onTriggered: capturePage.recSeconds++
-    }
-
-    // the stream's counter — independent, since the two outputs run
-    // independently
-    Timer {
-        interval: 1000
-        repeat: true
-        running: capturePage.streaming
-        onTriggered: capturePage.streamSeconds++
-    }
-
-    function fmtDuration(s) {
-        var h = Math.floor(s / 3600)
-        var m = Math.floor((s % 3600) / 60)
-        var sec = s % 60
-        var pad = function (n) { return (n < 10 ? "0" : "") + n }
-        return (h > 0 ? h + ":" : "") + pad(m) + ":" + pad(sec)
-    }
-
-    Process {
-        id: obsNotifyProcess
-    }
-
-    function notifySaved(path) {
-        obsNotifyProcess.command = ["notify-send", "Recording saved", path]
-        obsNotifyProcess.running = true
-    }
 
     // ---- the clipboard history ----------------------------------------
     // cliphist owns the db; this reads it. `cliphist list` prints one

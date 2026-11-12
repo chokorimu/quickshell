@@ -47,13 +47,12 @@ done
 
 # --- dependency pre-flight ---------------------------------------------
 #
-# A warning, not a gate. Almost everything here degrades rather than
-# dies: a missing hyprshot leaves the capture page's screenshot row
-# dead, a missing nvidia-smi leaves the usage page's GPU cell reading
-# n/a. The one exception is qt6-websockets — Capture.qml imports
-# QtWebSockets at load time, so a missing module is a config that will
-# not start at all rather than a feature that is switched off. That one
-# is fatal, and only when the quickshell package is in play.
+# A warning, not a gate. Everything here degrades rather than dies: a
+# missing hyprshot leaves the capture page's screenshot row dead, a
+# missing nvidia-smi leaves the usage page's GPU cell reading n/a.
+# There is no fatal case left — the one that used to be, qt6-websockets,
+# went with the capture page's OBS record row, which was Capture.qml's
+# only QtWebSockets import.
 #
 # Package names are Arch's. The list is the point, not the manager.
 
@@ -146,19 +145,6 @@ fi
 if [ ${#missing_fonts[@]} -gt 0 ]; then
     echo "note: ${#missing_fonts[@]} font(s) not found — install into ~/.local/share/fonts:" >&2
     printf '    %s\n' "${missing_fonts[@]}" >&2
-fi
-
-want_quickshell=0
-for pkg in "${PACKAGES[@]}"; do
-    if [ "$pkg" = "quickshell" ]; then
-        want_quickshell=1
-    fi
-done
-
-if [ "$want_quickshell" -eq 1 ] && [ ! -d /usr/lib/qt6/qml/QtWebSockets ]; then
-    echo "error: qt6-websockets not found. Capture.qml imports QtWebSockets, so" >&2
-    echo "       the shell will not load without it:  sudo pacman -S qt6-websockets" >&2
-    exit 1
 fi
 
 # --- stow ----------------------------------------------------------------
