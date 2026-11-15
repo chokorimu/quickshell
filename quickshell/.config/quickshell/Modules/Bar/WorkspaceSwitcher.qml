@@ -7,7 +7,9 @@
 // Each tile is a miniature of the monitor the workspace lives on, with that
 // workspace's windows drawn at their real positions and sizes — so a glance
 // says where things are, not just how many. The window geometry comes from
-// each toplevel's `lastIpcObject.at` / `.size`, which are in LAYOUT (logical)
+// `hyprctl clients -j`, NOT from the toplevel model: a toplevel opened after
+// the model first built carries an empty `lastIpcObject` for good (see the
+// `clients` property below). `at` / `size` are in LAYOUT (logical)
 // coordinates while `HyprlandMonitor.width/height` are PHYSICAL, hence the
 // divide by the monitor's scale; a rotated output swaps its axes first, the
 // same way the displays page does.
@@ -22,6 +24,8 @@ import QtQml
 import QtQuick
 import Quickshell
 import Quickshell.Hyprland
+import Quickshell.Io
+import Quickshell.Wayland
 import "../../Theme"
 Item {
     id: root
@@ -34,33 +38,43 @@ Item {
     // the logical open state, driven by Bar.qml's hover chain
     property bool open: false
     // ---- metrics ---------------------------------------------------------
-    // The island card's width, and the pages' own content margins: 80 on the
-    // left (the tab column strip plus its padding), 28 on the right, 16 at
-    // the foot. There is no column strip on this menu, but the same margins
-    // put the title row on exactly the x the pages put theirs, which is what
-    // makes the two read as one system when they appear in the same place.
+    // The island card's width, but NOT the island pages' margins. Those are
+    // 80 on the left because the pages have to clear the tab column strip,
+    // and 28 on the right because there is nothing to clear there — a
+    // lopsided pair that is right on a card with a strip and wrong on a
+    // standalone plate. This menu has no strip, so copying the pair left the
+    // title and the tiles 80 from the left edge and 28 from the right, with
+    // the whole menu reading shoved right. One padding, the same on all four
+    // sides, is the honest shape here: the plate is its own surface.
     readonly property int menuWidth: 600
-    readonly property int padLeft: 80
-    readonly property int padRight: 28
-    readonly property int padBottom: 16
-    readonly property int titleTop: 28
-    readonly property int titleHeight: 24
-    readonly property int titleGap: 16
-    // 84 + 12 fits five tiles across the 492px content width with 24px of a
-    // sixth peeking past the right edge — the partial tile is the scroll
+    readonly property int pad: 24
+    // the title row's real height: a 20px DemiBold line box measures 25
+    readonly property int titleHeight: 25
+    // 20, the island's own title-to-first-control gap (VolumeCard's titleRow
+    // to its master row), so the two headers read at one rhythm
+    readonly property int titleGap: 20
+    // 84 + 12 fits five tiles across the 492px content width with a sixth
+    // peeking past the right edge — the partial tile is the scroll
     // affordance, the way the lists use a partial row (there is no
     // scrollbar).
     readonly property int tileWidth: 84
-    readonly property int tileHeight: 84
     readonly property int tileGap: 12
-    // the tile's own padding, and the mini monitor's height inside it: 68 x
-    // 42 is ~16:10, close to this machine's 2560x1600 panel and close enough
-    // to every other common shape that the minimap reads right.
+    // The tile's own padding, and it is the SAME 8 on every side: 8 above the
+    // mini monitor, 8 between it and the labels, 8 below the labels, 8 either
+    // side. `labelHeight` is the 12px label's own line box (measured 15), not
+    // a round number, which is what keeps the rhythm exact instead of
+    // leaving a sliver under the digits.
     readonly property int tilePad: 8
+    readonly property int screenWidth: tileWidth - tilePad * 2
+    // 68 x 42 is ~16:10, close to this machine's 2560x1600 panel and close
+    // enough to every other common shape that the minimap reads right.
     readonly property int screenHeight: 42
-    readonly property int contentWidth: menuWidth - padLeft - padRight
-    readonly property int stripTop: titleTop + titleHeight + titleGap
-    readonly property int menuHeight: stripTop + tileHeight + padBottom
+    readonly property int labelHeight: 15
+    readonly property int tileHeight:
+        tilePad + screenHeight + tilePad + labelHeight + tilePad
+    readonly property int contentWidth: menuWidth - pad * 2
+    readonly property int stripTop: pad + titleHeight + titleGap
+    readonly property int menuHeight: stripTop + tileHeight + pad
     readonly property int plateRadius: 10
     implicitWidth: menuWidth
     implicitHeight: menuHeight
@@ -131,6 +145,104 @@ Item {
     // close the menu under a cursor that is plainly on it.
     property int hoverIndex: -1
     readonly property bool pointerInside: hoverIndex >= 0 || plateHover.containsMouse
+    // ---- live thumbnails -------------------------------------------------
+    // Each window is captured by a `ScreencopyView` bound to the toplevel's
+    // own wayland handle (`HyprlandToplevel.wayland`). That is the same
+    // ext-image-copy path `grim -T` takes, so it works for windows on
+    // workspaces that are NOT on screen — the whole point of this menu — but
+    // it runs in-process, with no subprocess and no files on disk.
+    //
+    // It is also genuinely LIVE: with `live: true` the compositor pushes a
+    // frame whenever the window's content changes, so a video, a scrolling
+    // page or a terminal updates as it happens. Polling `grim` could not do
+    // this at any sane cost — a sweep of five windows measured ~250ms wall and
+    // ~870ms CPU, and that CPU is flat across `-s` scales and PNG levels
+    // because the toplevel readback is what costs, not the encode. Five live
+    // views at the 68x42 tile size measure ~14% of one core in isolation and
+    // ~10% above the closed baseline inside the real bar (22.5% against
+    // 12.2% of one core, self plus children) — against the 62.1% of one core
+    // in grim children alone that the polling design cost, and it never polls
+    // at all.
+    //
+    // Nothing is captured while the plate is down: the delegate's `live`
+    // rides `root.open` directly, so a closed menu costs nothing.
+    // ---- structure --------------------------------------------------------
+    // The pixels are live for free, but the GEOMETRY is not — and it cannot
+    // come from the toplevel model at all. `HyprlandToplevel.lastIpcObject` is
+    // filled only when the model first builds: a toplevel created by an
+    // `openwindow` event after that keeps an EMPTY object for good. Probed by
+    // diffing addresses around a spawned window: 0 keys with `at` undefined at
+    // +1.4s, +3s and +5.5s, and still empty after two workspace switches —
+    // while the same toplevel's `title` and `wayland` handle arrive normally
+    // (the title rides the event itself). So a window opened while the shell
+    // runs had no block and the menu showed its workspace as empty: this is
+    // the "didn't update in real time" bug.
+    //
+    // The compositor is therefore the geometry source: one `hyprctl clients -j`
+    // read gives every window's `at`/`size`/`workspace` fresh. It is a fork,
+    // but a cheap one — 5ms wall and 5ms CPU — so a 400ms tick while the menu
+    // is up is about 1% of a core, against the 10% the live captures cost.
+    property var clients: []
+    function pollClients() {
+        // `running = true` on a live Process is a silent no-op, so a poll
+        // arriving while one is in flight is dropped rather than queued — the
+        // one already running is about to deliver the same list.
+        if (!clientPoll.running)
+            clientPoll.running = true
+    }
+    Process {
+        id: clientPoll
+        command: ["hyprctl", "clients", "-j"]
+        running: false
+        stdout: StdioCollector {
+            onStreamFinished: {
+                var out = []
+                try {
+                    var a = JSON.parse(text)
+                    for (var i = 0; i < a.length; i++) {
+                        var c = a[i]
+                        // an unmapped window is not on screen, so it has no
+                        // place on the map
+                        if (!c || !c.at || !c.size || !c.mapped)
+                            continue
+                        out.push({
+                            // the IPC object's address carries a `0x` prefix
+                            // that `HyprlandToplevel.address` does not, so the
+                            // two are matched without it
+                            addr: String(c.address).replace(/^0x/, ""),
+                            ws: c.workspace ? c.workspace.id : -1,
+                            at: c.at,
+                            size: c.size
+                        })
+                    }
+                } catch (e) {
+                    // a truncated read leaves the previous list standing
+                    return
+                }
+                root.clients = out
+            }
+        }
+    }
+    Timer {
+        id: clientTick
+        interval: 400
+        repeat: true
+        // `triggeredOnStart` so opening the menu reads immediately rather
+        // than up to 400ms later, while the pop is still growing
+        triggeredOnStart: true
+        running: root.open
+        onTriggered: root.pollClients()
+    }
+    // Windows opening and closing ARE announced — `Hyprland.toplevels` fires
+    // for both, the same model that fails to hand them geometry. So a
+    // structural change polls on the spot instead of waiting for the tick,
+    // which is what makes an app appearing feel instant; the tick is left to
+    // cover what nothing announces: a window moving or resizing.
+    Connections {
+        target: Hyprland.toplevels
+        function onValuesChanged() { if (root.open) root.pollClients() }
+    }
+
     // ---- the plate -------------------------------------------------------
     Item {
         id: clip
@@ -271,9 +383,9 @@ Item {
             Row {
                 id: titleRow
                 anchors.top: parent.top
-                anchors.topMargin: root.titleTop
+                anchors.topMargin: root.pad
                 anchors.left: parent.left
-                anchors.leftMargin: root.padLeft
+                anchors.leftMargin: root.pad
                 spacing: 12
                 HeaderIcon {
                     anchors.verticalCenter: parent.verticalCenter
@@ -294,7 +406,7 @@ Item {
             ListView {
                 id: strip
                 anchors.left: parent.left
-                anchors.leftMargin: root.padLeft
+                anchors.leftMargin: root.pad
                 anchors.top: parent.top
                 anchors.topMargin: root.stripTop
                 width: root.contentWidth
@@ -344,13 +456,199 @@ Item {
                         Qt.rgba(tile.ink.r, tile.ink.g, tile.ink.b, 0.5)
                     readonly property color countColor:
                         Qt.rgba(tile.ink.r, tile.ink.g, tile.ink.b, 0.6)
+                    // ---- the minimap's geometry ------------------------------
+                    // `at`/`size` are LAYOUT (logical) coordinates; the
+                    // monitor's width/height are PHYSICAL, so the scale divide
+                    // is what puts the two in one space. A rotated output
+                    // reports its physical mode size, so its logical footprint
+                    // has the axes swapped.
+                    readonly property var geom: {
+                        var mon = tile.monitor
+                        var sc = (mon && mon.scale > 0) ? mon.scale : 1
+                        var tf = (mon && mon.lastIpcObject)
+                            ? (mon.lastIpcObject.transform || 0) : 0
+                        var mw = mon ? (tf % 2 === 1 ? mon.height : mon.width) / sc : 16
+                        var mh = mon ? (tf % 2 === 1 ? mon.width : mon.height) / sc : 10
+                        return {
+                            mw: mw > 0 ? mw : 16,
+                            mh: mh > 0 ? mh : 10,
+                            mx: mon ? mon.x : 0,
+                            my: mon ? mon.y : 0
+                        }
+                    }
+                    // One block per window, in mini-monitor pixels, clamped to
+                    // the screen so a window hanging off the output cannot
+                    // paint outside it. The block is the capture's placement
+                    // and the fallback drawn until the first frame arrives, so
+                    // the two can never disagree.
+                    //
+                    // This is a plain property fed by `syncBlocks()` rather
+                    // than a binding, and that is the whole reason the
+                    // thumbnails do not flicker: the array is only reassigned
+                    // when its CONTENT changes, so the Repeater keeps its
+                    // delegates (and their live captures) across a structural
+                    // tick. A binding would hand over a fresh array on every
+                    // tick, rebuilding every delegate four times a second and
+                    // restarting every capture.
+                    property var blocks: []
+                    property string blockSig: ""
+                    // The compositor's own list, not the toplevel model: a
+                    // toplevel created after startup carries an empty
+                    // `lastIpcObject` for good, so the model has no geometry
+                    // for it (see `clients` on root).
+                    function syncBlocks() {
+                        var g = tile.geom
+                        var w = root.screenWidth
+                        var h = root.screenHeight
+                        var list = root.clients
+                        var out = []
+                        for (var i = 0; i < list.length; i++) {
+                            var c = list[i]
+                            if (c.ws !== tile.ws.id)
+                                continue
+                            var x = (c.at[0] - g.mx) / g.mw * w
+                            var y = (c.at[1] - g.my) / g.mh * h
+                            var bw = c.size[0] / g.mw * w
+                            var bh = c.size[1] / g.mh * h
+                            var x0 = Math.max(0, x)
+                            var y0 = Math.max(0, y)
+                            var x1 = Math.min(w, x + bw)
+                            var y1 = Math.min(h, y + bh)
+                            if (x1 - x0 < 0.5 || y1 - y0 < 0.5)
+                                continue
+                            out.push({
+                                x: x0,
+                                y: y0,
+                                w: x1 - x0,
+                                h: y1 - y0,
+                                addr: c.addr
+                            })
+                        }
+                        var sig = JSON.stringify(out.map(function (b) {
+                            return [b.x.toFixed(2), b.y.toFixed(2),
+                                    b.w.toFixed(2), b.h.toFixed(2), b.addr]
+                        }))
+                        if (sig !== tile.blockSig) {
+                            tile.blockSig = sig
+                            tile.blocks = out
+                        }
+                    }
+                    // The capture source is the toplevel's wayland handle,
+                    // which the model DOES have (it is set off the
+                    // `openwindow` event) — only its geometry is missing. So
+                    // the two halves are resolved separately: the block comes
+                    // from the compositor's list, the handle from the model,
+                    // matched on address (the IPC object carries a `0x` the
+                    // model does not).
+                    //
+                    // Reading `tile.toplevels` inside the function is what
+                    // makes a delegate's `captureSource` binding re-evaluate
+                    // when the model gains the toplevel.
+                    function handleFor(addr) {
+                        var list = tile.toplevels
+                        for (var i = 0; i < list.length; i++)
+                            if (list[i].address === addr)
+                                return list[i].wayland
+                        return null
+                    }
+                    Component.onCompleted: syncBlocks()
+                    // the geometry poll — see `clients` on root
+                    Connections {
+                        target: root
+                        function onClientsChanged() { tile.syncBlocks() }
+                    }
+                    // a monitor change rescales every block
+                    onGeomChanged: syncBlocks()
                     width: root.tileWidth
                     height: root.tileHeight
+                    Rectangle {
+                        anchors.fill: parent
+                        radius: root.plateRadius
+                        color: tile.plateColor
+                    }
+                    // ---- the mini monitor ------------------------------------
+                    // Square-cornered, unlike the tile it sits in: a screen is,
+                    // and it is what lets the thumbnails be clipped by a plain
+                    // `clip: true` — a rounded plate under square images would
+                    // show their corners poking out of it the moment a window
+                    // is fullscreen.
+                    Item {
+                        id: screenBox
+                        anchors.top: parent.top
+                        anchors.topMargin: root.tilePad
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        width: root.screenWidth
+                        height: root.screenHeight
+                        clip: true
+                        // The screen plate and the window blocks. The blocks are
+                        // the fallback: a real thumbnail is drawn over its block
+                        // at exactly the same rect, so the tile reads correctly
+                        // the instant it appears and fills in as the captures
+                        // land.
+                        Canvas {
+                            id: screen
+                            anchors.fill: parent
+                            onPaint: {
+                                var ctx = getContext("2d")
+                                var w = width
+                                var h = height
+                                ctx.clearRect(0, 0, w, h)
+                                // cardBackground against the tile's
+                                // cardHighlight is one palette step in either
+                                // mode, which reads as the recessed surface the
+                                // windows sit on
+                                ctx.fillStyle = tile.screenColor
+                                ctx.fillRect(0, 0, w, h)
+                                ctx.fillStyle = tile.windowColor
+                                var list = tile.blocks
+                                for (var i = 0; i < list.length; i++) {
+                                    var b = list[i]
+                                    tile.roundRect(ctx, b.x, b.y, b.w, b.h, 1.5)
+                                    ctx.fill()
+                                }
+                            }
+                        }
+                        // the live capture, over its block
+                        Repeater {
+                            model: tile.blocks
+                            delegate: ScreencopyView {
+                                required property var modelData
+                                x: modelData.x
+                                y: modelData.y
+                                width: modelData.w
+                                height: modelData.h
+                                // the toplevel's own wayland handle — the same
+                                // ext-image-copy route `grim -T` takes, so
+                                // off-screen workspaces capture too, but
+                                // in-process and continuous. Resolved off the
+                                // block's address, because the compositor's
+                                // list has the geometry and the model has the
+                                // handle.
+                                captureSource: tile.handleFor(modelData.addr)
+                                // continuous while the plate is up, nothing at
+                                // all once it closes
+                                live: root.open
+                                paintCursor: false
+                                // the capture delivers at the tile's size
+                                // rather than decoding a full 2560x1600 surface
+                                // per window: 2x the slot is enough for the 1.6
+                                // DPR and keeps the readback small
+                                constraintSize: Qt.size(width * 2, height * 2)
+                                // until the first frame lands the block
+                                // underneath stands in, exactly as the old
+                                // thumbnails did
+                                visible: hasContent
+                            }
+                        }
+                        onWidthChanged: screen.requestPaint()
+                        onHeightChanged: screen.requestPaint()
+                    }
                     onInkChanged: screen.requestPaint()
                     onScreenColorChanged: screen.requestPaint()
                     onWindowColorChanged: screen.requestPaint()
                     onCountChanged: screen.requestPaint()
                     onMonitorChanged: screen.requestPaint()
+                    onBlocksChanged: screen.requestPaint()
                     // a rounded-rect path helper, used by the minimap's plate
                     // and its window blocks. Canvas has no roundedRect.
                     function roundRect(ctx, x, y, w, h, r) {
@@ -367,74 +665,14 @@ Item {
                         ctx.arc(x + r, y + r, r, Math.PI, 3 * Math.PI / 2, false)
                         ctx.closePath()
                     }
-                    Rectangle {
-                        anchors.fill: parent
-                        radius: root.plateRadius
-                        color: tile.plateColor
-                    }
-                    Canvas {
-                        id: screen
-                        anchors.top: parent.top
-                        anchors.topMargin: root.tilePad
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        width: root.tileWidth - root.tilePad * 2
-                        height: root.screenHeight
-                        onPaint: {
-                            var ctx = getContext("2d")
-                            var w = width
-                            var h = height
-                            ctx.clearRect(0, 0, w, h)
-                            // ---- the monitor ----------------------------
-                            // The screen plate. cardBackground against the
-                            // tile's cardHighlight is one palette step in
-                            // either mode, which reads as the recessed
-                            // surface the windows sit on.
-                            ctx.fillStyle = tile.screenColor
-                            tile.roundRect(ctx, 0, 0, w, h, 4)
-                            ctx.fill()
-                            // ---- the windows ----------------------------
-                            // `at`/`size` are LAYOUT (logical) coordinates;
-                            // the monitor's width/height are PHYSICAL, so the
-                            // scale divide is what puts the two in one space.
-                            // A rotated output reports its physical mode size,
-                            // so its logical footprint has the axes swapped.
-                            var mon = tile.monitor
-                            var sc = (mon && mon.scale > 0) ? mon.scale : 1
-                            var tf = (mon && mon.lastIpcObject)
-                                ? (mon.lastIpcObject.transform || 0) : 0
-                            var mw = mon
-                                ? (tf % 2 === 1 ? mon.height : mon.width) / sc : 16
-                            var mh = mon
-                                ? (tf % 2 === 1 ? mon.width : mon.height) / sc : 10
-                            var mx = mon ? mon.x : 0
-                            var my = mon ? mon.y : 0
-                            var list = tile.toplevels
-                            ctx.fillStyle = tile.windowColor
-                            for (var i = 0; i < list.length; i++) {
-                                var ipc = list[i].lastIpcObject
-                                if (!ipc || !ipc.at || !ipc.size)
-                                    continue
-                                var x = (ipc.at[0] - mx) / mw * w
-                                var y = (ipc.at[1] - my) / mh * h
-                                var bw = ipc.size[0] / mw * w
-                                var bh = ipc.size[1] / mh * h
-                                // keep every block inside the screen plate
-                                var x0 = Math.max(0, x)
-                                var y0 = Math.max(0, y)
-                                var x1 = Math.min(w, x + bw)
-                                var y1 = Math.min(h, y + bh)
-                                if (x1 - x0 < 0.5 || y1 - y0 < 0.5)
-                                    continue
-                                tile.roundRect(ctx, x0, y0, x1 - x0, y1 - y0, 1.5)
-                                ctx.fill()
-                            }
-                        }
-                    }
                     Text {
+                        id: numberText
                         anchors.left: parent.left
                         anchors.leftMargin: root.tilePad
-                        anchors.bottom: parent.bottom
-                        anchors.bottomMargin: root.tilePad
+                        anchors.top: screenBox.bottom
+                        anchors.topMargin: root.tilePad
+                        height: root.labelHeight
+                        verticalAlignment: Text.AlignVCenter
                         text: tile.ws.id
                         color: tile.ink
                         font.family: Theme.barFontFamily
@@ -444,8 +682,7 @@ Item {
                     Text {
                         anchors.right: parent.right
                         anchors.rightMargin: root.tilePad
-                        anchors.bottom: parent.bottom
-                        anchors.bottomMargin: root.tilePad
+                        anchors.verticalCenter: numberText.verticalCenter
                         // nothing on an empty workspace: a bare "0" reads as a
                         // count of something
                         visible: tile.count > 0
