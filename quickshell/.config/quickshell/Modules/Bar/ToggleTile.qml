@@ -12,6 +12,14 @@
 // Click-only, like every other MouseArea on the card: a
 // hover-enabled one would steal cardZone's hover in Bar.qml and
 // collapse the island under a resting cursor.
+//
+// Both buttons are accepted, the tray icon's own split: the left one
+// lands on `clicked()` (the toggle) and the right one on
+// `secondaryClicked()`, which is something more than a toggle — the
+// Wi-Fi tile uses it to reach the wifi picker. A tile with nothing
+// connected to the secondary signal simply does nothing on a
+// right-click, which is the same as before, when the button was not
+// accepted at all.
 import QtQml
 import QtQuick
 import "../../Theme"
@@ -26,8 +34,15 @@ Rectangle {
     // a dead backend (no bluetoothd, no PPD) reads as Unavailable and
     // the click is swallowed rather than firing into nothing
     property bool available: true
+    // the chevron is the visible half of `secondaryClicked()`: a tile
+    // whose right-click does something more than toggle says so with a
+    // ">" beside its state, and a left-click on that ">" does the same
+    // thing. A tile that leaves this false is exactly the tile it was
+    // before — no glyph, and its MouseArea still takes the full width.
+    property bool chevron: false
 
     signal clicked()
+    signal secondaryClicked()
 
     height: 48
     radius: 10
@@ -99,10 +114,15 @@ Rectangle {
     // one column.
     Text {
         id: tileState
-        anchors.right: parent.right
-        anchors.rightMargin: 14
+        anchors.right: chevronBox.visible ? chevronBox.left : parent.right
+        anchors.rightMargin: chevronBox.visible ? 6 : 14
         anchors.verticalCenter: parent.verticalCenter
-        width: Math.min(140, tile.width / 2)
+        // the band gives up the chevron's footprint rather than sliding
+        // left with it, so a tile that grows one keeps its state column
+        // starting where it did and its label keeps its width — 12 for
+        // the glyph and 6 for the gap, the same 18 the margin above
+        // spends
+        width: Math.min(140, tile.width / 2) - (chevronBox.visible ? 18 : 0)
         text: tile.available ? tile.stateText : "Unavailable"
         color: tile.on ? Theme.cardAccentOn : Theme.cardDim
         font.family: Theme.barFontFamily
@@ -111,10 +131,53 @@ Rectangle {
         elide: Text.ElideRight
     }
 
+    // The ">" — the secondary action made visible. A 12px glyph in an
+    // 18px-tall box on the tile's own 10px right inset, centred like
+    // the control-centre glyphs so its ink (not its advance) is what
+    // lands on the box's centre. It takes both buttons, since a
+    // right-click here means the same thing a right-click anywhere
+    // else on the tile does — a MouseArea that accepted only the left
+    // one would leave the right button dead over its own 12px.
+    Item {
+        id: chevronBox
+        anchors.right: parent.right
+        anchors.rightMargin: 10
+        anchors.verticalCenter: parent.verticalCenter
+        width: 12
+        height: 18
+        visible: tile.chevron
+
+        Text {
+            anchors.centerIn: parent
+            text: "\uF054" // chevron-right
+            color: tile.on ? Theme.cardAccentOn : Theme.cardDim
+            font.family: Theme.iconFont
+            font.pixelSize: 12
+        }
+
+        MouseArea {
+            anchors.fill: parent
+            cursorShape: Qt.PointingHandCursor
+            enabled: tile.available
+            acceptedButtons: Qt.LeftButton | Qt.RightButton
+            onClicked: tile.secondaryClicked()
+        }
+    }
+
     MouseArea {
         anchors.fill: parent
+        // the chevron's own area is declared above this one, so this
+        // one sits on top of it and has to stop at its left edge — the
+        // network row's inset past its trash box, the same trap
+        anchors.rightMargin: chevronBox.visible ? 10 + chevronBox.width : 0
         cursorShape: Qt.PointingHandCursor
         enabled: tile.available
-        onClicked: tile.clicked()
+        acceptedButtons: Qt.LeftButton | Qt.RightButton
+        onClicked: function (mouse) {
+            if (mouse.button === Qt.RightButton)
+                tile.secondaryClicked()
+            else
+                tile.clicked()
+        }
     }
 }

@@ -1,8 +1,8 @@
-// NotificationsCard.qml — the island's seventh menu: the control
+// NotificationsCard.qml — the island's sixth menu: the control
 // centre. Quick toggles up top, notification history below.
 //
 // Same card and pop as the media, usage, theme, volume, capture and
-// session pages; reached by hovering the seventh tab button in the
+// session pages; reached by hovering the sixth tab button in the
 // column. The toggles are four ToggleTiles in a 2x2 grid — wifi,
 // bluetooth, do-not-disturb, battery saver — and the history is the
 // clipboard list's idiom under a label row: a rounded cardHighlight
@@ -13,6 +13,13 @@
 // pill, which stays the loud one — with a vertical hairline standing
 // between the time and the glyph so the delete reads as the row's own
 // action zone rather than as more row text.
+//
+// The wifi picker hangs off this page rather than off a tab of its
+// own: the Wi-Fi tile's left button flips the radio, the ">" beside
+// its SSID opens the picker (and so does a right-click anywhere on the
+// tile). The picker is still a page (NetworkCard.qml) — the island
+// still shows it, and Bar.qml still routes "network" — it just has no
+// tab button any more, so it carries its own back chevron.
 //
 // The page is a persistent instance behind a visible flag, so the
 // three page-only services — Bluetooth, PowerProfiles and Network's
@@ -32,6 +39,15 @@ Item {
     // scrolls on the wheel — so this stays false, the same shape
     // Capture.qml carries before a section grows a hover control.
     property bool hovered: false
+
+    // The wifi picker lives on its own page and this page is how it is
+    // reached now: the ">" beside the Wi-Fi tile's SSID, or a
+    // right-click anywhere on the tile, asks for it. The page cannot
+    // switch `islandPage` itself — that belongs to Bar.qml's state — so
+    // it emits and Bar.qml answers, and the picker's own back chevron
+    // emits its way back here. See the tile below for why the radio
+    // toggle stays on the left button.
+    signal pickerRequested()
 
     // ---- the page-only services ----------------------------------------
     // active + refresh on the way in, inactive on the way out. The
@@ -115,7 +131,18 @@ Item {
                 ? (Network.ssid.length > 0 ? Network.ssid : "On")
                 : "Off"
             on: Network.radioEnabled
+            // The tile's two halves: the left button is the switch it
+            // has always been, the right one opens the wifi picker
+            // that used to live on its own tab in the column. One
+            // control for one subject — the radio flag and the scan
+            // are the same switch seen from two sides, and the picker
+            // is what the tile is for once the radio is up. The
+            // chevron beside the SSID is that second half made
+            // visible, so the picker is reachable without knowing
+            // about right-click; clicking it is the same signal.
+            chevron: true
             onClicked: Network.setRadio(!Network.radioEnabled)
+            onSecondaryClicked: notificationsPage.pickerRequested()
         }
 
         ToggleTile {

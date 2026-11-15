@@ -1,10 +1,14 @@
-// NetworkCard.qml — the island's seventh menu: the wifi picker.
+// NetworkCard.qml — the island's wifi picker: a page, but not a tab.
 //
-// Same card and pop as the other pages; reached by hovering the wifi
-// tab in the column. Top to bottom it reads title + radio pill, a
-// status line, a "Networks" label row with the Rescan pill in Clear's
-// slot, and the scan as a scrollable list on a cardHighlight plate —
-// the notifications page's list idiom, one row per SSID.
+// Same card and pop as the other pages, but it is reached from the
+// notifications page's Wi-Fi tile — the ">" beside its SSID, or a
+// right-click anywhere on it — rather than from a tab in the column,
+// so the column has no wifi button and this page leads its title row
+// with a back chevron, the way out that a tab would otherwise give.
+// Top to bottom it reads title + radio pill, a status line, a
+// "Networks" label row with the Rescan pill in Clear's slot, and the
+// scan as a scrollable list on a cardHighlight plate — the
+// notifications page's list idiom, one row per SSID.
 //
 // A row is strength bars, the name, a lock when the network is
 // secured, and the state at the right: Connected / Connecting… /
@@ -45,6 +49,14 @@ Item {
     property bool revealPassword: false
     readonly property bool keyboardActive: pendingSsid.length > 0
     readonly property bool busy: Network.connecting.length > 0
+
+    // The way out. This is the island's only sub-page — the picker is
+    // reached from the notifications page's Wi-Fi tile rather than
+    // from a tab, so the column has no button that leads back and the
+    // page has to carry one. It emits rather than writing
+    // `islandPage`: that state belongs to Bar.qml, the same split
+    // `pickerRequested` uses on the way in.
+    signal backRequested()
 
     function openPanel(ssid) {
         wifiPage.pendingSsid = ssid
@@ -139,6 +151,12 @@ Item {
     }
 
     // ---- title row ------------------------------------------------------
+    // The back control leads the row — the one page in the island that
+    // needs one, and it leads rather than trailing because a back arrow
+    // belongs where reading starts. A bare glyph, not a pill: it is a
+    // 12px affordance on a header, the same weight the eye toggle and
+    // the trash glyphs carry, and a pill here would compete with the
+    // radio pill on the other end of the same line.
     Row {
         id: titleRow
         anchors.top: parent.top
@@ -146,6 +164,31 @@ Item {
         anchors.left: parent.left
         anchors.leftMargin: 80
         spacing: 12
+
+        Item {
+            id: backBox
+            anchors.verticalCenter: parent.verticalCenter
+            width: 20
+            height: 20
+
+            Text {
+                anchors.centerIn: parent
+                text: "\uF053" // chevron-left
+                // full ink, not the dim the eye toggle and the trash
+                // glyphs wear: those are secondary actions on a page
+                // whose primary action is elsewhere, while this is the
+                // only way off the page
+                color: Theme.cardForeground
+                font.family: Theme.iconFont
+                font.pixelSize: 14
+            }
+
+            MouseArea {
+                anchors.fill: parent
+                cursorShape: Qt.PointingHandCursor
+                onClicked: wifiPage.backRequested()
+            }
+        }
 
         HeaderIcon {
             anchors.verticalCenter: parent.verticalCenter

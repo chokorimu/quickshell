@@ -216,7 +216,7 @@ Item {
     }
 
     // hovering anywhere on the column — the strip itself or any of the
-    // eight buttons — holds the island open and the column expanded
+    // seven buttons — holds the island open and the column expanded
     property bool columnHovered: columnZone.containsMouse
         || mediaTab.containsMouse
         || usageTab.containsMouse
@@ -225,7 +225,6 @@ Item {
         || captureTab.containsMouse
         || sessionTab.containsMouse
         || notificationsTab.containsMouse
-        || networkTab.containsMouse
 
     onColumnHoveredChanged: columnExpand = columnHovered ? 1 : 0
 
@@ -1169,7 +1168,7 @@ Item {
                 }
 
                 // ---- session page: avatar, user@host, power grid --------
-                // Same card, same pop — reached by hovering the sixth
+                // Same card, same pop — reached by hovering the seventh
                 // tab button in the column. Gated on the page like the
                 // other five, so nothing paints underneath.
                 SessionCard {
@@ -1184,7 +1183,10 @@ Item {
                 // ---- notifications page: toggles + history -------------
                 // Same card, same pop — reached by hovering the sixth
                 // tab button in the column. Gated on the page like the
-                // others, so nothing paints underneath.
+                // others, so nothing paints underneath. Its Wi-Fi tile is
+                // the way into the wifi picker below — its ">" or a
+                // right-click — which is why that page has no tab of its
+                // own any more, and why it hands back here.
                 NotificationsCard {
                     id: notificationsPage
                     anchors.left: parent.left
@@ -1192,14 +1194,19 @@ Item {
                     anchors.top: parent.top
                     anchors.bottom: parent.bottom
                     visible: root.islandPage === "notifications"
+                    onPickerRequested: root.islandPage = "network"
                 }
 
                 // ---- network page: the wifi picker ----------------------
-                // Same card, same pop — reached by hovering the seventh
-                // tab button in the column. Gated on the page like the
-                // others, so nothing paints underneath. It is also the
-                // only page that can ask for the keyboard, through its
-                // password panel — see `keyboardActive` above.
+                // Same card, same pop. Reached from the notifications
+                // page's Wi-Fi tile — its ">" or a right-click there
+                // switches the island to this page — so it has no tab
+                // button in the column, and it carries a back chevron in
+                // its own title row to get out again (this handler).
+                // Gated on the page like the others, so nothing paints
+                // underneath. It is also the only page that can ask for
+                // the keyboard, through its password panel — see
+                // `keyboardActive` above.
                 NetworkCard {
                     id: networkPage
                     anchors.left: parent.left
@@ -1207,15 +1214,18 @@ Item {
                     anchors.top: parent.top
                     anchors.bottom: parent.bottom
                     visible: root.islandPage === "network"
+                    // back to the page the picker hangs off, which is the
+                    // only way in, so it is also the only way out
+                    onBackRequested: root.islandPage = "notifications"
                 }
 
                 // ---- page switcher: vertical tab column --------------------
-                // Eight buttons down the card's left edge, flush against
+                // Seven buttons down the card's left edge, flush against
                 // the card's edge and each other (no margin, no gaps) and
                 // as wide as the column strip itself, so the block fills
                 // the strip edge to edge with no dead space beside it.
                 // Order is media, usage, theme, volume, capture,
-                // notifications, network, session. The
+                // notifications, session. The
                 // selected page takes the accent fill — square
                 // corners, near-black glyph, and a black block down its
                 // left edge taking the full height and the left 10% of
@@ -1223,7 +1233,11 @@ Item {
                 // unselected one stays transparent. Hovering a button
                 // switches pages outright — no click needed; the bar's
                 // hover triggers (clock, volume icon) still select a
-                // page on the way in.
+                // page on the way in. The wifi picker is the one page
+                // with no button: it is reached from the notifications
+                // page's Wi-Fi tile — the ">" beside its SSID, or a
+                // right-click — so its slot in the column is gone and
+                // the block ends on session.
                 //
                 // The whole column expands on hover: the buttons widen
                 // from the resting 56px strip to columnExpandedWidth,
@@ -1666,71 +1680,7 @@ Item {
                         }
                     }
 
-                    // ---- network: the wifi picker ----------------------------
-                    // Seventh in the column, between notifications (whose
-                    // own tile carries the radio) and session.
-                    Rectangle {
-                        width: root.columnWidth
-                        height: 40
-                        color: root.islandPage === "network" ? Theme.cardAccent : "transparent"
-
-                        // the selected marker: a black block down the
-                        // button's left edge, taking the full height
-                        // and the left 10% of the resting strip — no
-                        // inset, so it reads as part of the silhouette
-                        Rectangle {
-                            x: 0
-                            width: root.cardColumnWidth * 0.1
-                            height: parent.height
-                            color: "black"
-                            visible: root.islandPage === "network"
-                        }
-
-                        // the glyph holds the resting 56px icon zone —
-                        // it does not drift right as the column opens
-                        Text {
-                            anchors.verticalCenter: parent.verticalCenter
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            anchors.horizontalCenterOffset: -(parent.width - root.cardColumnWidth) / 2
-                            text: "\uF1EB" // wifi
-                            color: root.islandPage === "network" ? Theme.cardAccentOn : Theme.barDim
-                            font.family: Theme.iconFont
-                            font.pixelSize: 17
-                        }
-
-                        // the menu's name, revealed by the expansion —
-                        // clipped to the button so it can't spill onto
-                        // the card mid-animation
-                        Item {
-                            anchors.left: parent.left
-                            anchors.leftMargin: root.cardColumnWidth
-                            anchors.right: parent.right
-                            anchors.top: parent.top
-                            anchors.bottom: parent.bottom
-                            clip: true
-                            visible: root.columnExpand > 0.01
-
-                            Text {
-                                anchors.verticalCenter: parent.verticalCenter
-                                x: 10
-                                width: Math.max(0, parent.width - 20)
-                                text: "Wi-Fi"
-                                color: root.islandPage === "network" ? Theme.cardAccentOn : Theme.barDim
-                                font.family: Theme.barFontFamily
-                                font.pixelSize: 13
-                                elide: Text.ElideRight
-                                opacity: root.columnExpand
-                            }
-                        }
-
-                        MouseArea {
-                            id: networkTab
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            onEntered: root.islandPage = "network"
-                        }
-                    }
-
+                    // ---- session -------------------------------------------------
                     Rectangle {
                         width: root.columnWidth
                         height: 40
