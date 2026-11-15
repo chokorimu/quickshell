@@ -66,6 +66,21 @@
           "name": "deepseek-v4.1-flash"
         }
       }
+    },
+    "weizerouter-uncensored": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "weizerouter",
+      "options": {
+        "baseURL": "https://weizerouter.web.id/v1"
+      },
+      "models": {
+        "wz/uc-deepseek-v4.1-flash": {
+          "name": "uc-deepseek-v4.1-flash"
+        },
+        "wz/uc-venice-roleplay": {
+          "name": "uc-venice-roleplay"
+        }
+      }
     }
   }
 }

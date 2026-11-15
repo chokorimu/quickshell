@@ -140,6 +140,13 @@ local suppressMaximizeRule = hl.window_rule({
     suppress_event = "maximize",
 })
 -- suppressMaximizeRule:set_enabled(false)
+-- local suppressFullscreenRule = hl.window_rule({
+--     -- Ignore fullscreen requests from all apps. You'll probably like this.
+--     name  = "suppress-fullscreen-events",
+--     match = { class = ".*" },
+
+--     suppress_event = "fullscreen",
+-- })
 
 hl.window_rule({
     -- Fix some dragging issues with XWayland

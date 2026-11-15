@@ -48,7 +48,7 @@ local wallpapermenu   = "pkill -SIGUSR2 rofi; rofi -show wallpaper -modi \"wallp
 local mainMod = "SUPER"
 
 -- Window Management
-hl.bind(mainMod .. " + W", hl.dsp.window.close())
+hl.bind(mainMod .. " + SHIFT + W", hl.dsp.window.close())
 hl.bind(mainMod .. " + F", hl.dsp.window.fullscreen()) -- or hl.dsp.layout("fullscreen") depending on implementation
 hl.bind(mainMod .. " + V", hl.dsp.window.float({ action = "toggle" }))
 hl.bind(mainMod .. " + P", hl.dsp.window.pseudo())
