@@ -169,6 +169,8 @@ Item {
         if (trayMenuOpen) {
             if (!trayMenuInside)
                 trayMenuLeaveGrace.restart()
+            // one menu at a time: the tray menu has the window while it shows
+            root.switcherOpen = false
         } else {
             trayMenuLeaveGrace.stop()
         }
@@ -185,6 +187,78 @@ Item {
         root.trayMenuTarget = root.trayMenuTarget === item ? null : item
     }
 
+    // ---- the workspace switcher -------------------------------------------
+    // A separate pop-out menu (WorkspaceSwitcher.qml) hanging off the bar's
+    // bottom edge at the top centre, opened by resting the cursor on the
+    // workspace pill. It occupies the island's own footprint, so the island
+    // is suppressed while it is showing — see `expanded` below.
+    //
+    // The open is dwell-gated like the island's, and the close is a
+    // hover-out with a grace, the tray menu's mechanism. The plate's top edge
+    // is flush with the pill's foot (both sit on the bar's bottom edge), so
+    // the grace only ever covers the frame or two of a move between the two,
+    // or across the 12px gaps between tiles.
+    property bool switcherHovered: false
+    property bool switcherOpen: false
+    // Set when something outranks the hover — SUPER+L, which must put the
+    // session page up. Without it the dwell would simply reopen the plate
+    // 150ms later under a cursor that never moved, and the keybind would
+    // lose. Cleared when the cursor actually leaves, so the next rest on the
+    // pill opens normally.
+    property bool switcherDismissed: false
+    // open OR still on screen: the mask and the island's suppression have to
+    // outlive the flag by the 200ms shrink, or the plate gets clipped
+    // mid-animation and the island pops up through it.
+    readonly property bool switcherShowing: switcherOpen || switcher.pop > 0
+    readonly property bool switcherInside: switcher.pointerInside || switcherHovered
+    Timer {
+        id: switcherOpenDelay
+        interval: root.hoverOpenDelay
+        // two menus at once would fight for the same window: a tray menu
+        // already up owns it (it is the only one with a full-surface catcher)
+        onTriggered: if (!root.trayMenuShowing) root.switcherOpen = true
+    }
+    Timer {
+        id: switcherLeaveGrace
+        interval: 200
+        onTriggered: if (!root.switcherInside) root.switcherOpen = false
+    }
+    onSwitcherInsideChanged: {
+        if (switcherInside) {
+            switcherLeaveGrace.stop()
+            // an island that is already up shares this footprint: let it
+            // retreat now rather than after its own 350ms linger, so the two
+            // do not animate through each other during the dwell
+            collapseGrace.stop()
+            if (!switcherOpen && !switcherDismissed)
+                switcherOpenDelay.restart()
+        } else {
+            switcherOpenDelay.stop()
+            // the cursor is off the bar and the plate: the keyboard's claim
+            // is spent, and the next hover may open again
+            switcherDismissed = false
+            if (switcherOpen)
+                switcherLeaveGrace.restart()
+        }
+    }
+    onSwitcherOpenChanged: {
+        if (switcherOpen) {
+            // the two menus share one footprint: drop the island's linger so
+            // it retreats instead of sitting under the plate
+            collapseGrace.stop()
+        } else if (root.switcherInside && !root.switcherDismissed) {
+            // still on the pill: the dwell re-arms, so a cursor that dips off
+            // the plate and back gets it again. The island is not a worry
+            // here — the workspace pill sits in the bar's own band, outside
+            // cardZone and clockZone, so `hovered` is false and nothing else
+            // opens in the plate's place.
+            switcherOpenDelay.restart()
+        }
+    }
+    // the switcher's geometry, so shell.qml's input mask can track its pop
+    readonly property int switcherWidth: switcher.menuWidth
+    readonly property int switcherHeight: switcher.menuHeight
+    readonly property real switcherPop: switcher.pop
     // dynamic island state. Derived from the two hover zones below rather
     // than stored, so there is no signal ordering to get wrong.
     //
@@ -295,28 +369,38 @@ Item {
         onTriggered: root.hoverSettled = true
     }
 
-    readonly property bool expanded: (hovered && hoverSettled && !keyboardDismissed)
-        || collapseGrace.running
-        || sessionPinned
+    // The switcher shares this footprint, so it wins it outright: the island
+    // is suppressed for the whole time the plate is up, including its
+    // shrink. `switcherShowing` is the latch — see the switcher block above.
+    readonly property bool expanded: !switcherShowing
+        && ((hovered && hoverSettled && !keyboardDismissed)
+            || collapseGrace.running
+            || sessionPinned)
 
     onHoveredChanged: {
         if (hovered) {
-            // read before the pin is cleared: an island that is already
-            // open takes the cursor with no dwell at all
+            // read before anything changes: an island that is already open
+            // takes the cursor with no dwell at all
             var wasOpen = root.expanded
-            // handoff: the cursor has arrived, the pin is no longer needed
+            // Settle the dwell BEFORE releasing the pin. Clearing the pin
+            // first re-evaluates `expanded` with neither the pin nor the
+            // dwell holding it — a momentary false that starts popOut, which
+            // the dwell flag's assignment then undoes with popIn. Two
+            // animations on one property both keep running (Qt does not stop
+            // the old one), so they fight over `pop` for the rest of the
+            // collapse and the card shimmers at double the frame rate. With
+            // the dwell already set, clearing the pin changes nothing.
+            if (wasOpen) root.hoverSettled = true
             root.sessionPinned = false
             collapseGrace.stop()
-            if (wasOpen) root.hoverSettled = true
-            else openDelay.restart()
+            if (!wasOpen) openDelay.restart()
         } else {
             // the dwell only ever counts toward an opening; a cursor that
             // leaves has to serve it again on the way back
             openDelay.stop()
-            // read BEFORE clearing the dwell flag: `expanded` is what says
-            // whether there is actually a card up to linger for
+            // read BEFORE anything changes: `expanded` is what says whether
+            // there is actually a card up to linger for
             var wasUp = root.expanded
-            root.hoverSettled = false
             // a capture in flight must not restart the grace timer:
             // the cursor leaves the collapsing card, and the reopen
             // that follows would put the island back under the
@@ -331,14 +415,28 @@ Item {
                 // itself part of `expanded`, so the timer opened the card
                 // for its full 350ms on the way past. (LO's call — "when
                 // user flicks cursor on topbar it still open".)
+                //
+                // The restart comes BEFORE the dwell flag is cleared, for
+                // the reason spelled out in the hovered branch above:
+                // clearing the flag first drops `expanded` for one
+                // evaluation (neither dwell nor grace holding it), and the
+                // popOut that starts there is never stopped by the popIn the
+                // grace restart starts a statement later.
                 if (wasUp) collapseGrace.restart()
             }
+            root.hoverSettled = false
         }
     }
 
     onSessionPinnedChanged: {
-        if (sessionPinned)
+        if (sessionPinned) {
+            // the keyboard route outranks a hover-opened switcher: SUPER+L
+            // must put the session page up, so the plate gets out of its way
+            // — and stays out of it until the cursor leaves
+            root.switcherDismissed = true
+            root.switcherOpen = false
             root.islandPage = "session"
+        }
     }
 
     Timer {
@@ -456,7 +554,20 @@ Item {
         onStopped: if (!root.expanded) root.islandPage = "media"
     }
 
-    onExpandedChanged: root.expanded ? popIn.start() : popOut.start()
+    // Stop the other before starting one: two animations on the same property
+    // both keep running (Qt does not cancel the earlier one), and the property
+    // then takes whichever ticked last — a card shimmering at double the frame
+    // rate instead of collapsing. The switcher and the launcher pair theirs the
+    // same way.
+    onExpandedChanged: {
+        if (root.expanded) {
+            popOut.stop()
+            popIn.start()
+        } else {
+            popIn.stop()
+            popOut.start()
+        }
+    }
 
     SystemClock {
         id: clock
@@ -2769,6 +2880,19 @@ Item {
                     color: Theme.barWorkspacePill
                     width: workspaceRow.implicitWidth + 8
 
+                    // Resting on the pill opens the workspace switcher
+                    // (hover, not click). Declared first so the circles sit
+                    // above it and keep their clicks; no buttons of its own,
+                    // so it is a hover reader and nothing else. The dwell and
+                    // the leave-grace live in the switcher block near the top
+                    // of this file.
+                    MouseArea {
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        acceptedButtons: Qt.NoButton
+                        onContainsMouseChanged: root.switcherHovered = containsMouse
+                    }
+
                     Row {
                         id: workspaceRow
                         anchors.centerIn: parent
@@ -3107,5 +3231,21 @@ Item {
         anchors.top: root.top
         anchors.topMargin: root.topMargin + root.barHeight
         onCloseRequested: root.closeTrayMenu()
+    }
+    // ---- the workspace switcher -------------------------------------------
+    // The island's box and the island's pop, hung under the bar's centre.
+    // Flush on the bar's bottom edge like the tray menu — the plate's top
+    // corners are square for that reason, and the fillets blend its side
+    // edges into the bar's own surface.
+    //
+    // `open` is the hover chain's decision; the menu outlives it by its own
+    // pop-out, which is what switcherShowing rides.
+    WorkspaceSwitcher {
+        id: switcher
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.top: root.top
+        anchors.topMargin: root.topMargin + root.barHeight
+        workspaces: root.workspaces
+        open: root.switcherOpen
     }
 }

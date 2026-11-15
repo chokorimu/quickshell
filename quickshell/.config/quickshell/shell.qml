@@ -82,6 +82,22 @@ ShellRoot {
                         bottomLeftRadius: bar.cardRadius
                         bottomRightRadius: bar.cardRadius
                     }
+
+                    // The workspace switcher's plate. Same footprint as the
+                    // card and the same treatment: explicit geometry mirroring
+                    // its pop, because a Region tracks an item's geometry and
+                    // never its transform — an item-based region would sit at
+                    // full width through the whole pop and swallow clicks
+                    // beside the animating plate. Square top corners, since
+                    // the plate hangs flush off the bar's bottom edge.
+                    Region {
+                        x: bar.pillItem.x + (bar.barWidth - bar.switcherWidth * bar.switcherPop) / 2
+                        y: bar.topMargin + bar.barHeight
+                        width: bar.switcherWidth * bar.switcherPop
+                        height: bar.switcherHeight * bar.switcherPop
+                        bottomLeftRadius: 10
+                        bottomRightRadius: 10
+                    }
                 }
 
                 // Keyboard priority while the wifi page's password panel
