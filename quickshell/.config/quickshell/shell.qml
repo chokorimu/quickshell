@@ -83,13 +83,15 @@ ShellRoot {
                         bottomRightRadius: bar.cardRadius
                     }
 
-                    // The workspace switcher's plate. Same footprint as the
-                    // card and the same treatment: explicit geometry mirroring
-                    // its pop, because a Region tracks an item's geometry and
-                    // never its transform — an item-based region would sit at
-                    // full width through the whole pop and swallow clicks
-                    // beside the animating plate. Square top corners, since
-                    // the plate hangs flush off the bar's bottom edge.
+                    // The workspace switcher's plate. Explicit geometry
+                    // mirroring its pop, because a Region tracks an item's
+                    // geometry and never its transform — an item-based region
+                    // would sit at full width through the whole pop and swallow
+                    // clicks beside the animating plate. Square top corners,
+                    // since the plate hangs flush off the bar's bottom edge.
+                    // (It is 700 wide, not the card's 600 — the tiles need the
+                    // room — so the width comes off the switcher, never the
+                    // card.)
                     Region {
                         x: bar.pillItem.x + (bar.barWidth - bar.switcherWidth * bar.switcherPop) / 2
                         y: bar.topMargin + bar.barHeight

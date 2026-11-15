@@ -1,8 +1,9 @@
 // WorkspaceSwitcher.qml — the workspace minimap menu.
 //
 // A separate pop-out, not an island page. It hangs off the bar's bottom edge
-// at the top centre, in the island's own 600px box and with the island's own
-// pop, and it appears when the cursor rests on the workspace pill.
+// at the top centre with the island's own pop, and it appears when the cursor
+// rests on the workspace pill. It is wider than the island card (700 against
+// 600) so the tiles can be big enough to read the windows in them.
 //
 // Each tile is a miniature of the monitor the workspace lives on, with that
 // workspace's windows drawn at their real positions and sizes — so a glance
@@ -46,32 +47,39 @@ Item {
     // title and the tiles 80 from the left edge and 28 from the right, with
     // the whole menu reading shoved right. One padding, the same on all four
     // sides, is the honest shape here: the plate is its own surface.
-    readonly property int menuWidth: 600
+    // 700, not the island card's 600: the tiles have to be big enough to read
+    // the windows in them, and 600 could not hold five of the size they now
+    // want. This is a separate pop-out, so it is not obliged to match the
+    // card's width — the tray menu is 240 for the same reason. The width is
+    // also chosen for its remainder: five 112px tiles and four 12px gaps come
+    // to 608 of the 652px content width, which leaves 44px — 39% of a sixth
+    // tile — peeking past the right edge, and that is the scroll affordance.
+    // A rounder 720 left 64 (57%), which reads as a tile that got clipped
+    // rather than as a hint that there are more.
+    readonly property int menuWidth: 700
     readonly property int pad: 24
     // the title row's real height: a 20px DemiBold line box measures 25
     readonly property int titleHeight: 25
     // 20, the island's own title-to-first-control gap (VolumeCard's titleRow
     // to its master row), so the two headers read at one rhythm
     readonly property int titleGap: 20
-    // 84 + 12 fits five tiles across the 492px content width with a sixth
-    // peeking past the right edge — the partial tile is the scroll
-    // affordance, the way the lists use a partial row (there is no
-    // scrollbar).
-    readonly property int tileWidth: 84
+    readonly property int tileWidth: 112
     readonly property int tileGap: 12
-    // The tile's own padding, and it is the SAME 8 on every side: 8 above the
-    // mini monitor, 8 between it and the labels, 8 below the labels, 8 either
-    // side. `labelHeight` is the 12px label's own line box (measured 15), not
-    // a round number, which is what keeps the rhythm exact instead of
-    // leaving a sliver under the digits.
-    readonly property int tilePad: 8
-    readonly property int screenWidth: tileWidth - tilePad * 2
-    // 68 x 42 is ~16:10, close to this machine's 2560x1600 panel and close
-    // enough to every other common shape that the minimap reads right.
-    readonly property int screenHeight: 42
-    readonly property int labelHeight: 15
-    readonly property int tileHeight:
-        tilePad + screenHeight + tilePad + labelHeight + tilePad
+    // There is no tile container: the thumbnail IS the tile's width, and the
+    // labels sit straight under it, so the only padding the tile has is the
+    // gap between the screen and them — 6, the lists' label-to-list step.
+    // `labelHeight` is the 12px label's own line box (measured 15), not a
+    // round number, which keeps the rhythm exact instead of leaving a sliver
+    // under the digits.
+    readonly property int screenWidth: tileWidth
+    // 112 x 70 is exactly 16:10, this machine's panel shape, so the minimap
+    // reads as a picture of the screen it stands for.
+    readonly property int screenHeight: 70
+    readonly property int labelGap: 6
+    // the 14px number's own line box (measured 18), so the tile's height is
+    // exact and the digits do not sit in a box taller than their ink
+    readonly property int labelHeight: 18
+    readonly property int tileHeight: screenHeight + labelGap + labelHeight
     readonly property int contentWidth: menuWidth - pad * 2
     readonly property int stripTop: pad + titleHeight + titleGap
     readonly property int menuHeight: stripTop + tileHeight + pad
@@ -439,23 +447,34 @@ Item {
                         tile.ws.monitor ? tile.ws.monitor : Hyprland.focusedMonitor
                     readonly property bool hovered: root.hoverIndex === tile.index
                     // ---- the tile's palette ----------------------------------
-                    // Three states, three fills, all the shell's existing
-                    // language: the active workspace wears the accent with
-                    // near-black ink (the toggle tiles' "on" treatment, and the
-                    // bar's own inverted active-workspace circle at tile
-                    // scale); a hovered one takes the session cells' soft
-                    // inversion; everything else sits on the lists' plate.
-                    readonly property color plateColor: tile.active ? Theme.cardAccent
-                        : (tile.hovered ? Theme.cardHover : Theme.cardHighlight)
-                    readonly property color ink: tile.active ? Theme.cardAccentOn
-                        : (tile.hovered ? Theme.cardHoverOn : Theme.cardForeground)
-                    readonly property color screenColor: (tile.active || tile.hovered)
-                        ? Qt.rgba(tile.ink.r, tile.ink.g, tile.ink.b, 0.12)
-                        : Theme.cardBackground
+                    // There is no container, so there is no resting fill: what
+                    // you see is the thumbnail and its labels. Two cues carry
+                    // the states, both the shell's existing language. The
+                    // active workspace wears a thin accent ring around its
+                    // thumbnail — the smallest form of the accent the selected
+                    // tab and the toggle tiles wear, and enough to find at a
+                    // glance without turning a whole tile yellow.
+                    //
+                    // Hover is the one cue that cannot come from the palette,
+                    // and the reason is that it sits on a PICTURE: the island's
+                    // soft inversion (cardHover) means lighten on the dark card
+                    // and darken on the light one, and a dark veil over a dark
+                    // capture is invisible — measured, the light palette's
+                    // hover read exactly the same pixel as an untouched tile.
+                    // A white veil at low alpha lifts the thumbnail's darks in
+                    // BOTH palettes, which is what reads as the picture lighting
+                    // up under the cursor rather than a slab appearing over it.
+                    // It is a fixed value for the same reason cardAccent is:
+                    // the thing under it is not palette content.
+                    readonly property color ink: Theme.cardForeground
+                    readonly property color hoverColor: Qt.rgba(1, 1, 1, 0.14)
+                    // the lists' plate treatment, one step off the card, so
+                    // the thumbnail reads as a screen rather than a hole
+                    readonly property color screenColor: Theme.cardHighlight
                     readonly property color windowColor:
-                        Qt.rgba(tile.ink.r, tile.ink.g, tile.ink.b, 0.5)
+                        Qt.rgba(ink.r, ink.g, ink.b, 0.5)
                     readonly property color countColor:
-                        Qt.rgba(tile.ink.r, tile.ink.g, tile.ink.b, 0.6)
+                        Qt.rgba(ink.r, ink.g, ink.b, 0.6)
                     // ---- the minimap's geometry ------------------------------
                     // `at`/`size` are LAYOUT (logical) coordinates; the
                     // monitor's width/height are PHYSICAL, so the scale divide
@@ -561,21 +580,15 @@ Item {
                     onGeomChanged: syncBlocks()
                     width: root.tileWidth
                     height: root.tileHeight
-                    Rectangle {
-                        anchors.fill: parent
-                        radius: root.plateRadius
-                        color: tile.plateColor
-                    }
                     // ---- the mini monitor ------------------------------------
-                    // Square-cornered, unlike the tile it sits in: a screen is,
-                    // and it is what lets the thumbnails be clipped by a plain
-                    // `clip: true` — a rounded plate under square images would
-                    // show their corners poking out of it the moment a window
-                    // is fullscreen.
+                    // Square-cornered, because a screen is, and it is what
+                    // lets the thumbnails be clipped by a plain `clip: true`
+                    // — a rounded plate under square images would show their
+                    // corners poking out of it the moment a window is
+                    // fullscreen.
                     Item {
                         id: screenBox
                         anchors.top: parent.top
-                        anchors.topMargin: root.tilePad
                         anchors.horizontalCenter: parent.horizontalCenter
                         width: root.screenWidth
                         height: root.screenHeight
@@ -593,10 +606,10 @@ Item {
                                 var w = width
                                 var h = height
                                 ctx.clearRect(0, 0, w, h)
-                                // cardBackground against the tile's
-                                // cardHighlight is one palette step in either
-                                // mode, which reads as the recessed surface the
-                                // windows sit on
+                                // the lists' plate, one palette step off the
+                                // card in either mode, which is what makes the
+                                // thumbnail read as a screen rather than a
+                                // hole in the plate
                                 ctx.fillStyle = tile.screenColor
                                 ctx.fillRect(0, 0, w, h)
                                 ctx.fillStyle = tile.windowColor
@@ -643,6 +656,36 @@ Item {
                         onWidthChanged: screen.requestPaint()
                         onHeightChanged: screen.requestPaint()
                     }
+                    // Hover lifts the THUMBNAIL, not a box around it: a veil
+                    // sized to the screen and declared over the captures, so it
+                    // tints them too. There is no container at rest, so there
+                    // is nothing for a hover fill to redraw — the picture
+                    // itself lights up. (The veil is a fixed white rather than
+                    // a palette value; see the note on `hoverColor` above.)
+                    Rectangle {
+                        anchors.fill: screenBox
+                        visible: tile.hovered
+                        color: tile.hoverColor
+                    }
+                    // The active workspace's ring: a 2px accent outline on the
+                    // thumbnail's own boundary. It is anchored to `fill:
+                    // screenBox` rather than wrapped around it, for two
+                    // reasons: the strip clips its children, so a ring hanging
+                    // outside the screen would lose its top and bottom edges,
+                    // and a Rectangle paints its border INSIDE its own bounds,
+                    // so filling the screen puts the stroke exactly on the
+                    // screen's edge. Declared after the box so it paints over
+                    // the captures' outermost 2px; there is no fill, so the
+                    // thumbnail is not dimmed by it. The 4px radius is small
+                    // enough that the screen still reads square.
+                    Rectangle {
+                        anchors.fill: screenBox
+                        radius: 4
+                        visible: tile.active
+                        color: "transparent"
+                        border.width: 2
+                        border.color: Theme.cardAccent
+                    }
                     onInkChanged: screen.requestPaint()
                     onScreenColorChanged: screen.requestPaint()
                     onWindowColorChanged: screen.requestPaint()
@@ -667,21 +710,24 @@ Item {
                     }
                     Text {
                         id: numberText
+                        // the labels sit on the thumbnail's own edges now —
+                        // there is no container to inset them from
                         anchors.left: parent.left
-                        anchors.leftMargin: root.tilePad
                         anchors.top: screenBox.bottom
-                        anchors.topMargin: root.tilePad
+                        anchors.topMargin: root.labelGap
                         height: root.labelHeight
                         verticalAlignment: Text.AlignVCenter
                         text: tile.ws.id
                         color: tile.ink
                         font.family: Theme.barFontFamily
-                        font.pixelSize: 12
+                        // 14, up from 12 with the thumbnails: the tile grew 56%
+                        // and a 12px number under a 112px screen read as a
+                        // caption for a different, smaller thing
+                        font.pixelSize: 14
                         font.weight: Font.DemiBold
                     }
                     Text {
                         anchors.right: parent.right
-                        anchors.rightMargin: root.tilePad
                         anchors.verticalCenter: numberText.verticalCenter
                         // nothing on an empty workspace: a bare "0" reads as a
                         // count of something
@@ -689,7 +735,8 @@ Item {
                         text: tile.count
                         color: tile.countColor
                         font.family: Theme.barFontFamily
-                        font.pixelSize: 11
+                        // the number's step down, 12 against its 14
+                        font.pixelSize: 12
                     }
                     MouseArea {
                         anchors.fill: parent
