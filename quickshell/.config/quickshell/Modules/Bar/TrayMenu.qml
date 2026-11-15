@@ -159,6 +159,13 @@ Item {
     // How much of the plate the clip has revealed — the plate's own visible
     // height, which is what the corner and fillet radii have to fit inside.
     readonly property real visibleHeight: plateHeight * reveal
+    // The plate's painted bottom-corner radius: full once the revealed band
+    // can hold one, a semicircular cap while it is shorter, zero before it
+    // clears the bar. The plate canvas and the last row's hover fill both read
+    // this, so the two curves can never disagree — see `plateBottomRadius`'s
+    // use in the delegate below for why the row needs it at all.
+    readonly property real plateBottomRadius:
+        Math.min(plateRadius, Math.max(0, (visibleHeight - plateRadius) / 2))
     // The fillet that blends the plate's side edges into the bar's bottom
     // edge: the island pill's rolls at menu scale. Material-growing, not a
     // bite — the bar's own surface flows down into the plate's edges, so the
@@ -422,7 +429,9 @@ Item {
                     // bottom edge (see the comment above), so the outline runs
                     // straight into it at both ends
                     var rt = 0
-                    var rb = Math.min(root.plateRadius, Math.max(0, (h - root.plateRadius) / 2))
+                    // the shared formula, not a local copy: the last row's
+                    // hover fill rounds to the same number (see the delegate)
+                    var rb = root.plateBottomRadius
                     ctx.clearRect(0, 0, w, h)
                     ctx.fillStyle = Theme.cardBackground
                     ctx.beginPath()
@@ -477,6 +486,25 @@ Item {
                     // would dereference null on exactly the frame the row is leaving.
                     readonly property bool checked: !!row.modelData && !row.modelData.isSeparator
                         && row.modelData.checkState !== Qt.Unchecked
+                    // The row whose bottom edge is the plate's own. Its hover
+                    // fill has to round to the plate's bottom corners, or the
+                    // fill paints a square over them and the menu's silhouette
+                    // squares off under the cursor. Measured, not inferred from
+                    // `atYEnd`: a menu long enough to scroll only puts its last
+                    // row on the plate's foot at the end of the scroll, and
+                    // atYEnd trusts the view's contentHeight — which can
+                    // overshoot while delegates are still being created, leaving
+                    // the row 19px above the foot with the flag already true
+                    // (probed: 401 against a 420 plate). `row.y` is
+                    // content-relative, so this is where the row's foot actually
+                    // lands in the view. Equality, not `>=`: a row that stops
+                    // short keeps its square fill rather than putting a second
+                    // pair of rounded corners above the plate's own. When the
+                    // content fits there is nothing to scroll, contentY is 0 and
+                    // the sum is exactly the plate's height.
+                    readonly property bool roundsBottom: row.index === rowList.count - 1
+                        && Math.abs(row.y + row.height - rowList.contentY
+                                    - rowList.height) <= 0.5
 
                     width: rowList.width
                     height: separator ? root.separatorHeight : root.rowHeight
@@ -498,11 +526,23 @@ Item {
                         id: rowBody
                         visible: !row.separator
                         anchors.fill: parent
+                        // Snaps rather than easing in (LO's call — the 120ms
+                        // ColorAnimation the other hover fills wear read as lag
+                        // on a menu row, which is meant to track the pointer).
                         color: rowMouse.containsMouse && row.e.enabled
                             ? Theme.cardHighlight : "transparent"
-                        Behavior on color {
-                            ColorAnimation { duration: 120 }
-                        }
+                        // The plate's bottom corners are part of its outline,
+                        // and a row's fill is a plain rectangle — so hovering
+                        // the last row painted cardHighlight straight over them
+                        // and squared the menu off under the cursor. The last
+                        // row borrows the plate's own bottom radius instead, off
+                        // the same property the plate canvas paints with, so the
+                        // two curves stay one shape through the pop. Per-corner
+                        // radius is Qt 6.7+; `radius` stays 0, so the other two
+                        // corners are square (the top row's are too — they meet
+                        // the bar).
+                        bottomLeftRadius: row.roundsBottom ? root.plateBottomRadius : 0
+                        bottomRightRadius: row.roundsBottom ? root.plateBottomRadius : 0
 
                         // check / radio mark. One glyph covers both: a row that is
                         // on reads as on, and the checkbox/radio distinction is not
