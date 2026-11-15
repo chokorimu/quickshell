@@ -216,7 +216,7 @@ Item {
     }
 
     // hovering anywhere on the column — the strip itself or any of the
-    // seven buttons — holds the island open and the column expanded
+    // eight buttons — holds the island open and the column expanded
     property bool columnHovered: columnZone.containsMouse
         || mediaTab.containsMouse
         || usageTab.containsMouse
@@ -225,6 +225,7 @@ Item {
         || captureTab.containsMouse
         || sessionTab.containsMouse
         || notificationsTab.containsMouse
+        || displayTab.containsMouse
 
     onColumnHoveredChanged: columnExpand = columnHovered ? 1 : 0
 
@@ -1167,10 +1168,24 @@ Item {
                     visible: root.islandPage === "capture"
                 }
 
-                // ---- session page: avatar, user@host, power grid --------
+                // ---- displays page: the monitor manager ----------------
                 // Same card, same pop — reached by hovering the seventh
+                // tab button in the column, which puts Session back at
+                // the end where the way out belongs. Gated on the page
+                // like the others, so nothing paints underneath.
+                MonitorCard {
+                    id: displayPage
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.bottom: parent.bottom
+                    visible: root.islandPage === "displays"
+                }
+
+                // ---- session page: avatar, user@host, power grid --------
+                // Same card, same pop — reached by hovering the eighth
                 // tab button in the column. Gated on the page like the
-                // other five, so nothing paints underneath.
+                // others, so nothing paints underneath.
                 SessionCard {
                     id: sessionPage
                     anchors.left: parent.left
@@ -1220,12 +1235,13 @@ Item {
                 }
 
                 // ---- page switcher: vertical tab column --------------------
-                // Seven buttons down the card's left edge, flush against
+                // Eight buttons down the card's left edge, flush against
                 // the card's edge and each other (no margin, no gaps) and
                 // as wide as the column strip itself, so the block fills
                 // the strip edge to edge with no dead space beside it.
                 // Order is media, usage, theme, volume, capture,
-                // notifications, session. The
+                // notifications, displays, session — Session stays last
+                // because it is the way out and belongs at the foot. The
                 // selected page takes the accent fill — square
                 // corners, near-black glyph, and a black block down its
                 // left edge taking the full height and the left 10% of
@@ -1677,6 +1693,69 @@ Item {
                             anchors.fill: parent
                             hoverEnabled: true
                             onEntered: root.islandPage = "notifications"
+                        }
+                    }
+
+                    // ---- displays ------------------------------------------------
+                    Rectangle {
+                        width: root.columnWidth
+                        height: 40
+                        color: root.islandPage === "displays" ? Theme.cardAccent : "transparent"
+
+                        // the selected marker: a black block down the
+                        // button's left edge, taking the full height
+                        // and the left 10% of the resting strip — no
+                        // inset, so it reads as part of the silhouette
+                        Rectangle {
+                            x: 0
+                            width: root.cardColumnWidth * 0.1
+                            height: parent.height
+                            color: "black"
+                            visible: root.islandPage === "displays"
+                        }
+
+                        // the glyph holds the resting 56px icon zone —
+                        // it does not drift right as the column opens
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            anchors.horizontalCenterOffset: -(parent.width - root.cardColumnWidth) / 2
+                            text: "\uF108" // desktop
+                            color: root.islandPage === "displays" ? Theme.cardAccentOn : Theme.barDim
+                            font.family: Theme.iconFont
+                            font.pixelSize: 17
+                        }
+
+                        // the menu's name, revealed by the expansion —
+                        // clipped to the button so it can't spill onto
+                        // the card mid-animation
+                        Item {
+                            anchors.left: parent.left
+                            anchors.leftMargin: root.cardColumnWidth
+                            anchors.right: parent.right
+                            anchors.top: parent.top
+                            anchors.bottom: parent.bottom
+                            clip: true
+                            visible: root.columnExpand > 0.01
+
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                x: 10
+                                width: Math.max(0, parent.width - 20)
+                                text: "Displays"
+                                color: root.islandPage === "displays" ? Theme.cardAccentOn : Theme.barDim
+                                font.family: Theme.barFontFamily
+                                font.pixelSize: 13
+                                elide: Text.ElideRight
+                                opacity: root.columnExpand
+                            }
+                        }
+
+                        MouseArea {
+                            id: displayTab
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            onEntered: root.islandPage = "displays"
                         }
                     }
 
