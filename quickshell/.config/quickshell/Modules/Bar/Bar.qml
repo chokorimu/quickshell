@@ -123,12 +123,65 @@ Item {
     // reopening the same tree.
     property var trayMenuTarget: null
     readonly property bool trayMenuOpen: trayMenuTarget !== null
+    // Open OR still on screen. Closing is animated (TrayMenu's pop-out), and
+    // the window mask and the click-outside catcher have to outlive the
+    // target by those 200ms — the mask clips rendering as well as input, so a
+    // mask that collapsed on trayMenuOpen would cut the plate off mid-shrink.
+    readonly property bool trayMenuShowing: trayMenuOpen || trayMenu.pop > 0
 
     function closeTrayMenu() {
         root.trayMenuTarget = null
     }
 
+    // ---- the menu's hover-out ---------------------------------------------
+    // Which tray item the cursor is on, or null — written by the icons' own
+    // MouseAreas. Only the icon that owns the open menu reads it: the plate
+    // hangs from that icon, so the cursor sitting there after a right-click
+    // must not count as having left. Right-clicking an icon and watching the
+    // plate retract under a still cursor would be the obvious failure.
+    property var trayHoveredItem: null
+    readonly property bool trayMenuAnchorHovered:
+        trayHoveredItem !== null && trayHoveredItem === trayMenuTarget
+    // "Inside" the menu: its plate, any submenu hanging off it, or the icon it
+    // belongs to. Everything else starts the grace below.
+    readonly property bool trayMenuInside: trayMenu.pointerInside || trayMenuAnchorHovered
+    // The menu retracts when the cursor leaves it, the way a native menu does.
+    // The grace is for the two gaps that are not a dismissal: the 4px between
+    // a row and its submenu, and the frame or two between leaving the icon and
+    // landing on the plate (the two are flush, so that one is only ever a
+    // frame). 200ms is long enough for both and short enough that a menu never
+    // outlives the cursor's departure.
+    Timer {
+        id: trayMenuLeaveGrace
+        interval: 200
+        onTriggered: if (!root.trayMenuInside) root.closeTrayMenu()
+    }
+    onTrayMenuInsideChanged: {
+        if (trayMenuInside)
+            trayMenuLeaveGrace.stop()
+        else if (trayMenuOpen)
+            trayMenuLeaveGrace.restart()
+    }
+    // The menu is only ever opened by a right-click on its own icon, so this
+    // is normally already inside — but a menu opened with the cursor anywhere
+    // else (an IPC route, a future bind) must not sit there forever.
+    onTrayMenuOpenChanged: {
+        if (trayMenuOpen) {
+            if (!trayMenuInside)
+                trayMenuLeaveGrace.restart()
+        } else {
+            trayMenuLeaveGrace.stop()
+        }
+    }
+
     function toggleTrayMenu(item) {
+        // an SNI with no dbusmenu has nothing to show. Opening on one would
+        // put the full-surface mask up over an empty plate, so a right-click
+        // there just dismisses whatever was open.
+        if (!item || !item.hasMenu) {
+            root.closeTrayMenu()
+            return
+        }
         root.trayMenuTarget = root.trayMenuTarget === item ? null : item
     }
 
@@ -2790,6 +2843,17 @@ Item {
                                 MouseArea {
                                     anchors.fill: parent
                                     acceptedButtons: Qt.LeftButton | Qt.RightButton
+                                    // hover is read, never acted on: it is what
+                                    // tells the bar whether the cursor is still
+                                    // on the icon that owns the open menu, so the
+                                    // menu does not retract out from under it
+                                    hoverEnabled: true
+                                    onContainsMouseChanged: {
+                                        if (containsMouse)
+                                            root.trayHoveredItem = modelData
+                                        else if (root.trayHoveredItem === modelData)
+                                            root.trayHoveredItem = null
+                                    }
                                     onClicked: function (mouse) {
                                         if (mouse.button === Qt.RightButton)
                                             root.toggleTrayMenu(modelData)
@@ -2980,7 +3044,10 @@ Item {
     MouseArea {
         id: trayMenuCatcher
         anchors.fill: parent
-        visible: root.trayMenuOpen
+        // showing, not open: the catcher holds the whole window while the
+        // plate shrinks away, so a click in that window is swallowed rather
+        // than reaching whatever the mask has not yet given back
+        visible: root.trayMenuShowing
         onClicked: root.closeTrayMenu()
     }
 
@@ -2989,8 +3056,19 @@ Item {
     // reads as belonging to that icon. Anchored off the window's top plus the
     // bar's own metrics rather than off topBand's bottom: topBand is a child
     // of the pill canvas, and the bar's bottom edge is a fixed place that does
-    // not depend on that nesting. TrayMenu hides itself when it has no handle,
-    // so the open state lives entirely in trayMenuTarget.
+    // not depend on that nesting.
+    //
+    // Flush, with no gap: the plate's top edge is the bar's bottom edge, which
+    // is why its top corners are square (see TrayMenu's plate canvas) — the
+    // menu reads as a panel hanging off the bar rather than a card floating
+    // near it. The width is fixed (TrayMenu.menuWidth) and the right edge is
+    // pinned to the tray pill, so every menu in every app lands in exactly the
+    // same box; only the height follows the row count.
+    //
+    // The open state lives in trayMenuTarget, but the menu outlives it by its
+    // own pop-out: dropping the target nulls menuHandle, and TrayMenu latches
+    // the handle it was rendering so the tree survives the 200ms shrink. Its
+    // pop is what trayMenuShowing (and with it the mask and the catcher) rides.
     TrayMenu {
         id: trayMenu
         menuHandle: root.trayMenuTarget ? root.trayMenuTarget.menu : null
@@ -2998,7 +3076,7 @@ Item {
         // anchor — see that property for why an anchor cannot reach it
         x: root.trayRight - width
         anchors.top: root.top
-        anchors.topMargin: root.topMargin + root.barHeight + 6
+        anchors.topMargin: root.topMargin + root.barHeight
         onCloseRequested: root.closeTrayMenu()
     }
 }

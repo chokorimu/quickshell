@@ -44,22 +44,25 @@ ShellRoot {
                 // that strip and swallow clicks below the bar's edge — so it is
                 // pinned to the bar's own 40px band.
                 //
-                // While a tray menu is open the whole window becomes the mask
+                // While a tray menu is showing the whole window becomes the mask
                 // instead, and the radii go: the click-outside catcher fills
                 // the window and has to be able to receive a click anywhere on
                 // it, or a menu opened from the tray could only be dismissed
-                // by hitting the pill's own 40px band. The window is still
+                // by hitting the pill's own 40px band. "Showing" rather than
+                // "open" — the menu shrinks away over 200ms after the target is
+                // dropped, and a mask that snapped back on the open flag would
+                // clip the plate mid-animation. The window is still
                 // only as tall as windowHeight, so this reaches the top band
                 // of the screen, not the whole desktop.
                 mask: Region {
-                    x: bar.trayMenuOpen ? 0 : bar.pillItem.x
-                    y: bar.trayMenuOpen ? 0 : bar.pillItem.y
-                    width: bar.trayMenuOpen ? barWindow.width : bar.pillItem.width
-                    height: bar.trayMenuOpen ? barWindow.height : bar.barHeight
-                    topLeftRadius: bar.trayMenuOpen ? 0 : bar.pillItem.radius
-                    topRightRadius: bar.trayMenuOpen ? 0 : bar.pillItem.radius
-                    bottomLeftRadius: bar.trayMenuOpen ? 0 : bar.pillItem.radius
-                    bottomRightRadius: bar.trayMenuOpen ? 0 : bar.pillItem.radius
+                    x: bar.trayMenuShowing ? 0 : bar.pillItem.x
+                    y: bar.trayMenuShowing ? 0 : bar.pillItem.y
+                    width: bar.trayMenuShowing ? barWindow.width : bar.pillItem.width
+                    height: bar.trayMenuShowing ? barWindow.height : bar.barHeight
+                    topLeftRadius: bar.trayMenuShowing ? 0 : bar.pillItem.radius
+                    topRightRadius: bar.trayMenuShowing ? 0 : bar.pillItem.radius
+                    bottomLeftRadius: bar.trayMenuShowing ? 0 : bar.pillItem.radius
+                    bottomRightRadius: bar.trayMenuShowing ? 0 : bar.pillItem.radius
 
                     // The card's region is explicit for the same class of
                     // reason: the card pops open scaled, and a Region tracks
