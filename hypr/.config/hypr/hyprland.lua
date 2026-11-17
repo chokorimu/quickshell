@@ -125,6 +125,10 @@ hl.device({
 hl.config({
     xwayland = {
         force_zero_scaling = true
+    },
+
+    render = {
+        cm_auto_hdr = 0
     }
 })
 
