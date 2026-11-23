@@ -4,7 +4,7 @@
 
 hl.on("hyprland.start", function() 
     hl.exec_cmd("discord")
-    hl.exec_cmd("otd-daemon")
+    -- hl.exec_cmd("otd-daemon")
     hl.exec_cmd("awww-daemon")
     hl.exec_cmd("NetworkManager")
     hl.exec_cmd("qs")
