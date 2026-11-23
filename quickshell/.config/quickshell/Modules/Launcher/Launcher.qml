@@ -95,6 +95,20 @@ PanelWindow {
     focusable: true
     exclusionMode: ExclusionMode.Ignore
 
+    // Overlay, not Top — the launcher has to survive a fullscreen window.
+    // Hyprland fades out every Top layer while a covering fullscreen
+    // window exists on the monitor (CLayerSurface::isHiddenByFullscreen
+    // → alpha 0 for TOP without LAYER_FLAG_ABOVE_FULLSCREEN), and
+    // InputManager's hit test then classes such a layer as unfocusable
+    // under HAS_EXCLUSIVE_FULLSCREEN, routing pointer and keyboard to the
+    // fullscreen window instead: the card still pops (it is our own
+    // paint) but neither a click nor Enter reaches it. Overlay layers are
+    // exempt from both checks, which is why the notification stack stayed
+    // visible and working over fullscreen already. Probe-verified on a
+    // scratch output with a real fullscreen window mapped: a Top probe
+    // read alpha 0, an Overlay probe read alpha 1.
+    WlrLayershell.layer: WlrLayershell.Overlay
+
     // Keyboard priority while the card is up. A layer surface's
     // keyboard interactivity defaults to None, and the window-level
     // `focusable` above does NOT override it — with None the
@@ -259,37 +273,15 @@ PanelWindow {
 
     function launch(entry) {
         if (!entry) return
-        // DesktopEntry.command is a QStringList — hand it to Process as-is.
-        // A running GUI app keeps proc.running true, so setting
-        // running = true again is a silent no-op and drops the launch.
-        // One-deep queue: if proc is running, stash in pending.
-        if (proc.running) {
-            if (!pending) pending = []
-            pending.push(entry.command)
-            return
-        }
-        // Start next launch (pending first, else the incoming one)
-        const cmd = (pending && pending.length) ? pending.shift() : entry.command
-        proc.command = cmd
-        proc.running = true
+        // DesktopEntry.command is a QStringList; execDetached takes one as-is.
+        // Fire and forget — a tracked Process is the wrong tool here: a GUI
+        // app keeps it running for the app's whole life, so every later
+        // `running = true` is a silent no-op and the launch is dropped (that
+        // is what the old pending queue worked around). execDetached retains
+        // no state, so any number of long-lived apps can be started in a row.
+        Quickshell.execDetached(entry.command)
         root.close()
     }
-
-    Connections {
-        target: proc
-        function onRunningChanged() {
-            if (!proc.running && pending && pending.length) {
-                const cmd = pending.shift()
-                proc.command = cmd
-                proc.running = true
-                root.close()
-            }
-        }
-    }
-
-    property var pending: []
-
-    Process { id: proc }
 
     // ---- ipc ------------------------------------------------------------
     IpcHandler {
